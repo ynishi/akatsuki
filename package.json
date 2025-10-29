@@ -1,0 +1,22 @@
+{
+  "name": "akatsuki",
+  "private": true,
+  "description": "VITE+Supabase+Shuttle「Akatsuki」高速開発テンプレート",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=app-frontend",
+    "build:frontend": "npm run build --workspace=app-frontend",
+    "preview:frontend": "npm run preview --workspace=app-frontend",
+    "dev:backend": "cd packages/app-backend && cargo shuttle run",
+    "build:backend": "cd packages/app-backend && cargo build --release",
+    "check:backend": "cd packages/app-backend && cargo check",
+    "test:backend": "cd packages/app-backend && cargo test",
+    "deploy:backend": "cd packages/app-backend && cargo shuttle deploy"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
