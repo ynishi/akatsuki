@@ -242,10 +242,35 @@ src/
 - `signUp(email, password, metadata)` - Email/Password サインアップ
 - `signIn(email, password)` - Email/Password ログイン
 - `signInWithMagicLink(email)` - Magic Link ログイン
-- `signInWithOAuth(provider)` - OAuth ログイン（拡張用）
+- `signInWithOAuth(provider)` - OAuth ログイン（Google, GitHub 等）
 - `signOut()` - ログアウト
-- `resetPassword(email)` - パスワードリセット
+- `resetPassword(email)` - パスワードリセットメール送信
 - `updatePassword(newPassword)` - パスワード更新
+
+**OAuth ログイン:**
+```javascript
+// LoginForm.jsx に実装済み
+<Button onClick={() => signInWithOAuth('google')}>
+  Google でログイン
+</Button>
+<Button onClick={() => signInWithOAuth('github')}>
+  GitHub でログイン
+</Button>
+```
+
+**サポートされているプロバイダー:**
+- Google, GitHub, GitLab, Bitbucket
+- Azure, Facebook, Twitter, Discord
+- Slack, Apple など
+
+**OAuth 設定（Supabase Dashboard）:**
+1. Authentication → Providers
+2. プロバイダーを有効化
+3. Client ID / Client Secret を設定
+
+**パスワードリセットフロー:**
+1. `/forgot-password` - メールアドレス入力 → リセットメール送信
+2. `/reset-password` - 新パスワード入力（メールのリンクから）
 
 **使用例:**
 ```javascript
@@ -318,6 +343,69 @@ function MyComponent() {
 4. **RLS（Row Level Security）と連携**
    - Supabase の RLS が有効な場合、認証済みユーザーのみアクセス可能
    - Repository での CRUD 操作は自動的に認証状態を使用
+
+5. **Profile 自動作成（Database Trigger）**
+   - ユーザー登録時に自動的に `profiles` レコードが作成される
+   - `auth.users` への INSERT 後、Trigger が発火
+   - metadata から `username`, `display_name` を取得（未指定時はメールアドレスのプレフィックス使用）
+   - username の重複時は自動的に user_id を付与して一意性を確保
+
+   **Trigger の仕組み:**
+   ```sql
+   -- SignupForm で metadata 指定
+   signUp(email, password, {
+     username: 'myusername',
+     display_name: 'My Display Name'
+   })
+
+   -- ↓ auth.users にユーザー作成
+   -- ↓ Trigger 発火: handle_new_user()
+   -- ↓ profiles テーブルに自動作成
+   ```
+
+   **マイグレーション:**
+   - `20251029090845_add_profile_creation_trigger.sql`
+   - EXCEPTION 処理で username 重複時も安全に作成
+
+6. **ロールベースアクセス制御（Role-Based Access Control）**
+   - profiles テーブルに role カラムを追加
+   - デフォルトロール: `user`
+   - 利用可能なロール: `user`, `admin`, `moderator`
+
+   **AuthContext でロール判定:**
+   ```javascript
+   const { profile, isAdmin, isModerator } = useAuth()
+
+   // 管理者のみアクセス可能
+   if (isAdmin) {
+     // 管理者機能
+   }
+
+   // モデレーター以上でアクセス可能
+   if (isModerator) {
+     // モデレーター機能
+   }
+
+   // プロフィールから直接判定
+   if (profile?.isAdmin()) {
+     // 管理者機能
+   }
+   ```
+
+   **ロール設定（サインアップ時）:**
+   ```javascript
+   // metadata で role を指定
+   signUp(email, password, {
+     username: 'admin_user',
+     display_name: 'Admin User',
+     role: 'admin'  // デフォルトは 'user'
+   })
+   ```
+
+   **マイグレーション:**
+   - `20251029093327_add_role_to_profiles.sql`
+   - CHECK 制約で 'user', 'admin', 'moderator' のみ許可
+   - Trigger が自動的に metadata から role を取得
 
 ## 5. 主要機能 (Key Features)
 

@@ -15,6 +15,7 @@ export class UserProfile {
     displayName = null,
     avatarUrl = null,
     bio = null,
+    role = 'user',
     createdAt = null,
     updatedAt = null,
   } = {}) {
@@ -24,6 +25,7 @@ export class UserProfile {
     this.displayName = displayName
     this.avatarUrl = avatarUrl
     this.bio = bio
+    this.role = role // user, admin, moderator
     this.createdAt = createdAt
     this.updatedAt = updatedAt
   }
@@ -41,6 +43,7 @@ export class UserProfile {
       displayName: data.display_name,
       avatarUrl: data.avatar_url,
       bio: data.bio,
+      role: data.role,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     })
@@ -87,5 +90,21 @@ export class UserProfile {
    */
   isComplete() {
     return !!(this.username && this.displayName)
+  }
+
+  /**
+   * 管理者権限を持っているかチェック
+   * @returns {boolean}
+   */
+  isAdmin() {
+    return this.role === 'admin'
+  }
+
+  /**
+   * モデレーター権限を持っているかチェック
+   * @returns {boolean}
+   */
+  isModerator() {
+    return this.role === 'moderator' || this.role === 'admin'
   }
 }
