@@ -34,6 +34,12 @@ akatsuki/
 ├── packages/               <-- アプリケーションと共通ライブラリ
 │   ├── app-frontend/       <-- FE (VITE + React + Tailwind)
 │   │   ├── src/
+│   │   │   ├── components/     <-- UIコンポーネント
+│   │   │   ├── pages/          <-- ページコンポーネント
+│   │   │   ├── models/         <-- ドメインモデル層
+│   │   │   ├── repositories/   <-- データアクセス層 (DB CRUD)
+│   │   │   ├── services/       <-- サービス層 (Edge Functions等)
+│   │   │   └── lib/            <-- インフラ層 (supabase.js等)
 │   │   ├── .env            <-- (Git管理外) Frontend環境変数
 │   │   ├── .env.example    <-- Frontend環境変数サンプル
 │   │   └── package.json
@@ -49,6 +55,10 @@ akatsuki/
 │   └── (将来の拡張)
 │       ├── ui-components/  <-- shadcn/ui の共通コンポーネント
 │       └── aigen-hooks/    <-- useAIGen フック
+│
+├── supabase/               <-- Supabase設定・マイグレーション
+│   ├── migrations/         <-- DBマイグレーションファイル
+│   └── .temp/              <-- (Git管理外) CLI一時ファイル
 │
 ├── docs/                   <-- ドキュメント
 │   ├── guide/              <-- 【推奨】再利用可能な手順書
@@ -69,6 +79,115 @@ akatsuki/
 | **バックエンド** | **Shuttle + Axum (Rust)** | Rust BEのデファクトスタンダード |
 | **データベース** | **Supabase (PostgreSQL)** | 開発環境は `Supabase-dev` を共有 |
 | **リポジトリ** | **モノレポ (NPM Workspaces)** | ルートの `package.json` で全体管理 |
+
+### 4.1. フロントエンドアーキテクチャパターン
+
+Akatsuki では、保守性と拡張性を重視したレイヤードアーキテクチャを採用しています。
+
+#### ディレクトリ構成と責務
+
+```
+src/
+├── components/      # UIコンポーネント（Presentational）
+├── pages/          # ページコンポーネント（Container）
+├── models/         # ドメインモデル層
+├── repositories/   # データアクセス層（DB CRUD）
+├── services/       # サービス層（Edge Functions等）
+└── lib/            # インフラ層（Supabaseクライアント等）
+```
+
+**各層の責務:**
+
+1. **lib/** - インフラ層
+   - Supabaseクライアントの初期化のみ
+   - 外部サービスとの接続設定
+   - **例:** `supabase.js`
+
+2. **models/** - ドメインモデル層
+   - ビジネスロジックとデータ構造の定義
+   - DB形式 ↔ アプリ形式の変換（`fromDatabase()`, `toDatabase()`）
+   - **例:** `UserProfile.js`, `Post.js`
+
+3. **repositories/** - データアクセス層
+   - Supabase（DB）への CRUD 操作を抽象化
+   - エラーハンドリングの統一
+   - **例:** `UserProfileRepository.js`
+   - **パターン:**
+     ```javascript
+     // Repository でデータ取得
+     const data = await UserProfileRepository.findByUserId(userId)
+     // Model でドメインオブジェクトに変換
+     const profile = UserProfile.fromDatabase(data)
+     ```
+
+4. **services/** - サービス層
+   - Supabase Edge Functions の呼び出しを抽象化
+   - 外部API連携
+   - **例:** `EdgeFunctionService.js`, `AIGenerationService.js`
+   - **パターン:**
+     ```javascript
+     // Service で Edge Function 呼び出し
+     const result = await EdgeFunctionService.invoke('my-function', payload)
+     // または認証付き
+     const result = await EdgeFunctionService.invokeWithAuth('my-function', payload)
+     ```
+
+5. **components/** - UIコンポーネント
+   - 再利用可能なUI部品
+   - Presentationalコンポーネント
+   - **例:** `Button.jsx`, `Card.jsx`, `UserCard.jsx`
+
+6. **pages/** - ページコンポーネント
+   - 画面全体の構成
+   - Containerコンポーネント（State管理）
+   - Repository/Serviceの呼び出し
+   - **例:** `HomePage.jsx`, `ProfilePage.jsx`
+
+#### 実装例
+
+**データフロー全体:**
+```javascript
+// pages/ProfilePage.jsx
+import { UserProfileRepository } from '../repositories'
+import { UserProfile } from '../models'
+import { EdgeFunctionService } from '../services'
+
+// 1. Repository でDB取得
+const data = await UserProfileRepository.findByUserId(userId)
+
+// 2. Model で変換
+const profile = UserProfile.fromDatabase(data)
+
+// 3. Model で更新データ作成
+const updated = new UserProfile({ ...profile, displayName: 'New Name' })
+
+// 4. Repository で保存
+await UserProfileRepository.update(userId, updated.toUpdateDatabase())
+
+// 5. Service で Edge Function 呼び出し
+const aiResult = await EdgeFunctionService.invoke('generate-bio', {
+  username: profile.username
+})
+```
+
+#### ベストプラクティス
+
+1. **lib/supabase.js は肥大化させない**
+   - クライアント初期化のみに専念
+   - テーブル操作は Repository へ
+   - Edge Functions 呼び出しは Service へ
+
+2. **Model は常に使う**
+   - DBレコードを直接使わず、必ず Model 経由で変換
+   - `fromDatabase()` と `toDatabase()` を必ず実装
+
+3. **Repository はテーブル単位**
+   - 1テーブル = 1Repository
+   - 例: `profiles` テーブル → `UserProfileRepository`
+
+4. **Service は機能単位**
+   - Edge Functions のラッパー
+   - 外部API連携
 
 ## 5. 主要機能 (Key Features)
 
@@ -99,10 +218,51 @@ akatsuki/
 
 ### 6.1. ワークフロー (Workflow)
 
-#### DB運用
+#### DB運用（マイグレーション）
 * **`Supabase-dev` 環境を必ず作成し、チームで共有します。**
 * **ローカルでのDB開発は原則禁止**し、`Supabase-dev` へ直接変更を加えるフローを採用します。
 * 詳細なセットアップ手順は `README.md` の「4. Supabase-dev プロジェクトのセットアップ」を参照してください。
+
+**マイグレーション手順:**
+```bash
+# 1. 新規マイグレーション作成
+npm run supabase:migration:new create_users_table
+
+# 2. supabase/migrations/ 配下にSQLファイルが生成される
+
+# 3. SQLを記述後、Supabaseに適用
+npm run supabase:push
+```
+
+#### Edge Functions運用
+* **Supabase Edge Functions** はサーバーレス関数として、API処理や外部連携を実装します。
+* Frontend の `services/` レイヤーから呼び出します。
+
+**Edge Functions手順:**
+```bash
+# 1. 新規Function作成
+npm run supabase:function:new my-function
+
+# 2. supabase/functions/my-function/index.ts にコード実装
+
+# 3. Supabaseにデプロイ
+npm run supabase:function:deploy my-function
+
+# 4. すべてのFunctionsをデプロイ
+npm run supabase:function:deploy
+```
+
+**Frontend からの呼び出し:**
+```javascript
+// services/EdgeFunctionService.js に個別関数を追加
+export async function callMyFunction(payload) {
+  return EdgeFunctionService.invoke('my-function', payload)
+}
+
+// コンポーネントから使用
+import { callMyFunction } from './services'
+const result = await callMyFunction({ data: '...' })
+```
 
 #### ローカル専用領域 (`workspace/`)
 * ルートの `workspace/` ディレクトリは **`.gitignore` されています**。
@@ -237,6 +397,18 @@ npm run check:backend     # コンパイルチェック
 npm run build:backend     # リリースビルド
 npm run test:backend      # テスト実行
 npm run deploy:backend    # Shuttleへデプロイ
+```
+
+### Supabase
+```bash
+# マイグレーション
+npm run supabase:link             # Supabaseプロジェクトをリンク
+npm run supabase:migration:new    # 新規マイグレーション作成
+npm run supabase:push             # マイグレーション適用
+
+# Edge Functions
+npm run supabase:function:new     # 新規Function作成
+npm run supabase:function:deploy  # Functionデプロイ
 ```
 
 ---

@@ -33,3 +33,6 @@ Thumbs.db
 
 # Agents
 .claude/
+
+# Supabase
+supabase/**/.temp/

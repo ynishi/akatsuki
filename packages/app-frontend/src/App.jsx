@@ -7,10 +7,54 @@ import { Slider } from './components/ui/slider'
 import { Input } from './components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './components/ui/dialog'
+import { UserProfileRepository } from './repositories'
+import { UserProfile } from './models'
+import { callHelloFunction } from './services'
 
 function App() {
   const [count, setCount] = useState(0)
   const [sliderValue, setSliderValue] = useState([50])
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [helloResult, setHelloResult] = useState(null)
+  const [helloLoading, setHelloLoading] = useState(false)
+
+  // Repository使用例: プロフィール作成
+  // 注: このサンプルは実際のユーザー認証が必要です
+  // profilesテーブルはRLS有効なので、認証済みユーザーIDが必要
+  const handleCreateProfile = async () => {
+    try {
+      setLoading(true)
+      const newProfile = new UserProfile({
+        userId: 'example-user-id',
+        username: 'sample_user',
+        displayName: 'Sample User',
+        bio: 'Hello, Akatsuki!',
+      })
+      const savedData = await UserProfileRepository.create(newProfile.toDatabase())
+      const userProfile = UserProfile.fromDatabase(savedData)
+      setProfile(userProfile)
+    } catch (error) {
+      console.error('プロフィール作成エラー:', error)
+      setProfile({ error: 'RLS有効のため認証が必要です' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Edge Function使用例: hello-world呼び出し
+  const handleCallHelloFunction = async () => {
+    try {
+      setHelloLoading(true)
+      const result = await callHelloFunction('Akatsuki')
+      setHelloResult(result)
+    } catch (error) {
+      console.error('Edge Function呼び出しエラー:', error)
+      setHelloResult({ error: error.message })
+    } finally {
+      setHelloLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 p-8">
@@ -133,6 +177,92 @@ function App() {
                 </div>
               </DialogContent>
             </Dialog>
+          </CardContent>
+        </Card>
+
+        {/* Repository Pattern Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Repository Pattern 📁</CardTitle>
+            <CardDescription>
+              models/ と repositories/ を使ったデータアクセス例
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700">
+              <div>const profile = new UserProfile(&#123;...&#125;)</div>
+              <div>const data = await UserProfileRepository.create(profile.toDatabase())</div>
+              <div>const saved = UserProfile.fromDatabase(data)</div>
+            </div>
+            <Button variant="gradient" onClick={handleCreateProfile} disabled={loading}>
+              {loading ? 'Creating...' : 'Create Profile Example'}
+            </Button>
+            {profile && (
+              <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg">
+                {profile.error ? (
+                  <>
+                    <p className="font-bold mb-2 text-orange-600">⚠️ Note:</p>
+                    <p className="text-sm text-gray-700">{profile.error}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      認証機能実装後に動作します
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold mb-2">✅ Profile Created:</p>
+                    <p className="text-sm text-gray-700">
+                      <strong>Display:</strong> {profile.getDisplayName()}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <strong>Username:</strong> {profile.username}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Edge Function Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Edge Function ⚡</CardTitle>
+            <CardDescription>
+              services/ を使った Supabase Edge Functions 呼び出し例
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700">
+              <div>import &#123; callHelloFunction &#125; from './services'</div>
+              <div>const result = await callHelloFunction('Akatsuki')</div>
+              <div>console.log(result.message)</div>
+            </div>
+            <Button variant="gradient" onClick={handleCallHelloFunction} disabled={helloLoading}>
+              {helloLoading ? 'Calling...' : 'Call hello-world Function'}
+            </Button>
+            {helloResult && (
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg">
+                {helloResult.error ? (
+                  <>
+                    <p className="font-bold mb-2 text-red-600">❌ Error:</p>
+                    <p className="text-sm text-gray-700">{helloResult.error}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold mb-2">✅ Response:</p>
+                    <p className="text-sm text-gray-700">
+                      <strong>Message:</strong> {helloResult.message}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <strong>Function:</strong> {helloResult.functionName}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <strong>Timestamp:</strong> {helloResult.timestamp}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,0 +1,1 @@
+export { UserProfileRepository } from './UserProfileRepository'
