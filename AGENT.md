@@ -413,17 +413,66 @@ function MyComponent() {
 
 ### 5.1. AIGen (AI Generation) 統合基盤
 
-* **Backend (Axum):**
+Akatsuki では、複数のAIプロバイダー（OpenAI, Anthropic, Gemini）を統一的に扱える基盤を標準搭載しています。
+
+#### Frontend実装（実装済み）
+
+**useAIGen フック:**
+```javascript
+import { useAIGen } from '@/hooks/useAIGen'
+
+function MyComponent() {
+  const { chat, generateImage, loading, error } = useAIGen('openai')
+
+  // チャット
+  const response = await chat('こんにちは')
+
+  // 画像生成
+  const image = await generateImage('猫の絵')
+}
+```
+
+**ModelSelector コンポーネント:**
+```javascript
+import { ModelSelector } from '@/components/ai/ModelSelector'
+
+function MyComponent() {
+  const [modelId, setModelId] = useState(null)
+
+  return (
+    <ModelSelector
+      value={modelId}
+      onChange={setModelId}
+      // Vision対応モデルのみ表示
+      filters={{ supportsImageInput: true }}
+    />
+  )
+}
+```
+
+**実装済み機能:**
+- `useAIGen` - プロバイダー切り替え可能なAIフック
+  - `chat()` - チャット補完
+  - `chatStream()` - ストリーミングチャット
+  - `generateImage()` - 画像生成
+  - `editImage()` - 画像編集
+  - `embed()` - 埋め込み生成
+- `AIService` - プロバイダー統合層（OpenAI, Anthropic, Gemini対応）
+- `AIModel` - モデル定義（DB管理）
+- `AIModelRepository` - モデル情報取得（Supabase）
+- `ModelSelector` - UIモデル選択コンポーネント（shadcn/ui）
+
+**Supabase Edge Functions:**
+- `ai-chat` - AIプロバイダー統一チャットエンドポイント（現在はモック実装）
+
+#### Backend実装（Axum）
+
+**エンドポイント雛形:**
   - `packages/app-backend/src/main.rs` に以下の3つのエンドポイント雛形を実装済み：
     1. **画像生成 (Text-to-Image):** `/api/aigen/text-to-image`
     2. **Img2Img (Image-to-Image):** `/api/aigen/image-to-image`
     3. **Agent実行 (LLMタスク):** `/api/aigen/agent-execute`
   - Supabase (PostgreSQL) 連携基盤（`src/db.rs`）
-  - 将来的に `LLM_TOOLKIT` を統合予定
-
-* **Frontend (React):**
-  - 将来的に `useAIGen` フックを `packages/aigen-hooks/` に実装予定
-  - モデル切り替え、プロンプトテンプレート調整機能
 
 ### 5.2. shadcn/ui コンポーネント (将来の拡張)
 
