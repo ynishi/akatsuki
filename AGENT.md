@@ -189,6 +189,136 @@ const aiResult = await EdgeFunctionService.invoke('generate-bio', {
    - Edge Functions のラッパー
    - 外部API連携
 
+### 4.2. 認証アーキテクチャ (Authentication)
+
+Akatsuki では、Supabase Auth を使用した公開/非公開ページ混在型の認証システムを標準実装しています。
+
+#### 認証システム構成
+
+```
+src/
+├── contexts/
+│   └── AuthContext.jsx       # 認証状態管理（Context API）
+├── components/
+│   └── auth/
+│       ├── AuthGuard.jsx     # Private ルート保護コンポーネント
+│       ├── LoginForm.jsx     # ログインフォーム
+│       └── SignupForm.jsx    # サインアップフォーム
+├── pages/
+│   ├── LoginPage.jsx         # ログインページ
+│   ├── SignupPage.jsx        # サインアップページ
+│   ├── AdminDashboard.jsx    # 管理画面（Private）
+│   └── HomePage.jsx          # 公開ページ（Public）
+└── App.jsx                   # ルーティング設定
+```
+
+#### ルーティングパターン
+
+**Public Routes（ログイン不要）:**
+```javascript
+<Route path="/" element={<HomePage />} />
+<Route path="/login" element={<LoginPage />} />
+<Route path="/signup" element={<SignupPage />} />
+```
+
+**Private Routes（ログイン必須）:**
+```javascript
+<Route
+  path="/admin"
+  element={
+    <AuthGuard>
+      <AdminDashboard />
+    </AuthGuard>
+  }
+/>
+```
+
+#### 認証機能
+
+**AuthContext が提供する機能:**
+- `user` - 現在のログインユーザー情報
+- `session` - Supabase セッション情報
+- `loading` - 認証状態ローディング
+- `signUp(email, password, metadata)` - Email/Password サインアップ
+- `signIn(email, password)` - Email/Password ログイン
+- `signInWithMagicLink(email)` - Magic Link ログイン
+- `signInWithOAuth(provider)` - OAuth ログイン（拡張用）
+- `signOut()` - ログアウト
+- `resetPassword(email)` - パスワードリセット
+- `updatePassword(newPassword)` - パスワード更新
+
+**使用例:**
+```javascript
+import { useAuth } from '../contexts/AuthContext'
+
+function MyComponent() {
+  const { user, signIn, signOut } = useAuth()
+
+  const handleLogin = async () => {
+    const { error } = await signIn(email, password)
+    if (error) console.error(error)
+  }
+
+  return (
+    <div>
+      {user ? (
+        <button onClick={signOut}>ログアウト</button>
+      ) : (
+        <button onClick={handleLogin}>ログイン</button>
+      )}
+    </div>
+  )
+}
+```
+
+#### AuthGuard の動作
+
+1. **ローディング中**: スピナーを表示（フラッシュ防止）
+2. **未ログイン**: `/login` へリダイレクト
+3. **ログイン済み**: 子コンポーネントを表示
+
+```javascript
+// 使用例
+<Route
+  path="/admin/*"
+  element={
+    <AuthGuard>
+      <AdminLayout />
+    </AuthGuard>
+  }
+/>
+```
+
+#### ベストプラクティス
+
+1. **AuthProvider は App の最上位に配置**
+   ```javascript
+   <BrowserRouter>
+     <AuthProvider>
+       <Routes>...</Routes>
+     </AuthProvider>
+   </BrowserRouter>
+   ```
+
+2. **Public/Private を明確に分離**
+   - Public: /, /login, /signup, /about など
+   - Private: /admin/*, /dashboard/*, /settings/* など
+
+3. **ログイン後のリダイレクト**
+   ```javascript
+   const { signIn } = useAuth()
+   const navigate = useNavigate()
+
+   const handleLogin = async () => {
+     const { error } = await signIn(email, password)
+     if (!error) navigate('/admin')
+   }
+   ```
+
+4. **RLS（Row Level Security）と連携**
+   - Supabase の RLS が有効な場合、認証済みユーザーのみアクセス可能
+   - Repository での CRUD 操作は自動的に認証状態を使用
+
 ## 5. 主要機能 (Key Features)
 
 このテンプレートは、AI開発を加速するための基盤を標準搭載しています。
