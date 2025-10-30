@@ -779,6 +779,78 @@ npm run supabase:function:deploy  # Functionデプロイ
 
 ---
 
+## 11. Supabase 設定 (Supabase Configuration)
+
+### Edge Functions
+
+現在デプロイされているEdge Functions:
+
+1. **ai-chat** - マルチプロバイダーLLM API
+   - Providers: OpenAI, Anthropic (Claude), Google (Gemini)
+   - Default models:
+     - OpenAI: `gpt-4o-mini`
+     - Anthropic: `claude-sonnet-4-5-20250929`
+     - Gemini: `gemini-2.5-flash`
+
+2. **upload-file** - ファイルアップロード
+   - Public/Private バケット対応
+   - 最大サイズ: 10MB
+
+3. **create-signed-url** - Signed URL 生成
+   - プライベートファイル用
+
+### Storage Buckets
+
+1. **uploads** (Public)
+   - 公開ファイル用
+   - RLS: ユーザーは自分のフォルダにアップロード可能
+   - 誰でも読み取り可能
+
+2. **private_uploads** (Private)
+   - プライベートファイル用
+   - RLS: ユーザーは自分のファイルのみアクセス可能
+   - Signed URL必須
+
+### Required Secrets
+
+```bash
+# LLM Provider API Keys
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=AIza...
+
+# Supabase (自動設定)
+SUPABASE_URL=https://...supabase.co
+SUPABASE_ANON_KEY=eyJh...
+SUPABASE_SERVICE_ROLE_KEY=eyJh...
+SUPABASE_DB_URL=postgresql://...
+```
+
+### Secrets 設定コマンド
+
+```bash
+# 一括設定
+npx supabase secrets set --env-file .env.secrets
+
+# 個別設定
+npx supabase secrets set OPENAI_API_KEY=sk-...
+npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+npx supabase secrets set GEMINI_API_KEY=AIza...
+
+# 確認
+npx supabase secrets list
+```
+
+### Database Tables
+
+- **llm_call_logs**: LLM API呼び出し履歴
+- **user_quotas**: ユーザーごとの月間使用制限
+- **profiles**: ユーザープロフィール情報
+
+詳細は `docs/SUPABASE_CONFIGURATION.md` を参照してください。
+
+---
+
 **安輝（あき）より:**
 
 この `AGENT.md` が、私たちの「Akatsuki」の安定性と輝きを支える基盤となります。

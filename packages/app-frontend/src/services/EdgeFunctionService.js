@@ -14,14 +14,27 @@ export class EdgeFunctionService {
   /**
    * Edge Function を呼び出す
    * @param {string} functionName - 関数名
-   * @param {Object} payload - リクエストペイロード
+   * @param {Object|FormData} payload - リクエストペイロード
+   * @param {Object} options - オプション
+   * @param {boolean} options.isFormData - FormDataかどうか
    * @returns {Promise<Object>} レスポンスデータ
    */
-  static async invoke(functionName, payload = {}) {
+  static async invoke(functionName, payload = {}, options = {}) {
     try {
-      const { data, error } = await supabase.functions.invoke(functionName, {
+      const { isFormData = false } = options
+
+      const invokeOptions = {
         body: payload,
-      })
+      }
+
+      // FormDataの場合、Content-Typeヘッダーを設定しない（自動設定される）
+      if (!isFormData) {
+        invokeOptions.headers = {
+          'Content-Type': 'application/json',
+        }
+      }
+
+      const { data, error } = await supabase.functions.invoke(functionName, invokeOptions)
 
       if (error) {
         console.error(`Edge Function '${functionName}' エラー:`, error)

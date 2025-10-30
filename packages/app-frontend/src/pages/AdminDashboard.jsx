@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { UserProfileRepository } from '../repositories'
+import { FileUpload } from '../components/storage/FileUpload'
 
 export function AdminDashboard() {
   const { user, signOut } = useAuth()
@@ -12,6 +13,7 @@ export function AdminDashboard() {
   const [profile, setProfile] = useState(null)
   const [profileError, setProfileError] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState([])
 
   // Load profile after page mount (after redirect)
   const loadProfile = useCallback(async () => {
@@ -42,6 +44,11 @@ export function AdminDashboard() {
 
   const handleManualFetch = () => {
     loadProfile()
+  }
+
+  const handleUploadComplete = (results) => {
+    console.log('Upload complete:', results)
+    setUploadedFiles([...uploadedFiles, ...results])
   }
 
   return (
@@ -177,6 +184,53 @@ export function AdminDashboard() {
                 レポート
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* File Upload Demo */}
+        <Card>
+          <CardHeader>
+            <CardTitle>📁 ファイルアップロード</CardTitle>
+            <CardDescription>
+              Supabase Storageへのファイルアップロードデモ
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FileUpload
+              onUploadComplete={handleUploadComplete}
+              options={{
+                bucket: 'uploads',
+                folder: 'admin',
+                maxSizeMB: 10,
+                allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'],
+                multiple: true,
+              }}
+            />
+
+            {/* Uploaded Files List */}
+            {uploadedFiles.length > 0 && (
+              <div className="mt-6">
+                <p className="font-bold mb-2">アップロード済みファイル:</p>
+                <div className="space-y-2">
+                  {uploadedFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-green-50 border border-green-200 rounded-lg"
+                    >
+                      <p className="text-sm font-medium text-green-900">{file.filePath}</p>
+                      <a
+                        href={file.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        ファイルを開く
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
