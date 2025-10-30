@@ -199,7 +199,7 @@ export function AdminDashboard() {
             <FileUpload
               onUploadComplete={handleUploadComplete}
               options={{
-                bucket: 'uploads',
+                isPublic: true, // Use PublicStorageService
                 folder: 'admin',
                 maxSizeMB: 10,
                 allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'],
@@ -217,15 +217,24 @@ export function AdminDashboard() {
                       key={index}
                       className="p-3 bg-green-50 border border-green-200 rounded-lg"
                     >
-                      <p className="text-sm font-medium text-green-900">{file.filePath}</p>
-                      <a
-                        href={file.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        ファイルを開く
-                      </a>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-green-900">
+                          {file.storagePath || file.filePath}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          ID: {file.id?.substring(0, 8)}... | Bucket: {file.bucket}
+                        </p>
+                      </div>
+                      {file.publicUrl && (
+                        <a
+                          href={file.publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline inline-block mt-2"
+                        >
+                          ファイルを開く →
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -12,6 +12,9 @@ import { UserProfileRepository, UserQuotaRepository } from '../repositories'
 import { UserProfile } from '../models'
 import { callHelloFunction } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
+import { PublicStorageService } from '../services/PublicStorageService'
+import { PrivateStorageService } from '../services/PrivateStorageService'
+import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
 
 export function HomePage() {
@@ -28,6 +31,18 @@ export function HomePage() {
   const [llmResult, setLlmResult] = useState(null)
   const [llmLoading, setLlmLoading] = useState(false)
   const [quota, setQuota] = useState(null)
+
+  // Public Storage states
+  const [publicFile, setPublicFile] = useState(null)
+  const [publicUploadResult, setPublicUploadResult] = useState(null)
+  const [publicUploading, setPublicUploading] = useState(false)
+
+  // Private Storage states
+  const [privateFile, setPrivateFile] = useState(null)
+  const [privateUploadResult, setPrivateUploadResult] = useState(null)
+  const [privateUploading, setPrivateUploading] = useState(false)
+  const [privateFileUrl, setPrivateFileUrl] = useState(null)
+  const [urlLoading, setUrlLoading] = useState(false)
 
   // Repository使用例: プロフィール作成
   // 注: このサンプルは実際のユーザー認証が必要です
@@ -92,6 +107,96 @@ export function HomePage() {
       setLlmResult({ error: error.message })
     } finally {
       setLlmLoading(false)
+    }
+  }
+
+  // Public Storage: アバター画像アップロード
+  const handlePublicUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!user) {
+      setPublicUploadResult({ error: 'ログインが必要です' })
+      return
+    }
+
+    // バリデーション
+    if (!FileUtils.validateFileSize(file, 2)) {
+      setPublicUploadResult({ error: 'ファイルサイズは2MB以下にしてください' })
+      return
+    }
+
+    if (!FileUtils.isImage(file)) {
+      setPublicUploadResult({ error: '画像ファイルのみアップロード可能です' })
+      return
+    }
+
+    try {
+      setPublicUploading(true)
+      setPublicFile(file)
+
+      const result = await PublicStorageService.uploadAvatar(file, {
+        metadata: { uploadedBy: user.email }
+      })
+
+      setPublicUploadResult(result)
+    } catch (error) {
+      console.error('Public upload error:', error)
+      setPublicUploadResult({ error: error.message })
+    } finally {
+      setPublicUploading(false)
+    }
+  }
+
+  // Private Storage: PDFアップロード
+  const handlePrivateUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!user) {
+      setPrivateUploadResult({ error: 'ログインが必要です' })
+      return
+    }
+
+    // バリデーション
+    if (!FileUtils.validateFileSize(file, 10)) {
+      setPrivateUploadResult({ error: 'ファイルサイズは10MB以下にしてください' })
+      return
+    }
+
+    try {
+      setPrivateUploading(true)
+      setPrivateFile(file)
+      setPrivateFileUrl(null)
+
+      const result = await PrivateStorageService.uploadDocument(file, {
+        folder: 'documents',
+        metadata: { uploadedBy: user.email }
+      })
+
+      setPrivateUploadResult(result)
+    } catch (error) {
+      console.error('Private upload error:', error)
+      setPrivateUploadResult({ error: error.message })
+    } finally {
+      setPrivateUploading(false)
+    }
+  }
+
+  // Private Storage: 署名付きURL取得
+  const handleGetSignedUrl = async () => {
+    if (!privateUploadResult?.id) return
+
+    try {
+      setUrlLoading(true)
+      const result = await PrivateStorageService.getSignedUrl(privateUploadResult.id)
+      setPrivateFileUrl(result.signedUrl)
+    } catch (error) {
+      console.error('Get signed URL error:', error)
+      setPrivateFileUrl(null)
+      setPrivateUploadResult({ ...privateUploadResult, error: error.message })
+    } finally {
+      setUrlLoading(false)
     }
   }
 
@@ -236,11 +341,11 @@ export function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700">
-              <div>const profile = new UserProfile(&#123;...&#125;)</div>
-              <div>const data = await UserProfileRepository.create(profile.toDatabase())</div>
-              <div>const saved = UserProfile.fromDatabase(data)</div>
-            </div>
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`const profile = new UserProfile({...})
+const data = await UserProfileRepository.create(profile.toDatabase())
+const saved = UserProfile.fromDatabase(data)`}</code>
+            </pre>
             <Button variant="gradient" onClick={handleCreateProfile} disabled={loading}>
               {loading ? 'Creating...' : 'Create Profile Example'}
             </Button>
@@ -279,11 +384,11 @@ export function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700">
-              <div>import &#123; callHelloFunction &#125; from './services'</div>
-              <div>const result = await callHelloFunction('Akatsuki')</div>
-              <div>console.log(result.message)</div>
-            </div>
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { callHelloFunction } from './services'
+const result = await callHelloFunction('Akatsuki')
+console.log(result.message)`}</code>
+            </pre>
             <Button variant="gradient" onClick={handleCallHelloFunction} disabled={helloLoading}>
               {helloLoading ? 'Calling...' : 'Call hello-world Function'}
             </Button>
@@ -322,11 +427,11 @@ export function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700">
-              <div>const gemini = new GeminiProvider()</div>
-              <div>const result = await gemini.chat(prompt)</div>
-              <div>// Response: &#123; text, usage, tokens, model &#125;</div>
-            </div>
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`const gemini = new GeminiProvider()
+const result = await gemini.chat(prompt)
+// Response: { text, usage, tokens, model }`}</code>
+            </pre>
 
             {quota && (
               <div className="bg-blue-50 p-3 rounded-lg">
@@ -405,6 +510,205 @@ export function HomePage() {
                   ログイン
                 </Link>
                 が必要です
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Public Storage Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Public Storage (Avatar Upload)</CardTitle>
+            <CardDescription>
+              PublicStorageService を使った公開ファイルアップロード例
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { PublicStorageService } from './services/PublicStorageService'
+const result = await PublicStorageService.uploadAvatar(file)
+console.log(result.publicUrl) // 恒久的な公開URL`}</code>
+            </pre>
+
+            <div className="space-y-2">
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">
+                  画像ファイルを選択 (最大2MB)
+                </span>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePublicUpload}
+                  disabled={publicUploading || !user}
+                  className="mt-1"
+                />
+              </label>
+
+              {publicFile && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Badge variant="outline">{FileUtils.formatFileSize(publicFile.size)}</Badge>
+                  <span>{publicFile.name}</span>
+                </div>
+              )}
+            </div>
+
+            {publicUploadResult && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg">
+                {publicUploadResult.error ? (
+                  <>
+                    <p className="font-bold mb-2 text-red-600">Error:</p>
+                    <p className="text-sm text-gray-700">{publicUploadResult.error}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold mb-2 text-green-600">Upload Success!</p>
+                    <div className="space-y-2">
+                      {publicUploadResult.publicUrl && (
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={publicUploadResult.publicUrl}
+                            alt="Uploaded"
+                            className="w-20 h-20 object-cover rounded-lg"
+                          />
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-600 break-all">
+                              <strong>Public URL:</strong> {publicUploadResult.publicUrl}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 bg-white/50 p-2 rounded">
+                        <div>
+                          <strong>File ID:</strong> {publicUploadResult.id?.substring(0, 8)}...
+                        </div>
+                        <div>
+                          <strong>Bucket:</strong> {publicUploadResult.bucket}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> ファイルアップロードには
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+
+            {publicUploading && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-600 rounded-full" />
+                <span>Uploading...</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Private Storage Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Private Storage (Document Upload)</CardTitle>
+            <CardDescription>
+              PrivateStorageService を使った非公開ファイルアップロード例
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { PrivateStorageService } from './services/PrivateStorageService'
+const result = await PrivateStorageService.uploadDocument(file)
+const { signedUrl } = await PrivateStorageService.getSignedUrl(result.id)`}</code>
+            </pre>
+
+            <div className="space-y-2">
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">
+                  ドキュメントファイルを選択 (最大10MB)
+                </span>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={handlePrivateUpload}
+                  disabled={privateUploading || !user}
+                  className="mt-1"
+                />
+              </label>
+
+              {privateFile && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Badge variant="outline">{FileUtils.formatFileSize(privateFile.size)}</Badge>
+                  <span>{privateFile.name}</span>
+                </div>
+              )}
+            </div>
+
+            {privateUploadResult && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg space-y-3">
+                {privateUploadResult.error ? (
+                  <>
+                    <p className="font-bold mb-2 text-red-600">Error:</p>
+                    <p className="text-sm text-gray-700">{privateUploadResult.error}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-blue-600">Upload Success!</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 bg-white/50 p-2 rounded">
+                      <div>
+                        <strong>File ID:</strong> {privateUploadResult.id?.substring(0, 8)}...
+                      </div>
+                      <div>
+                        <strong>Bucket:</strong> {privateUploadResult.bucket}
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGetSignedUrl}
+                      disabled={urlLoading}
+                      className="w-full"
+                    >
+                      {urlLoading ? 'Generating URL...' : 'Get Signed URL (1時間有効)'}
+                    </Button>
+
+                    {privateFileUrl && (
+                      <div className="bg-white/70 p-3 rounded">
+                        <p className="text-xs font-semibold mb-1">Signed URL:</p>
+                        <p className="text-xs text-gray-600 break-all mb-2">{privateFileUrl}</p>
+                        <Button
+                          variant="gradient"
+                          size="sm"
+                          onClick={() => window.open(privateFileUrl, '_blank')}
+                          className="w-full"
+                        >
+                          Open File
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> ファイルアップロードには
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+
+            {privateUploading && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-600 rounded-full" />
+                <span>Uploading...</span>
               </div>
             )}
           </CardContent>

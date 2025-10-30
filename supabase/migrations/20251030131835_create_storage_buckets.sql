@@ -1,16 +1,16 @@
 -- Create Storage Buckets for file uploads
 -- This migration creates two buckets:
--- 1. uploads (public) - For public file uploads (images, documents, etc.)
+-- 1. public_assets (public) - For public file uploads (avatars, logos, etc.)
 -- 2. private_uploads (private) - For private files requiring signed URLs
 
--- Create public uploads bucket
+-- Create public assets bucket
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
-  'uploads',
-  'uploads',
+  'public_assets',
+  'public_assets',
   true,
   10485760, -- 10MB in bytes
-  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain']
+  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf', 'text/plain']
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -25,37 +25,37 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- RLS Policies for uploads bucket (public bucket)
+-- RLS Policies for public_assets bucket (public bucket)
 -- Allow authenticated users to upload files to their own folder
-CREATE POLICY "Users can upload to their own folder in uploads"
+CREATE POLICY "Users can upload to their own folder in public_assets"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-  bucket_id = 'uploads' AND
+  bucket_id = 'public_assets' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- Allow authenticated users to read their own files
-CREATE POLICY "Users can read their own files in uploads"
+CREATE POLICY "Users can read their own files in public_assets"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
-  bucket_id = 'uploads' AND
+  bucket_id = 'public_assets' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Allow public read access to all files in uploads bucket
-CREATE POLICY "Public can read all files in uploads"
+-- Allow public read access to all files in public_assets bucket
+CREATE POLICY "Public can read all files in public_assets"
 ON storage.objects FOR SELECT
 TO public
-USING (bucket_id = 'uploads');
+USING (bucket_id = 'public_assets');
 
 -- Allow authenticated users to delete their own files
-CREATE POLICY "Users can delete their own files in uploads"
+CREATE POLICY "Users can delete their own files in public_assets"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
-  bucket_id = 'uploads' AND
+  bucket_id = 'public_assets' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
 

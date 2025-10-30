@@ -36,6 +36,10 @@ export class EdgeFunctionService {
 
       const { data, error } = await supabase.functions.invoke(functionName, invokeOptions)
 
+      console.log(`[EdgeFunctionService] ${functionName} response data:`, data)
+      console.log(`[EdgeFunctionService] ${functionName} response error:`, error)
+      console.log(`[EdgeFunctionService] ${functionName} data type:`, typeof data)
+
       if (error) {
         console.error(`Edge Function '${functionName}' エラー:`, error)
         throw error

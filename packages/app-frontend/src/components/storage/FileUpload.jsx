@@ -1,14 +1,38 @@
 import { useState, useRef } from 'react'
 import { Button } from '../ui/button'
-import { StorageRepository } from '../../repositories'
+import { PublicStorageService } from '../../services/PublicStorageService'
+import { PrivateStorageService } from '../../services/PrivateStorageService'
+import { FileUtils } from '../../utils/FileUtils'
 
 /**
  * FileUpload Component
  * ファイルアップロード用のシンプルなコンポーネント
+ *
+ * @param {Object} props
+ * @param {Function} props.onUploadComplete - アップロード完了時のコールバック
+ * @param {Object} props.options - オプション
+ * @param {boolean} props.options.isPublic - true: PublicStorage, false: PrivateStorage (デフォルト: true)
+ * @param {string} props.options.folder - フォルダ名
+ * @param {number} props.options.maxSizeMB - 最大ファイルサイズ（MB）
+ * @param {string[]} props.options.allowedTypes - 許可するMIMEタイプ
+ * @param {boolean} props.options.multiple - 複数ファイル選択
+ *
+ * @example
+ * // Public アバター画像
+ * <FileUpload
+ *   onUploadComplete={(results) => console.log(results)}
+ *   options={{ isPublic: true, folder: 'avatars', maxSizeMB: 2, allowedTypes: FileUtils.IMAGE_TYPES }}
+ * />
+ *
+ * // Private ドキュメント
+ * <FileUpload
+ *   onUploadComplete={(results) => console.log(results)}
+ *   options={{ isPublic: false, folder: 'documents', maxSizeMB: 10 }}
+ * />
  */
 export function FileUpload({ onUploadComplete, options = {} }) {
   const {
-    bucket = 'uploads',
+    isPublic = true,
     folder = '',
     maxSizeMB = 10,
     allowedTypes = [],
@@ -38,19 +62,23 @@ export function FileUpload({ onUploadComplete, options = {} }) {
     try {
       // Validate files
       for (const file of selectedFiles) {
-        if (!StorageRepository.validateFileSize(file, maxSizeMB)) {
+        if (!FileUtils.validateFileSize(file, maxSizeMB)) {
           throw new Error(`ファイルサイズは${maxSizeMB}MB以下にしてください: ${file.name}`)
         }
 
-        if (allowedTypes.length > 0 && !StorageRepository.validateFileType(file, allowedTypes)) {
+        if (allowedTypes.length > 0 && !FileUtils.validateFileType(file, allowedTypes)) {
           throw new Error(`許可されていないファイルタイプです: ${file.name}`)
         }
       }
 
-      // Upload files
+      // Upload files using appropriate service
+      const StorageService = isPublic ? PublicStorageService : PrivateStorageService
+
+      const uploadOptions = { folder }
+
       const results = multiple
-        ? await StorageRepository.uploadMultiple(selectedFiles, { bucket, folder })
-        : [await StorageRepository.uploadFile(selectedFiles[0], { bucket, folder })]
+        ? await StorageService.uploadMultiple(selectedFiles, uploadOptions)
+        : [await StorageService.upload(selectedFiles[0], uploadOptions)]
 
       // Call callback with results
       if (onUploadComplete) {
@@ -101,12 +129,24 @@ export function FileUpload({ onUploadComplete, options = {} }) {
         </Button>
       </div>
 
+      {/* Storage Type Badge */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-gray-500">Storage:</span>
+        <span className={`text-xs px-2 py-1 rounded ${
+          isPublic
+            ? 'bg-green-100 text-green-700'
+            : 'bg-blue-100 text-blue-700'
+        }`}>
+          {isPublic ? 'Public (公開)' : 'Private (非公開)'}
+        </span>
+      </div>
+
       {/* Selected Files */}
       {selectedFiles.length > 0 && (
         <div className="space-y-2">
           <p className="text-sm font-medium text-gray-700">選択されたファイル:</p>
           {selectedFiles.map((file, index) => {
-            const fileInfo = StorageRepository.getFileInfo(file)
+            const fileInfo = FileUtils.getFileInfo(file)
             return (
               <div
                 key={index}
