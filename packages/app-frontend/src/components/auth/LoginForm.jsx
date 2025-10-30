@@ -20,10 +20,16 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      const { error } = await signIn(email, password)
+      const { data, error } = await signIn(email, password)
+      console.log('[LoginForm] Sign in result:', { data, error })
       if (error) throw error
-      navigate('/admin')
+
+      // Wait a bit for auth state to propagate
+      setTimeout(() => {
+        navigate('/admin')
+      }, 100)
     } catch (err) {
+      console.error('[LoginForm] Sign in error:', err)
       setError(err.message)
     } finally {
       setLoading(false)

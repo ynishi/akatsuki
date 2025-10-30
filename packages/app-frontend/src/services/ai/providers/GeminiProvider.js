@@ -1,5 +1,5 @@
 import { BaseProvider } from './BaseProvider'
-import { EdgeFunctionService } from '../../supabase/EdgeFunctionService'
+import { EdgeFunctionService } from '../../EdgeFunctionService'
 
 /**
  * Google Gemini Provider
@@ -8,7 +8,7 @@ import { EdgeFunctionService } from '../../supabase/EdgeFunctionService'
 export class GeminiProvider extends BaseProvider {
   constructor(config = {}) {
     super(config)
-    this.defaultModel = config.model || 'gemini-1.5-flash'
+    this.defaultModel = config.model || 'gemini-2.5-flash'
     this.config = config
   }
 
@@ -25,15 +25,19 @@ export class GeminiProvider extends BaseProvider {
       model: options.model || this.defaultModel,
       temperature: options.temperature ?? 0.7,
       maxTokens: options.maxTokens ?? 1000,
-      messages: options.messages || [],
+      messages: options.messages || undefined,
+      responseJson: options.responseJson || false,
     }
 
     const result = await EdgeFunctionService.invoke('ai-chat', payload)
 
+    // New response format: { success, response, model, usage, tokens }
     return {
-      text: result.text,
+      text: result.response,
       usage: result.usage,
+      tokens: result.tokens,
       model: result.model,
+      success: result.success,
     }
   }
 

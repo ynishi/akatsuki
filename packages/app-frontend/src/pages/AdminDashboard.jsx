@@ -1,16 +1,47 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
+import { UserProfileRepository } from '../repositories'
 
 export function AdminDashboard() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const [profile, setProfile] = useState(null)
+  const [profileError, setProfileError] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  // Load profile after page mount (after redirect)
+  const loadProfile = useCallback(async () => {
+    if (!user?.id) return
+
+    setProfileLoading(true)
+    setProfileError(null)
+
+    try {
+      const data = await UserProfileRepository.findByUserId(user.id)
+      setProfile(data)
+    } catch (error) {
+      console.error('プロフィール読み込みエラー:', error)
+      setProfileError(error.message)
+    } finally {
+      setProfileLoading(false)
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
 
   const handleLogout = async () => {
     await signOut()
     navigate('/login')
+  }
+
+  const handleManualFetch = () => {
+    loadProfile()
   }
 
   return (
@@ -55,6 +86,34 @@ export function AdminDashboard() {
                 <p><strong>認証済み:</strong> {user?.email_confirmed_at ? 'はい' : 'いいえ'}</p>
                 <p><strong>作成日:</strong> {new Date(user?.created_at).toLocaleString('ja-JP')}</p>
               </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg">
+              <div className="flex justify-between items-start mb-2">
+                <p className="font-bold">👤 プロフィール情報</p>
+                <Button
+                  onClick={handleManualFetch}
+                  variant="outline"
+                  size="sm"
+                  disabled={profileLoading}
+                >
+                  {profileLoading ? '取得中...' : '再取得'}
+                </Button>
+              </div>
+              {profileLoading ? (
+                <p className="text-sm text-gray-500">プロフィール読み込み中...</p>
+              ) : profile ? (
+                <div className="text-sm space-y-1">
+                  <p><strong>Username:</strong> {profile.username}</p>
+                  <p><strong>Display Name:</strong> {profile.display_name}</p>
+                  <p><strong>Role:</strong> <Badge variant={profile.role === 'admin' ? 'gradient' : 'secondary'}>{profile.role}</Badge></p>
+                  <p><strong>Bio:</strong> {profile.bio || '未設定'}</p>
+                </div>
+              ) : profileError ? (
+                <p className="text-sm text-red-600">エラー: {profileError}</p>
+              ) : (
+                <p className="text-sm text-gray-500">プロフィールが見つかりません</p>
+              )}
             </div>
           </CardContent>
         </Card>

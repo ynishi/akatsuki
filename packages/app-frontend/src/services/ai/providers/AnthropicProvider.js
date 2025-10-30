@@ -8,7 +8,7 @@ import { EdgeFunctionService } from '../../EdgeFunctionService'
 export class AnthropicProvider extends BaseProvider {
   constructor(config = {}) {
     super(config)
-    this.defaultModel = config.model || 'claude-3-5-sonnet-20241022'
+    this.defaultModel = config.model || 'claude-sonnet-4-5-20250929'
   }
 
   /**

@@ -8,17 +8,26 @@ import { Slider } from '../components/ui/slider'
 import { Input } from '../components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
-import { UserProfileRepository } from '../repositories'
+import { UserProfileRepository, UserQuotaRepository } from '../repositories'
 import { UserProfile } from '../models'
 import { callHelloFunction } from '../services'
+import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
+import { useAuth } from '../contexts/AuthContext'
 
 export function HomePage() {
+  const { user } = useAuth()
   const [count, setCount] = useState(0)
   const [sliderValue, setSliderValue] = useState([50])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [helloResult, setHelloResult] = useState(null)
   const [helloLoading, setHelloLoading] = useState(false)
+
+  // LLM Chat states
+  const [llmPrompt, setLlmPrompt] = useState('')
+  const [llmResult, setLlmResult] = useState(null)
+  const [llmLoading, setLlmLoading] = useState(false)
+  const [quota, setQuota] = useState(null)
 
   // Repository使用例: プロフィール作成
   // 注: このサンプルは実際のユーザー認証が必要です
@@ -54,6 +63,35 @@ export function HomePage() {
       setHelloResult({ error: error.message })
     } finally {
       setHelloLoading(false)
+    }
+  }
+
+  // LLM Chat: Gemini API呼び出し
+  const handleLLMChat = async () => {
+    if (!llmPrompt.trim()) {
+      setLlmResult({ error: 'プロンプトを入力してください' })
+      return
+    }
+
+    if (!user) {
+      setLlmResult({ error: 'ログインが必要です' })
+      return
+    }
+
+    try {
+      setLlmLoading(true)
+      const gemini = new GeminiProvider({ model: 'gemini-2.5-flash' })
+      const result = await gemini.chat(llmPrompt)
+      setLlmResult(result)
+
+      // Quota情報も取得
+      const quotaInfo = await UserQuotaRepository.checkQuotaAvailability(user.id)
+      setQuota(quotaInfo)
+    } catch (error) {
+      console.error('LLM Chat エラー:', error)
+      setLlmResult({ error: error.message })
+    } finally {
+      setLlmLoading(false)
     }
   }
 
@@ -270,6 +308,103 @@ export function HomePage() {
                     </p>
                   </>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* LLM Chat Example with Gemini */}
+        <Card>
+          <CardHeader>
+            <CardTitle>LLM Chat (Gemini)</CardTitle>
+            <CardDescription>
+              新しいai-chat Edge Functionを使ったGemini API呼び出し例
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700">
+              <div>const gemini = new GeminiProvider()</div>
+              <div>const result = await gemini.chat(prompt)</div>
+              <div>// Response: &#123; text, usage, tokens, model &#125;</div>
+            </div>
+
+            {quota && (
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-semibold">API Quota:</span>
+                  <span className="text-gray-700">
+                    {quota.remaining} / {quota.limit} remaining
+                  </span>
+                </div>
+                <Progress
+                  value={((quota.limit - quota.remaining) / quota.limit) * 100}
+                  className="mt-2"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Input
+                placeholder="プロンプトを入力 (例: こんにちは！)"
+                value={llmPrompt}
+                onChange={(e) => setLlmPrompt(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLLMChat()}
+              />
+              <Button
+                variant="gradient"
+                onClick={handleLLMChat}
+                disabled={llmLoading || !user}
+                className="w-full"
+              >
+                {llmLoading ? 'Generating...' : user ? 'Send to Gemini' : 'Login Required'}
+              </Button>
+            </div>
+
+            {llmResult && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
+                {llmResult.error ? (
+                  <>
+                    <p className="font-bold mb-2 text-red-600">Error:</p>
+                    <p className="text-sm text-gray-700">{llmResult.error}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold mb-2">Response:</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap mb-3">
+                      {llmResult.text}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 bg-white/50 p-2 rounded">
+                      <div>
+                        <strong>Model:</strong> {llmResult.model}
+                      </div>
+                      {llmResult.tokens && (
+                        <div>
+                          <strong>Tokens:</strong> {llmResult.tokens.total}
+                        </div>
+                      )}
+                      {llmResult.usage && (
+                        <>
+                          <div>
+                            <strong>Used:</strong> {llmResult.usage.current}
+                          </div>
+                          <div>
+                            <strong>Remaining:</strong> {llmResult.usage.remaining}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> LLM機能を使用するには
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
               </div>
             )}
           </CardContent>

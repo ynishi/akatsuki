@@ -1,1 +1,4 @@
 export { UserProfileRepository } from './UserProfileRepository'
+export { AIModelRepository } from './AIModelRepository'
+export { UserQuotaRepository } from './UserQuotaRepository'
+export { UserUsageStatsRepository } from './UserUsageStatsRepository'
