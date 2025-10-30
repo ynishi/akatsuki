@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
 import { UserProfileRepository, UserQuotaRepository } from '../repositories'
 import { UserProfile } from '../models'
-import { callHelloFunction } from '../services'
+import { callHelloFunction, ImageGenerationService } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
 import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
@@ -43,6 +43,11 @@ export function HomePage() {
   const [privateUploading, setPrivateUploading] = useState(false)
   const [privateFileUrl, setPrivateFileUrl] = useState(null)
   const [urlLoading, setUrlLoading] = useState(false)
+
+  // Image Generation states
+  const [imagePrompt, setImagePrompt] = useState('')
+  const [generatedImage, setGeneratedImage] = useState(null)
+  const [imageGenerating, setImageGenerating] = useState(false)
 
   // Repository使用例: プロフィール作成
   // 注: このサンプルは実際のユーザー認証が必要です
@@ -197,6 +202,29 @@ export function HomePage() {
       setPrivateUploadResult({ ...privateUploadResult, error: error.message })
     } finally {
       setUrlLoading(false)
+    }
+  }
+
+  // Image Generation
+  const handleGenerateImage = async () => {
+    if (!imagePrompt.trim()) return
+
+    try {
+      setImageGenerating(true)
+      setGeneratedImage(null)
+
+      const result = await ImageGenerationService.generate({
+        prompt: imagePrompt,
+        quality: 'standard',
+        style: 'vivid',
+      })
+
+      setGeneratedImage(result)
+    } catch (error) {
+      console.error('Image generation error:', error)
+      setGeneratedImage({ error: error.message })
+    } finally {
+      setImageGenerating(false)
     }
   }
 
@@ -709,6 +737,132 @@ const { signedUrl } = await PrivateStorageService.getSignedUrl(result.id)`}</cod
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-600 rounded-full" />
                 <span>Uploading...</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AI Image Generation Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Image Generation (DALL-E)</CardTitle>
+            <CardDescription>
+              ImageGenerationService を使った画像生成 + Storage保存の統合例
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { ImageGenerationService } from './services/ImageGenerationService'
+const result = await ImageGenerationService.generate({
+  prompt: 'A beautiful sunset',
+  quality: 'hd',
+  style: 'vivid'
+})
+console.log(result.publicUrl) // 永続化された画像URL`}</code>
+            </pre>
+
+            <div className="space-y-2">
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">
+                  画像生成プロンプト（英語推奨）
+                </span>
+                <Input
+                  type="text"
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  placeholder="A serene Japanese garden with cherry blossoms"
+                  disabled={imageGenerating || !user}
+                  className="mt-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !imageGenerating && user) {
+                      handleGenerateImage()
+                    }
+                  }}
+                />
+              </label>
+
+              <Button
+                variant="gradient"
+                onClick={handleGenerateImage}
+                disabled={imageGenerating || !imagePrompt.trim() || !user}
+                className="w-full"
+              >
+                {imageGenerating ? 'Generating...' : 'Generate Image'}
+              </Button>
+            </div>
+
+            {generatedImage && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg space-y-3">
+                {generatedImage.error ? (
+                  <>
+                    <p className="font-bold mb-2 text-red-600">Error:</p>
+                    <p className="text-sm text-gray-700">{generatedImage.error}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-purple-600">Generation Success!</p>
+
+                    {generatedImage.publicUrl && (
+                      <div className="flex flex-col gap-3">
+                        <img
+                          src={generatedImage.publicUrl}
+                          alt="Generated"
+                          className="w-full rounded-lg shadow-lg"
+                        />
+
+                        <div className="bg-white/70 p-3 rounded space-y-2">
+                          {generatedImage.revisedPrompt && (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700">Revised Prompt:</p>
+                              <p className="text-xs text-gray-600">{generatedImage.revisedPrompt}</p>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                            <div>
+                              <strong>Provider:</strong> {generatedImage.provider}
+                            </div>
+                            <div>
+                              <strong>Model:</strong> {generatedImage.model}
+                            </div>
+                            <div>
+                              <strong>Size:</strong> {generatedImage.size}
+                            </div>
+                            <div>
+                              <strong>File ID:</strong> {generatedImage.id?.substring(0, 8)}...
+                            </div>
+                          </div>
+
+                          <a
+                            href={generatedImage.publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline block"
+                          >
+                            Open in new tab →
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> 画像生成には
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+
+            {imageGenerating && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-purple-600 rounded-full" />
+                <span>Generating image... (通常10-30秒)</span>
               </div>
             )}
           </CardContent>

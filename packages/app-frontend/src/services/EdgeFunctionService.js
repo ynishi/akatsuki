@@ -23,12 +23,15 @@ export class EdgeFunctionService {
     try {
       const { isFormData = false } = options
 
-      const invokeOptions = {
-        body: payload,
-      }
+      const invokeOptions = {}
 
-      // FormDataの場合、Content-Typeヘッダーを設定しない（自動設定される）
-      if (!isFormData) {
+      // FormDataの場合
+      if (isFormData) {
+        invokeOptions.body = payload
+        // Content-Typeヘッダーは自動設定される
+      } else {
+        // JSON の場合は明示的に stringify
+        invokeOptions.body = JSON.stringify(payload)
         invokeOptions.headers = {
           'Content-Type': 'application/json',
         }
@@ -70,8 +73,9 @@ export class EdgeFunctionService {
       }
 
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: payload,
+        body: JSON.stringify(payload),
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
       })
