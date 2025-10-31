@@ -955,6 +955,114 @@ import { callMyFunction } from './services'
 const result = await callMyFunction({ data: '...' })
 ```
 
+#### 開発用ダミーデータ生成
+
+動作確認用のダミーデータ（プロフィール、画像、投稿等）は、**`workspace/` に使い捨てスクリプト**を作成して生成します。
+
+**基本方針:**
+- Seed (seed.sql) = 本当の初期データ（マスターデータ、固定データ）
+- workspace/ スクリプト = 開発用の一時的なダミーデータ
+
+**実装例:**
+
+```javascript
+// workspace/generate-dummy-data.js
+
+// ⚠️ Import Path の書き方（相対パス）
+// workspace/ からプロジェクトルートは `../` で参照
+import { supabase } from '../packages/app-frontend/src/lib/supabase.js'
+import { ImageGenerationService } from '../packages/app-frontend/src/services/ImageGenerationService.js'
+
+async function generateDummyProfiles() {
+  console.log('Generating dummy profiles with avatars...')
+
+  for (let i = 0; i < 10; i++) {
+    try {
+      // 1. 画像生成（Storage + file_metadata に自動保存）
+      const avatar = await ImageGenerationService.generate({
+        prompt: `Professional headshot of person ${i + 1}, studio lighting, neutral background`,
+        quality: 'standard',
+      })
+
+      console.log(`✓ Generated avatar: ${avatar.id}`)
+
+      // 2. profiles テーブルに直接INSERT
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: `dummy-user-${i + 1}`,
+          username: `dummy${i + 1}`,
+          display_name: `Dummy User ${i + 1}`,
+          avatar_file_id: avatar.id,  // ← file_metadata の id
+          bio: `This is a dummy profile for testing.`,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      console.log(`✓ Created profile: dummy${i + 1}`)
+
+    } catch (error) {
+      console.error(`✗ Failed to create dummy${i + 1}:`, error.message)
+    }
+  }
+
+  console.log('\n✨ Done! Created 10 dummy profiles.')
+}
+
+// 実行
+generateDummyProfiles()
+```
+
+**実行方法:**
+
+```bash
+# workspace/ ディレクトリに移動
+cd workspace
+
+# スクリプト実行
+node generate-dummy-data.js
+```
+
+**ポイント:**
+- **import path は相対パス** - `../packages/app-frontend/src/...`
+- **ImageGenerationService を活用** - Edge Function経由で画像生成
+- **file_id を取得** - Storage + file_metadata に自動保存される
+- **Supabase Client で直接INSERT** - 既存のRepositoryを使わず自由に
+- **workspace/ は Git管理外** - 使い捨てスクリプトを自由に書ける
+
+**応用例:**
+
+```javascript
+// プロジェクトデータ生成
+async function generateDummyProjects() {
+  for (let i = 0; i < 20; i++) {
+    await supabase.from('projects').insert({
+      name: `Project ${i + 1}`,
+      description: `This is a dummy project for testing.`,
+      status: i % 3 === 0 ? 'completed' : 'active',
+      user_id: `dummy-user-${(i % 10) + 1}`,
+    })
+  }
+}
+```
+
+**削除方法:**
+
+```javascript
+// ダミーデータ削除
+async function cleanupDummyData() {
+  // Profiles削除
+  await supabase.from('profiles').delete().like('user_id', 'dummy-user-%')
+
+  // Projects削除
+  await supabase.from('projects').delete().like('user_id', 'dummy-user-%')
+
+  console.log('✓ Cleaned up dummy data')
+}
+```
+
 #### ローカル専用領域 (`workspace/`)
 * ルートの `workspace/` ディレクトリは **`.gitignore` されています**。
 * 個人のメモ、下書き、ローカル環境変数（`.env`）など、リポジトリにコミットしてはいけないファイル置き場として使用してください。
@@ -1214,6 +1322,131 @@ npm run supabase:function:deploy  # Functionデプロイ
 ### VibeCoding デザイン原則
 
 Akatsukiでは、**見栄えの良さ**と**使いやすさ**を重視した「リッチなUI」を標準とします。
+
+#### デザインスタイル
+
+Akatsukiは以下のデザインスタイルを採用しています：
+
+1. **Glassmorphism（グラスモーフィズム）**
+   - 半透明の背景 (`bg-white/80`, `bg-black/60`)
+   - backdrop-blur効果 (`backdrop-blur-md`, `backdrop-blur-lg`)
+   - 柔らかい影 (`shadow-lg`, `shadow-xl`)
+
+2. **Gradient Design（グラデーションデザイン）**
+   - 背景・ボタン・テキストにグラデーション多用
+   - 華やかで印象的なビジュアル
+   - `bg-gradient-to-r`, `bg-gradient-to-br`
+
+3. **Soft UI（ソフトUI）**
+   - 丸みのある要素 (`rounded-xl`, `rounded-3xl`)
+   - 柔らかい印象
+   - 余白をたっぷり使用
+
+**Akatsuki Design Language: "Vibrant Soft UI"**
+- 華やかさと柔らかさを両立
+- AIアプリに最適な親しみやすいデザイン
+
+#### カラーテーマバリエーション
+
+アプリのジャンルに応じて、色味を選択できます。
+
+**1. デフォルト（AIアプリ向け）- ピンク/パープル/ブルー**
+```css
+/* 背景 */
+bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100
+
+/* テキストグラデーション */
+bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text
+
+/* ボタン */
+bg-gradient-to-r from-pink-500 to-purple-600
+
+/* アクセントカラー */
+border-pink-300, border-purple-300, text-purple-600
+```
+
+**2. ビジネス/企業向け - ダーク/ブルートーン**
+```css
+/* 背景 */
+bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800
+bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100  /* ライトモード */
+
+/* テキストグラデーション */
+bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 text-transparent bg-clip-text
+
+/* ボタン */
+bg-gradient-to-r from-blue-600 to-cyan-600
+
+/* アクセントカラー */
+border-blue-400, border-cyan-400, text-blue-600
+```
+
+**3. ヘルスケア/ウェルネス - グリーン/ミント**
+```css
+/* 背景 */
+bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50
+
+/* テキストグラデーション */
+bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-transparent bg-clip-text
+
+/* ボタン */
+bg-gradient-to-r from-emerald-500 to-teal-600
+
+/* アクセントカラー */
+border-emerald-300, border-teal-300, text-emerald-600
+```
+
+**4. エンタメ/クリエイティブ - オレンジ/イエロー**
+```css
+/* 背景 */
+bg-gradient-to-br from-orange-100 via-yellow-100 to-pink-100
+
+/* テキストグラデーション */
+bg-gradient-to-r from-orange-500 via-yellow-500 to-pink-500 text-transparent bg-clip-text
+
+/* ボタン */
+bg-gradient-to-r from-orange-500 to-pink-600
+
+/* アクセントカラー */
+border-orange-300, border-yellow-300, text-orange-600
+```
+
+**5. Eコマース/ショッピング - パープル/ピンク**
+```css
+/* 背景 */
+bg-gradient-to-br from-purple-100 via-pink-100 to-rose-100
+
+/* テキストグラデーション */
+bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-transparent bg-clip-text
+
+/* ボタン */
+bg-gradient-to-r from-purple-500 to-pink-600
+
+/* アクセントカラー */
+border-purple-300, border-pink-300, text-purple-600
+```
+
+**6. ダークモード対応**
+```css
+/* 背景（ダーク） */
+bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900
+
+/* テキストグラデーション（ダーク） */
+bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 text-transparent bg-clip-text
+
+/* カード（ダーク） */
+bg-slate-800/50 backdrop-blur-lg border border-slate-700
+
+/* ボタン（ダーク） */
+bg-gradient-to-r from-pink-600 to-purple-700
+```
+
+**使い分けガイド:**
+- プリクラ/AI画像生成 → デフォルト（ピンク/パープル/ブルー）
+- ビジネスダッシュボード → ビジネス向け（ダーク/ブルー）
+- ヘルスケアアプリ → グリーン/ミント
+- 音楽/動画アプリ → オレンジ/イエロー
+- ECサイト → パープル/ピンク
 
 #### ビジュアル重視の原則
 
