@@ -3,14 +3,17 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Sparkles, Code, Rocket, BookOpen } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { TopNavigation } from '../components/layout/TopNavigation'
 
 export function HomePage() {
   const { user } = useAuth()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
+      <TopNavigation />
+
       {/* Hero Section */}
-      <div className="max-w-6xl mx-auto px-8 py-20">
+      <div className="max-w-6xl mx-auto px-8 pt-32 pb-20">
         <div className="text-center space-y-6 mb-16">
           <h1 className="text-6xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text">
             Welcome to Akatsuki

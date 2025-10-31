@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Badge } from '../components/ui/badge'
 import { UserProfileRepository } from '../repositories'
 import { FileUpload } from '../components/storage/FileUpload'
+import { TopNavigation } from '../components/layout/TopNavigation'
 
 export function AdminDashboard() {
   const { user, signOut } = useAuth()
@@ -53,29 +54,10 @@ export function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-      {/* ヘッダー */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text">
-              管理画面
-            </h1>
-            <p className="text-sm text-gray-600">Akatsuki Admin Dashboard</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium">{user?.email}</p>
-              <Badge variant="gradient" className="mt-1">管理者</Badge>
-            </div>
-            <Button variant="outline" onClick={handleLogout}>
-              ログアウト
-            </Button>
-          </div>
-        </div>
-      </header>
+      <TopNavigation />
 
       {/* メインコンテンツ */}
-      <main className="max-w-7xl mx-auto p-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-8 pt-24 pb-8 space-y-8">
         {/* ウェルカムカード */}
         <Card>
           <CardHeader>

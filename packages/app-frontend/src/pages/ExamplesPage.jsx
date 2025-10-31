@@ -16,6 +16,7 @@ import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
+import { TopNavigation } from '../components/layout/TopNavigation'
 
 export function ExamplesPage() {
   const { user } = useAuth()
@@ -290,8 +291,9 @@ export function ExamplesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
+      <TopNavigation />
+      <div className="max-w-6xl mx-auto px-8 pt-24 pb-8 space-y-8">
         {/* Header */}
         <header className="text-center space-y-4">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text">
