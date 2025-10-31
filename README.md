@@ -30,167 +30,83 @@
 
 ## 🚀 最速起動 (Quick Start)
 
-最短で開発環境を立ち上げるための手順です。
+たった **3ステップ** で開発を開始できます！
 
-### 1. 前提条件 (Prerequisites)
+### 前提条件 (Prerequisites)
 
-以下のツールがインストールされていることを確認してください。
+⚠️ **忘れやすいポイント:**
 
-#### Node.js (v20.x 推奨)
-バージョン管理ツールを使用して、プロジェクト指定のバージョンをインストール：
+以下のツールをインストールしてください。詳細は [`docs/setup.md`](docs/setup.md) を参照。
 
-```bash
-# nvmを使用する場合
-nvm use
+- **Node.js** v20.x 以上 (`nvm use` または `asdf install`)
+- **Rust & Cargo** (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- **Shuttle CLI** (`cargo install cargo-shuttle`)
+- **Supabase CLI** (`npm install -g supabase`) ← **これを忘れがち！**
 
-# asdfを使用する場合
-asdf install
+### ステップ 1: プロジェクト作成
 
-# miseを使用する場合
-mise install
-```
-
-#### Rust & Cargo
-```bash
-# Rustのインストール（未インストールの場合）
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# インストール確認
-rustc --version
-cargo --version
-```
-
-#### Shuttle CLI
-```bash
-cargo install cargo-shuttle
-```
-
-### 2. リポジトリのクローン
+⚠️ **重要:** アプリ名を指定してクローン！
 
 ```bash
-git clone [repository-url]
-cd akatsuki
-```
-
-### 3. 依存関係のインストール
-
-```bash
+# アプリ名を指定してクローン（例: my-awesome-app）
+git clone https://github.com/yourusername/akatsuki.git my-awesome-app
+cd my-awesome-app
 npm install
 ```
 
-*(ルートディレクトリで実行すると、`packages/` 配下のすべての依存関係がインストールされます)*
+### ステップ 2: Supabase プロジェクト作成
 
-### 4. Supabase-dev プロジェクトのセットアップ
+[Supabase Dashboard](https://app.supabase.com/) で新規プロジェクトを作成。
 
-このプロジェクトは、開発チーム（1〜2名）で **`Supabase-dev` 環境を共有** して使用します。
+1. 「New Project」をクリック
+2. プロジェクト情報を入力（**Database Password は控えておく**）
+3. 「Create new project」をクリック
 
-#### 4-1. Supabaseプロジェクトの作成
+詳細は [`docs/setup.md`](docs/setup.md) 参照。
 
-1. [Supabase Dashboard](https://app.supabase.com/) にアクセス
-2. 「New Project」をクリック
-3. プロジェクト情報を入力：
-   - **Name:** `akatsuki-dev` (または任意の名前)
-   - **Database Password:** 安全なパスワードを設定（後で使用）
-   - **Region:** 最も近いリージョンを選択（例: `Northeast Asia (Tokyo)`）
-4. 「Create new project」をクリック
-
-#### 4-2. 接続情報の取得
-
-プロジェクトが作成されたら、以下の情報を取得します：
-
-1. **Project URL:**
-   - Dashboard > Settings > API > Project URL
-   - 例: `https://xxxxxxxxxxxxx.supabase.co`
-
-2. **API Keys:**
-   - Dashboard > Settings > API > Project API keys
-   - `anon` `public` キーをコピー
-
-3. **Database URL:**
-   - Dashboard > Settings > Database > Connection string > URI
-   - 形式: `postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxxxxxxx.supabase.co:5432/postgres`
-   - `[YOUR-PASSWORD]` を先ほど設定したDatabase Passwordに置き換える
-
-### 5. 環境変数のセットアップ
-
-#### 5-1. workspace ディレクトリの作成
+### ステップ 3: 自動セットアップ 🎯
 
 ```bash
-mkdir -p workspace
+npm run setup
 ```
 
-`workspace/` ディレクトリは `.gitignore` に含まれており、個人の作業場として使用します。
+このコマンドが以下を自動的に実行します：
 
-#### 5-2. Frontend用の環境変数
+- 📦 プロジェクト名 & 説明の設定（package.json 更新）
+- 🔄 Git 履歴のクリーン化（新規リポジトリとして初期化）
+- ✅ 前提条件チェック
+- 📝 Supabase 情報の入力（対話的）
+- 📝 `.env` ファイル自動生成
+- 🔗 Supabase プロジェクトにリンク
+- 🗄️ データベースマイグレーション適用
+- ⚡ Edge Functions デプロイ
+- 🔑 Secrets 設定ガイド
+- 🔍 バックエンド確認
+- 📝 初回 Git コミット作成
 
-`packages/app-frontend/` に `.env` ファイルを作成：
+**以上！** 開発サーバーを起動してアプリを確認：
 
 ```bash
-cd packages/app-frontend
-cat > .env << 'EOF'
-# Supabase
-VITE_SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
+# ターミナル1: フロントエンド
+npm run dev:frontend  # http://localhost:5173
 
-# Backend API (ローカル開発時)
-VITE_API_BASE_URL=http://localhost:8000
-EOF
+# ターミナル2: バックエンド
+npm run dev:backend   # http://localhost:8000
 ```
 
-**値を実際のSupabase情報に置き換えてください。**
+---
 
-#### 5-3. Backend用の環境変数
+### セットアップ状況の確認
 
-`packages/app-backend/` に `.env` ファイルを作成：
+いつでも以下のコマンドでセットアップ状況を確認できます：
 
 ```bash
-cd packages/app-backend
-cat > .env << 'EOF'
-# Supabase Connection
-DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxxxxxxx.supabase.co:5432/postgres
-
-# Optional: Supabase Project URL and Anon Key
-SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
-SUPABASE_ANON_KEY=your-anon-key-here
-
-# Optional: AI Model API Keys (必要に応じて追加)
-# OPENAI_API_KEY=sk-...
-# ANTHROPIC_API_KEY=sk-ant-...
-EOF
+npm run setup:check
 ```
 
-**値を実際のSupabase情報に置き換えてください。**
+### 詳細なセットアップ手順
 
-> [!TIP]
-> チーム内で `.env` ファイルの内容を安全に共有するには、1Password や Bitwarden などのパスワードマネージャーを使用することをお勧めします。
-
-### 6. 動作確認
-
-#### Backend のコンパイルチェック
-
-```bash
-npm run check:backend
-```
-
-正常にコンパイルが通れば OK です。
-
-### 7. 開発サーバーの起動
-
-#### ターミナル 1: フロントエンド (FE)
-
-```bash
-npm run dev:frontend
-```
-
-`http://localhost:5173` で起動します。
-
-#### ターミナル 2: バックエンド (BE)
-
-```bash
-npm run dev:backend
-```
-
-Shuttle によりローカルサーバーが起動します（デフォルト: `http://localhost:8000`）。
+手動セットアップや詳細な手順は [`docs/setup.md`](docs/setup.md) を参照してください。
 
 ---
 

@@ -2,6 +2,7 @@
   "name": "akatsuki",
   "private": true,
   "description": "VITE+Supabase+Shuttle「Akatsuki」高速開発テンプレート",
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],
@@ -18,10 +19,19 @@
     "supabase:migration:new": "supabase migration new",
     "supabase:push": "supabase db push",
     "supabase:function:new": "supabase functions new",
-    "supabase:function:deploy": "supabase functions deploy"
+    "supabase:function:deploy": "supabase functions deploy",
+    "supabase:secrets:list": "supabase secrets list",
+    "supabase:secrets:set": "supabase secrets set",
+    "supabase:status": "supabase status",
+    "setup": "node scripts/setup.js",
+    "setup:check": "node scripts/check-setup.js"
   },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "inquirer": "^9.2.0",
+    "chalk": "^5.3.0"
   }
 }
