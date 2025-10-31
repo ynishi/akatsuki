@@ -52,11 +52,13 @@ const log = {
  */
 function exec(command, options = {}) {
   try {
-    return execSync(command, {
+    const result = execSync(command, {
       encoding: 'utf8',
       stdio: options.silent ? 'pipe' : 'inherit',
       ...options
-    }).trim()
+    })
+    // Null safety: trim() only if result is not null/undefined
+    return result ? result.trim() : null
   } catch (error) {
     if (options.throwOnError !== false) {
       throw error
@@ -172,7 +174,8 @@ async function setupProjectName() {
 
   console.log('')
 
-  const { projectName, projectDescription } = await inquirer.prompt([
+  // First, get project name
+  const { projectName } = await inquirer.prompt([
     {
       type: 'input',
       name: 'projectName',
@@ -185,12 +188,16 @@ async function setupProjectName() {
         }
         return true
       }
-    },
+    }
+  ])
+
+  // Then, get project description with default
+  const { projectDescription } = await inquirer.prompt([
     {
       type: 'input',
       name: 'projectDescription',
       message: 'Project description (optional):',
-      default: ''
+      default: `${projectName} (Made with Akatsuki)`
     }
   ])
 
@@ -199,11 +206,18 @@ async function setupProjectName() {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
   packageJson.name = projectName
 
-  // Set description (trim and check if not empty)
+  // Set description (check if "Made with Akatsuki" is already included)
   const trimmedDescription = projectDescription.trim()
-  packageJson.description = trimmedDescription
-    ? `${trimmedDescription} (Made with Akatsuki)`
-    : projectName
+  if (trimmedDescription.includes('(Made with Akatsuki)')) {
+    // Already includes branding (from default or user kept it)
+    packageJson.description = trimmedDescription
+  } else if (trimmedDescription) {
+    // User entered custom description, add branding
+    packageJson.description = `${trimmedDescription} (Made with Akatsuki)`
+  } else {
+    // Empty, use project name with branding
+    packageJson.description = `${projectName} (Made with Akatsuki)`
+  }
 
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
   log.success(`Updated package.json: name = "${projectName}"`)
@@ -229,15 +243,15 @@ async function setupProjectName() {
       fs.rmSync(gitDir, { recursive: true, force: true })
       log.success('Removed existing Git history')
 
-      log.step('Initializing new Git repository...')
-      exec('git init')
+      log.step('Initializing new Git repository (branch: main)...')
+      exec('git init -b main')
       log.success('Initialized fresh Git repository')
     } else {
       log.info('Keeping existing Git history')
     }
   } else {
-    log.step('Initializing Git repository...')
-    exec('git init')
+    log.step('Initializing Git repository (branch: main)...')
+    exec('git init -b main')
     log.success('Initialized Git repository')
   }
 
@@ -279,9 +293,12 @@ async function collectSupabaseInfo() {
 
   log.info('Please create a new project at: https://app.supabase.com/')
   log.info('Then, collect the following information from your Supabase Dashboard:')
-  log.step('Settings > API > Project URL')
-  log.step('Settings > API > Project API keys > anon public')
-  log.step('Settings > Database > Connection string > URI')
+  console.log('')
+  log.info('From Project Home (or Settings > API):')
+  log.step('  - Project URL')
+  log.step('  - API Key (anon public)')
+  console.log('')
+  log.step('Prepare Saved Database PASSWORD)')
   console.log('')
 
   const answers = await inquirer.prompt([

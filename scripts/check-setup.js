@@ -36,11 +36,13 @@ const colors = {
  */
 function exec(command, options = {}) {
   try {
-    return execSync(command, {
+    const result = execSync(command, {
       encoding: 'utf8',
       stdio: 'pipe',
       ...options
-    }).trim()
+    })
+    // Null safety: trim() only if result is not null/undefined
+    return result ? result.trim() : null
   } catch {
     return null
   }
