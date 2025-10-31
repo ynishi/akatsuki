@@ -463,7 +463,72 @@ function MyComponent() {
 - `ModelSelector` - UIモデル選択コンポーネント（shadcn/ui）
 
 **Supabase Edge Functions:**
-- `ai-chat` - AIプロバイダー統一チャットエンドポイント（現在はモック実装）
+- `ai-chat` - AIプロバイダー統一チャットエンドポイント（マルチプロバイダー対応、クォータ管理）
+- `generate-image` - AI画像生成エンドポイント（DALL-E, Gemini対応）
+
+#### Akatsuki統一ハンドラーパターン
+
+Supabase Edge Functions で共通的に使用する統一ハンドラーを提供しています。
+
+**実装場所:**
+- `supabase/functions/_shared/handler.ts` - 統一ハンドラー本体
+- `supabase/functions/_shared/api_types.ts` - レスポンス型定義
+- `supabase/functions/_shared/repository.ts` - BaseRepository
+- `supabase/functions/_shared/repositories/` - Repository実装
+
+**2種類のハンドラー:**
+
+1. **`createAkatsukiHandler`** - ユーザー向けAPI（認証必須）
+   ```typescript
+   import { createAkatsukiHandler } from '../_shared/handler.ts'
+
+   Deno.serve(async (req) => {
+     return createAkatsukiHandler<Input, Output>(req, {
+       inputSchema: InputSchema,  // Zodスキーマ
+       requireAuth: true,
+
+       logic: async ({ input, userClient, adminClient, repos }) => {
+         // userClient: RLS有効（ユーザー自身のデータのみ）
+         const { data: { user } } = await userClient.auth.getUser()
+
+         // adminClient経由のRepos: RLSバイパス（Usage等の改ざん防止）
+         await repos.userQuota.incrementUsage(quotaId)
+
+         return { message: 'Success' }
+       }
+     })
+   })
+   ```
+
+2. **`createSystemHandler`** - システム内部API（Webhook等、認証不要）
+   ```typescript
+   import { createSystemHandler } from '../_shared/handler.ts'
+
+   Deno.serve(async (req) => {
+     return createSystemHandler<Input, Output>(req, {
+       inputSchema: InputSchema,
+
+       logic: async ({ input, adminClient, repos }) => {
+         // adminClient: RLSバイパス（全データアクセス可能）
+         await repos.userQuota.create({ ... })
+
+         return { received: true }
+       }
+     })
+   })
+   ```
+
+**設計の意図:**
+- **認証**: ハンドラーレベルで自動チェック
+- **クライアント分離**:
+  - `userClient` (RLS有効) - ユーザー自身のデータのみ操作
+  - `adminClient` (RLSバイパス) - Usage等の改ざん防止
+- **統一レスポンス**: `AkatsukiResponse<T>` 形式で統一
+- **エラーハンドリング**: 統一ハンドラーで自動処理（CORS、バリデーション等）
+
+**利用例:**
+- `supabase/functions/ai-chat/index.ts` - LLM APIエンドポイント
+- `supabase/functions/generate-image/index.ts` - 画像生成エンドポイント
 
 #### Backend実装（Axum）
 
