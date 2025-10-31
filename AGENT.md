@@ -88,11 +88,22 @@ Akatsuki では、保守性と拡張性を重視したレイヤードアーキ�
 
 ```
 src/
-├── components/      # UIコンポーネント（Presentational）
+├── components/      # UIコンポーネント
+│   ├── ui/          # 汎用UIコンポーネント（shadcn/ui）
+│   ├── layout/      # レイアウトコンポーネント（TopNavigation等）
+│   ├── features/    # 【NEW】ドメイン固有のFeatureコンポーネント
+│   │   ├── auth/    # 認証関連（AuthGuard, LoginForm等）
+│   │   ├── ai/      # AI関連（ModelSelector等）
+│   │   ├── storage/ # ストレージ関連（FileUpload等）
+│   │   └── llm/     # LLM Chat関連
+│   └── common/      # その他の共通コンポーネント
 ├── pages/          # ページコンポーネント（Container）
+├── hooks/          # 【NEW】Custom Hooks（ビジネスロジック抽出）
+├── contexts/       # Context API（グローバルState）
 ├── models/         # ドメインモデル層
 ├── repositories/   # データアクセス層（DB CRUD）
 ├── services/       # サービス層（Edge Functions等）
+├── utils/          # ユーティリティ関数
 └── lib/            # インフラ層（Supabaseクライアント等）
 ```
 
@@ -170,7 +181,259 @@ const aiResult = await EdgeFunctionService.invoke('generate-bio', {
 })
 ```
 
+#### Component設計原則
+
+Akatsukiでは、**Componentベースの設計**を徹底し、保守性と再利用性を最大化します。
+
+**1. Component分類 (3つの役割)**
+
+```
+┌─────────────────────────────────────────────────┐
+│ Pages (Container Component)                     │
+│ - 画面全体の構成                                │
+│ - Feature Componentの組み合わせ                  │
+│ - 最小限のState管理                              │
+└─────────────────────────────────────────────────┘
+              ↓ 使用
+┌─────────────────────────────────────────────────┐
+│ Feature Components                              │
+│ - ドメイン固有のビジネスロジック                 │
+│ - Repository/Serviceとの連携                     │
+│ - 複雑なState管理                                │
+│ - 例: FileUpload, AuthGuard, ModelSelector      │
+└─────────────────────────────────────────────────┘
+              ↓ 使用
+┌─────────────────────────────────────────────────┐
+│ UI Components (Presentational Component)       │
+│ - 見た目のみ（ロジックなし）                     │
+│ - propsで完全に制御可能                          │
+│ - 例: Button, Card, Input (shadcn/ui)           │
+└─────────────────────────────────────────────────┘
+```
+
+**2. Pagesの責務（Container Component）**
+
+Pagesは「画面の組み立て役」として振る舞います。
+
+✅ **やるべきこと:**
+- Feature Componentを組み合わせて画面を構成
+- ページ固有のルーティングロジック
+- グローバルStateの取得（Context経由）
+- 最小限のローカルState（タブ切り替え等）
+
+❌ **やってはいけないこと:**
+- 複雑なビジネスロジックを直接記述
+- Repository/Serviceを直接呼び出し（Feature Componentに委譲）
+- 巨大なハンドラー関数を量産
+
+**悪い例（Pages に全てのロジックを詰め込む）:**
+```jsx
+export function SomePage() {
+  const [llmPrompt, setLlmPrompt] = useState('')
+  const [llmResult, setLlmResult] = useState(null)
+  const [llmLoading, setLlmLoading] = useState(false)
+
+  // 複雑なハンドラーが大量に...
+  const handleLLMChat = async () => {
+    // 50行以上のロジック...
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        {/* 複雑なUIロジックが混在... */}
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+**良い例（Feature Componentに分割）:**
+```jsx
+export function SomePage() {
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <PageHeader />
+      <LLMChatCard />              {/* Feature Component */}
+      <ImageGenerationCard />      {/* Feature Component */}
+      <PublicStorageCard />        {/* Feature Component */}
+      <ExternalIntegrationsCard /> {/* Feature Component */}
+    </div>
+  )
+}
+```
+
+**Note:**
+- `HomePage (/)` - シンプルなWelcome画面（VibeCoding で自由に作り替え可能）
+- `ExamplesPage (/examples)` - 全機能の実装例・動作確認用（参考資料）
+
+**3. Feature Componentsの設計**
+
+Feature Componentsは、特定のドメイン機能を持つ「スマートなComponent」です。
+
+✅ **特徴:**
+- Repository/Serviceとの連携
+- 複雑なState管理（useState, useReducer）
+- Custom Hooksの活用
+- ドメインロジックのカプセル化
+
+**例: LLMChatCard.jsx（Feature Component）**
+```jsx
+// components/features/llm/LLMChatCard.jsx
+import { useLLMChat } from '@/hooks/useLLMChat'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+
+export function LLMChatCard() {
+  const { prompt, setPrompt, result, loading, sendMessage, quota } = useLLMChat()
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>LLM Chat</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+        <Button onClick={sendMessage} disabled={loading}>
+          {loading ? 'Sending...' : 'Send'}
+        </Button>
+        {result && <ChatResult result={result} />}
+        {quota && <QuotaDisplay quota={quota} />}
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+**例: useLLMChat.js（Custom Hook）**
+```jsx
+// hooks/useLLMChat.js
+export function useLLMChat() {
+  const { user } = useAuth()
+  const [prompt, setPrompt] = useState('')
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [quota, setQuota] = useState(null)
+
+  const sendMessage = async () => {
+    if (!prompt.trim() || !user) return
+
+    setLoading(true)
+    try {
+      const gemini = new GeminiProvider()
+      const response = await gemini.chat(prompt)
+      setResult(response)
+
+      const quotaInfo = await UserQuotaRepository.checkQuotaAvailability(user.id)
+      setQuota(quotaInfo)
+    } catch (error) {
+      setResult({ error: error.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { prompt, setPrompt, result, loading, sendMessage, quota }
+}
+```
+
+**4. UI Components（Presentational Component）**
+
+UI Componentsは「純粋な見た目のComponent」です。
+
+✅ **原則:**
+- ビジネスロジックを持たない
+- propsで完全に制御可能
+- Repository/Serviceを呼ばない
+- State管理は最小限（開閉状態等のUI Stateのみ）
+
+**例: shadcn/ui のButton, Card等**
+```jsx
+// components/ui/button.jsx
+export function Button({ children, variant, onClick, disabled }) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant }))}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  )
+}
+```
+
+**5. Layout Components**
+
+画面全体のレイアウトを管理するComponentです。
+
+**例: TopNavigation, Sidebar, Footer等**
+```jsx
+// components/layout/TopNavigation.jsx
+export function TopNavigation({ currentPage, onNavigate }) {
+  return (
+    <nav className="fixed top-0 ...">
+      {/* ナビゲーションUI */}
+    </nav>
+  )
+}
+```
+
+**6. Custom Hooksの活用**
+
+複雑なビジネスロジックはCustom Hooksに抽出します。
+
+✅ **抽出すべきロジック:**
+- Repository/Serviceの呼び出し
+- 複雑なState管理
+- 複数のComponentで再利用するロジック
+
+**例:**
+- `useLLMChat()` - LLMチャット機能
+- `useImageGeneration()` - 画像生成機能
+- `useFileUpload()` - ファイルアップロード機能
+- `useAuth()` - 認証状態管理（実装済み）
+
+**7. ディレクトリ移行ガイド**
+
+既存のComponentを整理する際のガイドラインです。
+
+```
+現在の配置              → 推奨される配置
+──────────────────────────────────────────────────
+components/ui/         → components/ui/          (変更なし)
+components/TopNavigation.jsx
+                       → components/layout/TopNavigation.jsx
+components/auth/       → components/features/auth/
+components/ai/         → components/features/ai/
+components/storage/    → components/features/storage/
+```
+
 #### ベストプラクティス
+
+**Component設計:**
+
+1. **1ファイル = 200行以内を目指す**
+   - 超えたら分割を検討
+   - Feature ComponentとCustom Hookに分ける
+
+2. **Pagesは組み立てに専念**
+   - Feature Componentの組み合わせのみ
+   - ビジネスロジックは持たない
+
+3. **Feature Componentはドメイン単位**
+   - 1機能 = 1Feature Component
+   - 例: LLMChat, ImageGeneration, FileUpload
+
+4. **Custom Hooksで再利用性を高める**
+   - 複数のFeature Componentで共通利用
+   - テスト容易性の向上
+
+5. **propsのバケツリレーを避ける**
+   - 3階層以上のprops渡しはContext APIを検討
+   - グローバルStateはContextに集約
+
+**データアクセス:**
 
 1. **lib/supabase.js は肥大化させない**
    - クライアント初期化のみに専念
