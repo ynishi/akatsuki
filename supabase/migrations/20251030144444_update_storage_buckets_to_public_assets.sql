@@ -24,6 +24,12 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
+-- Drop existing policies for public_assets bucket if they exist
+DROP POLICY IF EXISTS "Users can upload to their own folder in public_assets" ON storage.objects;
+DROP POLICY IF EXISTS "Users can read their own files in public_assets" ON storage.objects;
+DROP POLICY IF EXISTS "Public can read all files in public_assets" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own files in public_assets" ON storage.objects;
+
 -- Create RLS Policies for public_assets bucket
 CREATE POLICY "Users can upload to their own folder in public_assets"
 ON storage.objects FOR INSERT
