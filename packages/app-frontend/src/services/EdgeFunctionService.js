@@ -53,10 +53,23 @@ export class EdgeFunctionService {
         throw new Error(error.message || 'Edge Function invocation failed')
       }
 
+      // dataがない、またはオブジェクトでない場合
+      if (!data || typeof data !== 'object') {
+        console.warn(`[EdgeFunctionService] ${functionName} returned invalid response:`, data)
+        return data
+      }
+
       // AkatsukiResponse形式でない場合（旧実装との互換性）
-      if (!data || typeof data !== 'object' || !('success' in data)) {
+      // upload-file等のEdge Functionは独自形式を返す
+      if (!('success' in data)) {
         console.warn(`[EdgeFunctionService] ${functionName} returned non-Akatsuki response:`, data)
         return data
+      }
+
+      // successフィールドがあるが、resultフィールドがない場合（upload-file等）
+      if (data.success && !('result' in data)) {
+        console.log(`[EdgeFunctionService] ${functionName} returned success without result field:`, data)
+        return data // データ全体を返す
       }
 
       // AkatsukiResponse形式の処理
@@ -65,7 +78,7 @@ export class EdgeFunctionService {
         return rawResponse ? data : data.result
       } else {
         // 失敗: エラーをthrow
-        const errorMessage = data.error?.message || 'Unknown error'
+        const errorMessage = data.error?.message || data.error || 'Unknown error'
         const errorCode = data.error?.code || 'UNKNOWN_ERROR'
         const error = new Error(errorMessage)
         error.code = errorCode
