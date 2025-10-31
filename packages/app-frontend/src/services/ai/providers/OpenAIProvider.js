@@ -26,11 +26,14 @@ export class OpenAIProvider extends BaseProvider {
     }
 
     try {
+      // EdgeFunctionServiceは既にresultを抽出して返す
+      // ai-chatのレスポンス: { response, model, usage, tokens }
       const result = await EdgeFunctionService.invoke('ai-chat', payload)
       return {
-        text: result.text,
+        text: result.response, // responseフィールドに変更
         usage: result.usage,
         model: result.model,
+        tokens: result.tokens, // トークン情報も追加
       }
     } catch (error) {
       throw new Error(`OpenAI chat failed: ${error.message}`)

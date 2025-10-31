@@ -29,15 +29,15 @@ export class GeminiProvider extends BaseProvider {
       responseJson: options.responseJson || false,
     }
 
+    // EdgeFunctionServiceは既にresultを抽出して返す
+    // ai-chatのレスポンス: { response, model, usage, tokens }
     const result = await EdgeFunctionService.invoke('ai-chat', payload)
 
-    // New response format: { success, response, model, usage, tokens }
     return {
       text: result.response,
       usage: result.usage,
       tokens: result.tokens,
       model: result.model,
-      success: result.success,
     }
   }
 

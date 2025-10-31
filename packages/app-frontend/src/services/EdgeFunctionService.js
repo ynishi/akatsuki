@@ -4,6 +4,11 @@ import { supabase } from '../lib/supabase'
  * Edge Function Service
  * Supabase Edge Functions の呼び出しを管理
  *
+ * Akatsukiハンドラーパターン対応:
+ * - すべてのレスポンスは { success, result, error } 形式
+ * - success: true の場合、result を返す
+ * - success: false の場合、エラーをthrow
+ *
  * サービスレイヤーの利点:
  * - Edge Functions の呼び出しを一箇所に集約
  * - エラーハンドリングの統一
@@ -12,16 +17,17 @@ import { supabase } from '../lib/supabase'
  */
 export class EdgeFunctionService {
   /**
-   * Edge Function を呼び出す
+   * Edge Function を呼び出す（AkatsukiResponse対応）
    * @param {string} functionName - 関数名
    * @param {Object|FormData} payload - リクエストペイロード
    * @param {Object} options - オプション
    * @param {boolean} options.isFormData - FormDataかどうか
-   * @returns {Promise<Object>} レスポンスデータ
+   * @param {boolean} options.rawResponse - 生のレスポンスを返すか（デフォルト: false）
+   * @returns {Promise<any>} レスポンスのresult部分（またはrawResponse: trueの場合は全体）
    */
   static async invoke(functionName, payload = {}, options = {}) {
     try {
-      const { isFormData = false } = options
+      const { isFormData = false, rawResponse = false } = options
 
       const invokeOptions = {}
 
@@ -39,57 +45,68 @@ export class EdgeFunctionService {
 
       const { data, error } = await supabase.functions.invoke(functionName, invokeOptions)
 
-      console.log(`[EdgeFunctionService] ${functionName} response data:`, data)
-      console.log(`[EdgeFunctionService] ${functionName} response error:`, error)
-      console.log(`[EdgeFunctionService] ${functionName} data type:`, typeof data)
+      console.log(`[EdgeFunctionService] ${functionName} response:`, { data, error })
 
+      // Supabase Functions自体のエラー（ネットワークエラー等）
       if (error) {
-        console.error(`Edge Function '${functionName}' エラー:`, error)
-        throw error
+        console.error(`[EdgeFunctionService] ${functionName} Supabase error:`, error)
+        throw new Error(error.message || 'Edge Function invocation failed')
       }
 
-      return data
+      // AkatsukiResponse形式でない場合（旧実装との互換性）
+      if (!data || typeof data !== 'object' || !('success' in data)) {
+        console.warn(`[EdgeFunctionService] ${functionName} returned non-Akatsuki response:`, data)
+        return data
+      }
+
+      // AkatsukiResponse形式の処理
+      if (data.success) {
+        // 成功: resultを返す
+        return rawResponse ? data : data.result
+      } else {
+        // 失敗: エラーをthrow
+        const errorMessage = data.error?.message || 'Unknown error'
+        const errorCode = data.error?.code || 'UNKNOWN_ERROR'
+        const error = new Error(errorMessage)
+        error.code = errorCode
+        console.error(`[EdgeFunctionService] ${functionName} function error:`, {
+          message: errorMessage,
+          code: errorCode,
+        })
+        throw error
+      }
     } catch (error) {
-      console.error(`Edge Function '${functionName}' 呼び出し失敗:`, error)
+      console.error(`[EdgeFunctionService] ${functionName} 呼び出し失敗:`, error)
       throw error
     }
   }
 
   /**
-   * 認証付きで Edge Function を呼び出す
+   * 認証付きで Edge Function を呼び出す（AkatsukiResponse対応）
+   *
+   * 注意: AkatsukiハンドラーパターンのrequireAuth: trueを使用する場合、
+   * supabase.functions.invokeは自動的にAuthorizationヘッダーを付与するため、
+   * このメソッドは不要になります。通常のinvoke()を使用してください。
+   *
    * @param {string} functionName - 関数名
    * @param {Object} payload - リクエストペイロード
-   * @returns {Promise<Object>} レスポンスデータ
+   * @param {Object} options - オプション
+   * @returns {Promise<any>} レスポンスのresult部分
+   * @deprecated Akatsukiハンドラーパターンではinvoke()を使用してください
    */
-  static async invokeWithAuth(functionName, payload = {}) {
-    try {
-      // 現在のセッションを取得
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+  static async invokeWithAuth(functionName, payload = {}, options = {}) {
+    // 現在のセッションを取得して明示的にAuthorizationヘッダーを設定
+    // （ただし、通常はsupabase.functions.invokeが自動設定するため不要）
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-      if (!session) {
-        throw new Error('認証が必要です')
-      }
-
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: JSON.stringify(payload),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (error) {
-        console.error(`Edge Function '${functionName}' エラー:`, error)
-        throw error
-      }
-
-      return data
-    } catch (error) {
-      console.error(`Edge Function '${functionName}' 呼び出し失敗:`, error)
-      throw error
+    if (!session) {
+      throw new Error('認証が必要です')
     }
+
+    // 通常のinvokeを使用（Authorizationヘッダーは自動設定される）
+    return this.invoke(functionName, payload, options)
   }
 }
 

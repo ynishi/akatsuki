@@ -1,65 +1,52 @@
 // Supabase Edge Function: hello-world
-// シンプルな Hello World サンプル
+// Akatsukiハンドラーパターンを使ったシンプルなHello Worldサンプル
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { createAkatsukiHandler } from '../_shared/handler.ts'
+import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
 
 console.log("Hello from hello-world function!")
 
+// IN/OUT型定義（Zodスキーマから自動推論）
+const InputSchema = z.object({
+  name: z.string().min(1, 'Name must not be empty').optional().default('Guest'),
+})
+type Input = z.infer<typeof InputSchema>
+
+interface Output {
+  message: string
+  timestamp: string
+  functionName: string
+  userId?: string // 認証ユーザーがいる場合
+}
+
 Deno.serve(async (req) => {
-  // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  }
+  return createAkatsukiHandler<Input, Output>(req, {
+    // 入力スキーマを渡す
+    inputSchema: InputSchema,
 
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+    // 認証は任意（hello-worldなので）
+    requireAuth: false,
 
-  try {
-    // リクエストボディからnameを取得（空の場合も対応）
-    let name = 'Guest'
-    try {
-      const body = await req.json()
-      name = body.name || 'Guest'
-    } catch {
-      // JSONパースエラーの場合はデフォルト値を使用
-      name = 'Guest'
-    }
-
-    const userName = name
-
-    // レスポンスデータ
-    const data = {
-      message: `Hello, ${userName}!`,
-      timestamp: new Date().toISOString(),
-      functionName: 'hello-world',
-    }
-
-    return new Response(JSON.stringify(data), {
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
-    })
-  } catch (error) {
-    console.error('Error in hello-world function:', error)
-
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error.message,
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
+    // ビジネスロジックを渡す
+    logic: async ({ input, supabase }) => {
+      // 認証ユーザーがいれば取得（任意）
+      let userId: string | undefined
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        userId = user?.id
+      } catch {
+        // 認証エラーは無視（requireAuth: false のため）
       }
-    )
-  }
+
+      return {
+        message: `Hello, ${input.name}!`,
+        timestamp: new Date().toISOString(),
+        functionName: 'hello-world',
+        userId,
+      }
+    },
+  })
 })
 
 /*
