@@ -50,12 +50,8 @@ function exec(command, options = {}) {
  * Check if a command exists
  */
 function commandExists(command) {
-  try {
-    exec(`which ${command}`)
-    return true
-  } catch {
-    return false
-  }
+  const result = exec(`which ${command}`)
+  return result !== null && result.length > 0
 }
 
 /**

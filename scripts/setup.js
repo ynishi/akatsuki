@@ -70,8 +70,8 @@ function exec(command, options = {}) {
  */
 function commandExists(command) {
   try {
-    exec(`which ${command}`, { silent: true, throwOnError: false })
-    return true
+    const result = exec(`which ${command}`, { silent: true, throwOnError: false })
+    return result !== null && result.length > 0
   } catch {
     return false
   }
@@ -103,7 +103,7 @@ function checkRust() {
     return false
   }
 
-  const version = exec('rustc --version', { silent: true })
+  const version = exec('rustc --version', { silent: true }) || 'unknown'
   log.success(`Rust: ${version}`)
   return true
 }
@@ -117,7 +117,7 @@ function checkCargo() {
     return false
   }
 
-  const version = exec('cargo --version', { silent: true })
+  const version = exec('cargo --version', { silent: true }) || 'unknown'
   log.success(`Cargo: ${version}`)
   return true
 }
@@ -132,7 +132,7 @@ function checkShuttleCLI() {
     return false
   }
 
-  const version = exec('cargo shuttle --version', { silent: true })
+  const version = exec('cargo shuttle --version', { silent: true }) || 'unknown'
   log.success(`Shuttle CLI: ${version}`)
   return true
 }
@@ -148,7 +148,7 @@ function checkSupabaseCLI() {
     return false
   }
 
-  const version = exec('supabase --version', { silent: true })
+  const version = exec('supabase --version', { silent: true }) || 'unknown'
   log.success(`Supabase CLI: ${version}`)
   return true
 }
@@ -198,9 +198,13 @@ async function setupProjectName() {
   const packageJsonPath = path.join(rootDir, 'package.json')
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
   packageJson.name = projectName
-  packageJson.description = projectDescription
-    ? `${projectDescription} (Made with Akatsuki)`
+
+  // Set description (trim and check if not empty)
+  const trimmedDescription = projectDescription.trim()
+  packageJson.description = trimmedDescription
+    ? `${trimmedDescription} (Made with Akatsuki)`
     : projectName
+
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
   log.success(`Updated package.json: name = "${projectName}"`)
   log.success(`Updated package.json: description = "${packageJson.description}"`)
