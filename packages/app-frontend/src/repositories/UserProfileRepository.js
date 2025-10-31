@@ -8,6 +8,24 @@ import { supabase } from '../lib/supabase'
  * - データアクセスロジックを一箇所に集約
  * - テストが容易（モックしやすい）
  * - Supabaseクライアントの実装詳細を隠蔽
+ *
+ * 使用例:
+ * ```javascript
+ * import { UserProfileRepository } from '../repositories/UserProfileRepository'
+ * import { UserProfile } from '../models/UserProfile'
+ *
+ * // 1. Repository でデータ取得
+ * const data = await UserProfileRepository.findByUserId(userId)
+ *
+ * // 2. Model でドメインオブジェクトに変換
+ * const profile = UserProfile.fromDatabase(data)
+ *
+ * // 3. Model で更新データ作成
+ * const updated = new UserProfile({ ...profile, displayName: 'New Name' })
+ *
+ * // 4. Repository で保存
+ * await UserProfileRepository.update(userId, updated.toUpdateDatabase())
+ * ```
  */
 export class UserProfileRepository {
   /**

@@ -226,29 +226,13 @@ Pagesは「画面の組み立て役」として振る舞います。
 - Repository/Serviceを直接呼び出し（Feature Componentに委譲）
 - 巨大なハンドラー関数を量産
 
-**悪い例（Pages に全てのロジックを詰め込む）:**
-```jsx
-export function SomePage() {
-  const [llmPrompt, setLlmPrompt] = useState('')
-  const [llmResult, setLlmResult] = useState(null)
-  const [llmLoading, setLlmLoading] = useState(false)
+**❌ 悪い例（Pages に全てのロジックを詰め込む）:**
+- 複雑なState管理を全てPageに記述（useState を10個以上並べる）
+- 50行以上のハンドラー関数を量産
+- Repository/Serviceの直接呼び出しをPageに記述
+- UIロジックとビジネスロジックが混在
 
-  // 複雑なハンドラーが大量に...
-  const handleLLMChat = async () => {
-    // 50行以上のロジック...
-  }
-
-  return (
-    <Card>
-      <CardContent>
-        {/* 複雑なUIロジックが混在... */}
-      </CardContent>
-    </Card>
-  )
-}
-```
-
-**良い例（Feature Componentに分割）:**
+**✅ 良い例（Feature Componentに分割）:**
 ```jsx
 export function SomePage() {
   return (
@@ -277,65 +261,45 @@ Feature Componentsは、特定のドメイン機能を持つ「スマートなCo
 - Custom Hooksの活用
 - ドメインロジックのカプセル化
 
-**例: LLMChatCard.jsx（Feature Component）**
-```jsx
-// components/features/llm/LLMChatCard.jsx
-import { useLLMChat } from '@/hooks/useLLMChat'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+**実装パターン例:**
 
+```jsx
+// Feature Component: components/features/llm/LLMChatCard.jsx
 export function LLMChatCard() {
-  const { prompt, setPrompt, result, loading, sendMessage, quota } = useLLMChat()
+  const { prompt, setPrompt, result, loading, sendMessage } = useLLMChat()
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>LLM Chat</CardTitle>
-      </CardHeader>
       <CardContent>
         <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-        <Button onClick={sendMessage} disabled={loading}>
-          {loading ? 'Sending...' : 'Send'}
-        </Button>
+        <Button onClick={sendMessage} disabled={loading}>Send</Button>
         {result && <ChatResult result={result} />}
-        {quota && <QuotaDisplay quota={quota} />}
       </CardContent>
     </Card>
   )
 }
-```
 
-**例: useLLMChat.js（Custom Hook）**
-```jsx
-// hooks/useLLMChat.js
+// Custom Hook: hooks/useLLMChat.js
 export function useLLMChat() {
-  const { user } = useAuth()
   const [prompt, setPrompt] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [quota, setQuota] = useState(null)
 
   const sendMessage = async () => {
-    if (!prompt.trim() || !user) return
-
     setLoading(true)
     try {
-      const gemini = new GeminiProvider()
-      const response = await gemini.chat(prompt)
+      const response = await AIService.chat(prompt)
       setResult(response)
-
-      const quotaInfo = await UserQuotaRepository.checkQuotaAvailability(user.id)
-      setQuota(quotaInfo)
-    } catch (error) {
-      setResult({ error: error.message })
     } finally {
       setLoading(false)
     }
   }
 
-  return { prompt, setPrompt, result, loading, sendMessage, quota }
+  return { prompt, setPrompt, result, loading, sendMessage }
 }
 ```
+
+**参考実装:** `src/pages/ExamplesPage.jsx` に実際の実装例があります。
 
 **4. UI Components（Presentational Component）**
 
@@ -347,37 +311,16 @@ UI Componentsは「純粋な見た目のComponent」です。
 - Repository/Serviceを呼ばない
 - State管理は最小限（開閉状態等のUI Stateのみ）
 
-**例: shadcn/ui のButton, Card等**
-```jsx
-// components/ui/button.jsx
-export function Button({ children, variant, onClick, disabled }) {
-  return (
-    <button
-      className={cn(buttonVariants({ variant }))}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  )
-}
-```
+**参考実装:**
+- `src/components/ui/` - shadcn/ui の UI Components（Button, Card, Input等）
+- これらは既に実装済みで、そのまま使用できます
 
 **5. Layout Components**
 
 画面全体のレイアウトを管理するComponentです。
 
-**例: TopNavigation, Sidebar, Footer等**
-```jsx
-// components/layout/TopNavigation.jsx
-export function TopNavigation({ currentPage, onNavigate }) {
-  return (
-    <nav className="fixed top-0 ...">
-      {/* ナビゲーションUI */}
-    </nav>
-  )
-}
-```
+**例:** TopNavigation, Sidebar, Footer 等
+- 実装が必要な場合は `src/components/layout/` に作成
 
 **6. Custom Hooksの活用**
 
@@ -614,21 +557,12 @@ function MyComponent() {
    - username の重複時は自動的に user_id を付与して一意性を確保
 
    **Trigger の仕組み:**
-   ```sql
-   -- SignupForm で metadata 指定
-   signUp(email, password, {
-     username: 'myusername',
-     display_name: 'My Display Name'
-   })
+   1. SignupForm で metadata に `username`, `display_name` を指定
+   2. `auth.users` にユーザー作成
+   3. Trigger 発火 (`handle_new_user()`)
+   4. `profiles` テーブルに自動作成（username 重複時は user_id を付与）
 
-   -- ↓ auth.users にユーザー作成
-   -- ↓ Trigger 発火: handle_new_user()
-   -- ↓ profiles テーブルに自動作成
-   ```
-
-   **マイグレーション:**
-   - `20251029090845_add_profile_creation_trigger.sql`
-   - EXCEPTION 処理で username 重複時も安全に作成
+   **マイグレーション:** `20251029090845_add_profile_creation_trigger.sql`
 
 6. **ロールベースアクセス制御（Role-Based Access Control）**
    - profiles テーブルに role カラムを追加
@@ -879,24 +813,11 @@ await fetch('https://your-project.supabase.co/functions/v1/send-email', {
 
 #### 拡張方法
 
-新しい外部連携を追加する場合は、`createSystemHandler` を使用：
-
-```typescript
-// supabase/functions/discord-notify/index.ts
-import { createSystemHandler } from '../_shared/handler.ts'
-
-Deno.serve(async (req) => {
-  return createSystemHandler<Input, Output>(req, {
-    inputSchema: InputSchema,
-    logic: async ({ input, adminClient }) => {
-      // Discord Webhook送信
-      await fetch(Deno.env.get('DISCORD_WEBHOOK_URL'), { ... })
-
-      return { sent: true }
-    }
-  })
-})
-```
+新しい外部連携を追加する場合:
+1. `supabase/functions/` に新しいFunction作成（例: `discord-notify`）
+2. `createSystemHandler` を使用してハンドラー実装
+3. 環境変数に Webhook URL や API Key を設定
+4. デプロイ: `npm run supabase:function:deploy`
 
 ### 5.3. shadcn/ui コンポーネント (将来の拡張)
 
@@ -1033,35 +954,13 @@ node generate-dummy-data.js
 - **workspace/ は Git管理外** - 使い捨てスクリプトを自由に書ける
 
 **応用例:**
-
-```javascript
-// プロジェクトデータ生成
-async function generateDummyProjects() {
-  for (let i = 0; i < 20; i++) {
-    await supabase.from('projects').insert({
-      name: `Project ${i + 1}`,
-      description: `This is a dummy project for testing.`,
-      status: i % 3 === 0 ? 'completed' : 'active',
-      user_id: `dummy-user-${(i % 10) + 1}`,
-    })
-  }
-}
-```
+- プロジェクトデータ生成: `supabase.from('projects').insert({ ... })`
+- 投稿データ生成: `supabase.from('posts').insert({ ... })`
+- 画像生成と紐付け: `ImageGenerationService.generate()` → `file_id` 取得
 
 **削除方法:**
-
-```javascript
-// ダミーデータ削除
-async function cleanupDummyData() {
-  // Profiles削除
-  await supabase.from('profiles').delete().like('user_id', 'dummy-user-%')
-
-  // Projects削除
-  await supabase.from('projects').delete().like('user_id', 'dummy-user-%')
-
-  console.log('✓ Cleaned up dummy data')
-}
-```
+- `supabase.from('profiles').delete().like('user_id', 'dummy-user-%')`
+- 関連データも同様に削除
 
 #### ローカル専用領域 (`workspace/`)
 * ルートの `workspace/` ディレクトリは **`.gitignore` されています**。
@@ -1465,205 +1364,33 @@ bg-gradient-to-r from-pink-600 to-purple-700
 
 VibeCodingでよく使う実装パターンです。
 
-#### 1. Hero Section（ヒーローセクション）
+#### 主要パターン一覧
 
-**用途:** トップページの第一印象
+**1. Hero Section（ヒーローセクション）**
+- 用途: トップページの第一印象
+- 重要クラス: `min-h-screen`, `bg-gradient-to-br`, `text-6xl`, `bg-clip-text`, `Button variant="gradient"`
 
-**特徴:**
-- 大きな見出し（グラデーションテキスト）
-- サブタイトル
-- CTAボタン（目立つ配置）
-- 背景グラデーション
+**2. Feature Cards（機能カード）**
+- 用途: 機能紹介、メニュー選択
+- 重要クラス: `grid md:grid-cols-3`, `Card`, `hover:border-pink-300`, lucide-reactアイコン
 
-**実装例:**
-```jsx
-<div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-  <div className="max-w-6xl mx-auto px-8 py-20 text-center">
-    <h1 className="text-6xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text">
-      Welcome to Your App
-    </h1>
-    <p className="text-xl text-gray-600 mt-4">
-      魅力的なサブタイトルをここに
-    </p>
-    <div className="mt-8 flex gap-4 justify-center">
-      <Button variant="gradient" size="lg">始める</Button>
-      <Button variant="outline" size="lg">詳しく見る</Button>
-    </div>
-  </div>
-</div>
-```
+**3. Image Gallery（画像ギャラリー）**
+- 用途: 生成画像の表示、作品一覧
+- 重要クラス: `grid grid-cols-2 md:grid-cols-3`, `group`, `hover:scale-105`, `hover:shadow-2xl`
 
-#### 2. Feature Cards（機能カード）
+**4. Step-by-Step UI（ステップ式UI）**
+- 用途: 複数ステップの作成フロー
+- 重要クラス: `Progress`, `useState(currentStep)`, 条件分岐でStep表示
 
-**用途:** 機能紹介、メニュー選択
+**5. Loading & Empty States（ローディング・空状態）**
+- 用途: データ取得中、データなし
+- 重要クラス: `animate-spin`, `flex items-center justify-center`, lucide-reactアイコン
 
-**特徴:**
-- アイコン付きカード
-- グリッドレイアウト（2列 or 3列）
-- hover効果で境界線変化
+**6. Image Upload Preview（画像アップロードプレビュー）**
+- 用途: ファイルアップロード時のプレビュー
+- 重要クラス: `relative`, `absolute top-2 right-2`, `rounded-xl shadow-lg`
 
-**実装例:**
-```jsx
-<div className="grid md:grid-cols-3 gap-6">
-  <Card className="border-2 hover:border-pink-300 transition-colors">
-    <CardHeader>
-      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mb-4">
-        <Sparkles className="w-6 h-6 text-white" />
-      </div>
-      <CardTitle>機能名</CardTitle>
-      <CardDescription>機能の説明文</CardDescription>
-    </CardHeader>
-  </Card>
-  {/* 他のカード */}
-</div>
-```
-
-#### 3. Image Gallery（画像ギャラリー）
-
-**用途:** 生成画像の表示、作品一覧
-
-**特徴:**
-- グリッドレイアウト
-- 画像プレビュー
-- hover効果（拡大、影）
-
-**実装例:**
-```jsx
-<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-  {images.map((image) => (
-    <div
-      key={image.id}
-      className="relative group rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer"
-    >
-      <img
-        src={image.url}
-        alt={image.title}
-        className="w-full h-64 object-cover group-hover:scale-105 transition-transform"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="absolute bottom-4 left-4 text-white">
-          <p className="font-semibold">{image.title}</p>
-        </div>
-      </div>
-    </div>
-  ))}
-</div>
-```
-
-#### 4. Step-by-Step UI（ステップ式UI）
-
-**用途:** 複数ステップの作成フロー
-
-**特徴:**
-- プログレスバー
-- ステップ表示
-- 前へ/次へボタン
-
-**実装例:**
-```jsx
-// ステップ管理
-const [currentStep, setCurrentStep] = useState(1)
-const totalSteps = 3
-
-<div className="space-y-6">
-  {/* Progress */}
-  <div className="space-y-2">
-    <div className="flex justify-between text-sm text-gray-600">
-      <span>ステップ {currentStep} / {totalSteps}</span>
-      <span>{Math.round((currentStep / totalSteps) * 100)}%</span>
-    </div>
-    <Progress value={(currentStep / totalSteps) * 100} />
-  </div>
-
-  {/* Content */}
-  <Card>
-    <CardContent className="pt-6">
-      {currentStep === 1 && <Step1Content />}
-      {currentStep === 2 && <Step2Content />}
-      {currentStep === 3 && <Step3Content />}
-    </CardContent>
-  </Card>
-
-  {/* Navigation */}
-  <div className="flex justify-between">
-    <Button
-      variant="outline"
-      onClick={() => setCurrentStep(prev => prev - 1)}
-      disabled={currentStep === 1}
-    >
-      前へ
-    </Button>
-    <Button
-      variant="gradient"
-      onClick={() => setCurrentStep(prev => prev + 1)}
-      disabled={currentStep === totalSteps}
-    >
-      {currentStep === totalSteps ? '完了' : '次へ'}
-    </Button>
-  </div>
-</div>
-```
-
-#### 5. Loading & Empty States（ローディング・空状態）
-
-**用途:** データ取得中、データなし
-
-**特徴:**
-- アニメーション付きローディング
-- 視覚的にわかりやすい空状態
-
-**実装例:**
-```jsx
-// Loading
-{loading && (
-  <div className="flex flex-col items-center justify-center py-12">
-    <div className="animate-spin h-12 w-12 border-4 border-gray-200 border-t-purple-600 rounded-full" />
-    <p className="mt-4 text-gray-600">読み込み中...</p>
-  </div>
-)}
-
-// Empty State
-{!loading && items.length === 0 && (
-  <div className="flex flex-col items-center justify-center py-12 text-center">
-    <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-      <ImageIcon className="w-8 h-8 text-gray-400" />
-    </div>
-    <p className="text-gray-600 font-semibold">まだ作品がありません</p>
-    <p className="text-gray-500 text-sm mt-2">最初の作品を作成してみましょう！</p>
-    <Button variant="gradient" className="mt-4">
-      作成する
-    </Button>
-  </div>
-)}
-```
-
-#### 6. Image Upload Preview（画像アップロードプレビュー）
-
-**用途:** ファイルアップロード時のプレビュー
-
-**特徴:**
-- 画像プレビュー表示
-- ドラッグ&ドロップ対応
-- 削除ボタン
-
-**実装例:**
-```jsx
-{previewUrl && (
-  <div className="relative w-full max-w-md mx-auto">
-    <img
-      src={previewUrl}
-      alt="Preview"
-      className="w-full rounded-xl shadow-lg"
-    />
-    <button
-      onClick={handleRemove}
-      className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-    >
-      <X className="w-4 h-4" />
-    </button>
-  </div>
-)}
-```
+**詳細な実装例:** `src/pages/ExamplesPage.jsx` および `src/pages/HomePage.jsx` を参照
 
 ### 推奨する視覚要素
 
