@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
 import { UserProfileRepository, UserQuotaRepository } from '../repositories'
 import { UserProfile } from '../models'
-import { callHelloFunction, ImageGenerationService } from '../services'
+import { callHelloFunction, ImageGenerationService, EdgeFunctionService } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
 import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
@@ -48,6 +48,16 @@ export function HomePage() {
   const [imagePrompt, setImagePrompt] = useState('')
   const [generatedImage, setGeneratedImage] = useState(null)
   const [imageGenerating, setImageGenerating] = useState(false)
+
+  // External Integration states
+  const [slackMessage, setSlackMessage] = useState('Hello from Akatsuki!')
+  const [slackResult, setSlackResult] = useState(null)
+  const [slackSending, setSlackSending] = useState(false)
+  const [emailTo, setEmailTo] = useState('test@example.com')
+  const [emailSubject, setEmailSubject] = useState('Test Email from Akatsuki')
+  const [emailBody, setEmailBody] = useState('This is a test email.')
+  const [emailResult, setEmailResult] = useState(null)
+  const [emailSending, setEmailSending] = useState(false)
 
   // Repository使用例: プロフィール作成
   // 注: このサンプルは実際のユーザー認証が必要です
@@ -225,6 +235,57 @@ export function HomePage() {
       setGeneratedImage({ error: error.message })
     } finally {
       setImageGenerating(false)
+    }
+  }
+
+  // Slack Notify
+  const handleSlackNotify = async () => {
+    if (!slackMessage.trim()) return
+
+    try {
+      setSlackSending(true)
+      setSlackResult(null)
+
+      const result = await EdgeFunctionService.invoke('slack-notify', {
+        text: slackMessage,
+        metadata: {
+          source: 'homepage-test',
+          event_type: 'manual_test',
+        },
+      })
+
+      setSlackResult({ success: true, ...result })
+    } catch (error) {
+      console.error('Slack notify error:', error)
+      setSlackResult({ success: false, error: error.message })
+    } finally {
+      setSlackSending(false)
+    }
+  }
+
+  // Send Email
+  const handleSendEmail = async () => {
+    if (!emailTo.trim() || !emailSubject.trim() || !emailBody.trim()) return
+
+    try {
+      setEmailSending(true)
+      setEmailResult(null)
+
+      const result = await EdgeFunctionService.invoke('send-email', {
+        to: emailTo,
+        subject: emailSubject,
+        text: emailBody,
+        metadata: {
+          template: 'test',
+        },
+      })
+
+      setEmailResult({ success: true, ...result })
+    } catch (error) {
+      console.error('Send email error:', error)
+      setEmailResult({ success: false, error: error.message })
+    } finally {
+      setEmailSending(false)
     }
   }
 
@@ -865,6 +926,116 @@ console.log(result.publicUrl) // 永続化された画像URL`}</code>
                 <span>Generating image... (通常10-30秒)</span>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* External Integrations Demo */}
+        <Card>
+          <CardHeader>
+            <CardTitle>External Integrations</CardTitle>
+            <CardDescription>外部連携のテスト (Slack, Email)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Slack Notify */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-gray-700">Slack Notification</h3>
+              <Input
+                placeholder="Enter message"
+                value={slackMessage}
+                onChange={(e) => setSlackMessage(e.target.value)}
+              />
+              <Button
+                onClick={handleSlackNotify}
+                disabled={slackSending || !slackMessage.trim()}
+                className="w-full"
+              >
+                {slackSending ? 'Sending...' : 'Send to Slack'}
+              </Button>
+
+              {slackResult && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  slackResult.success
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
+                }`}>
+                  {slackResult.success ? (
+                    <>
+                      <strong>✓ Sent!</strong>
+                      <div className="mt-1 text-xs">
+                        Timestamp: {new Date(slackResult.timestamp).toLocaleString()}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <strong>✗ Error:</strong> {slackResult.error}
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-yellow-50 p-3 rounded-lg text-xs text-gray-700">
+                <strong>Note:</strong> SLACK_WEBHOOK_URLの設定が必要です
+              </div>
+            </div>
+
+            <div className="border-t pt-6" />
+
+            {/* Send Email */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-gray-700">Email Sending</h3>
+              <Input
+                placeholder="To: email@example.com"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                type="email"
+              />
+              <Input
+                placeholder="Subject"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+              />
+              <textarea
+                placeholder="Email body..."
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                className="w-full p-2 border rounded-md min-h-[100px] text-sm"
+              />
+              <Button
+                onClick={handleSendEmail}
+                disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()}
+                className="w-full"
+              >
+                {emailSending ? 'Sending...' : 'Send Email'}
+              </Button>
+
+              {emailResult && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  emailResult.success
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
+                }`}>
+                  {emailResult.success ? (
+                    <>
+                      <strong>✓ Sent!</strong>
+                      <div className="mt-1 text-xs">
+                        Message ID: {emailResult.message_id?.substring(0, 20)}...
+                      </div>
+                      <div className="text-xs">
+                        Timestamp: {new Date(emailResult.timestamp).toLocaleString()}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <strong>✗ Error:</strong> {emailResult.error}
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-yellow-50 p-3 rounded-lg text-xs text-gray-700">
+                <strong>Note:</strong> RESEND_API_KEY と EMAIL_FROM の設定が必要です
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

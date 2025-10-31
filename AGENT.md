@@ -539,7 +539,103 @@ Supabase Edge Functions で共通的に使用する統一ハンドラーを提�
     3. **Agent実行 (LLMタスク):** `/api/aigen/agent-execute`
   - Supabase (PostgreSQL) 連携基盤（`src/db.rs`）
 
-### 5.2. shadcn/ui コンポーネント (将来の拡張)
+### 5.2. 外部連携統合 (External Integrations)
+
+Akatsuki では、よく使う外部サービス連携の雛形を標準搭載しています。
+
+#### Slack通知
+
+**実装場所:**
+- `supabase/functions/slack-notify/index.ts`
+
+**用途例:**
+- エラー通知
+- システムアラート
+- ステータス更新通知
+- デプロイ完了通知
+
+**使用例:**
+```typescript
+// 内部システムから呼び出し（認証不要）
+await fetch('https://your-project.supabase.co/functions/v1/slack-notify', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    text: 'デプロイが完了しました！',
+    channel: '#notifications',
+    attachments: [{
+      color: 'good',
+      title: 'Production Deploy',
+      fields: [
+        { title: 'Version', value: 'v1.2.3', short: true },
+        { title: 'Status', value: '✅ Success', short: true },
+      ]
+    }]
+  })
+})
+```
+
+**環境変数:**
+- `SLACK_WEBHOOK_URL` - Slack Incoming Webhook URL
+
+#### Email送信
+
+**実装場所:**
+- `supabase/functions/send-email/index.ts`
+
+**用途例:**
+- パスワードリセットメール
+- ウェルカムメール
+- 通知メール
+- レポート送信
+
+**使用例:**
+```typescript
+// 内部システムから呼び出し（認証不要）
+await fetch('https://your-project.supabase.co/functions/v1/send-email', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    to: 'user@example.com',
+    subject: 'Welcome to Akatsuki!',
+    html: '<h1>Welcome!</h1><p>Thanks for signing up.</p>',
+    metadata: {
+      template: 'welcome',
+      user_id: 'user-123'
+    }
+  })
+})
+```
+
+**環境変数:**
+- `RESEND_API_KEY` - Resend API Key
+- `EMAIL_FROM` - デフォルト送信元メールアドレス
+
+**使用サービス:**
+- [Resend](https://resend.com/) - シンプルで開発者フレンドリーなメール送信サービス
+
+#### 拡張方法
+
+新しい外部連携を追加する場合は、`createSystemHandler` を使用：
+
+```typescript
+// supabase/functions/discord-notify/index.ts
+import { createSystemHandler } from '../_shared/handler.ts'
+
+Deno.serve(async (req) => {
+  return createSystemHandler<Input, Output>(req, {
+    inputSchema: InputSchema,
+    logic: async ({ input, adminClient }) => {
+      // Discord Webhook送信
+      await fetch(Deno.env.get('DISCORD_WEBHOOK_URL'), { ... })
+
+      return { sent: true }
+    }
+  })
+})
+```
+
+### 5.3. shadcn/ui コンポーネント (将来の拡張)
 
 * `packages/ui-components/` に `shadcn/ui` の主要コンポーネントを導入予定
 * 開発者は即座にコンポーネントを利用・カスタマイズ可能
