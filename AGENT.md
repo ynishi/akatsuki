@@ -1211,16 +1211,293 @@ npm run supabase:function:deploy  # Functionデプロイ
 
 ## 9. UI実装の標準設計パターン
 
-### 基本方針
-「プリクラ風アプリを作って」のような指示を受けた際、以下の標準設計に従って実装します。
+### VibeCoding デザイン原則
 
-### 必須要件
+Akatsukiでは、**見栄えの良さ**と**使いやすさ**を重視した「リッチなUI」を標準とします。
+
+#### ビジュアル重視の原則
+
+✅ **やるべきこと:**
+- **画像を積極的に使う** - プレースホルダー画像、生成画像、アイコン画像
+- **アイコンを多用** - lucide-react で視覚的にわかりやすく
+- **グラデーションで華やかに** - 背景、ボタン、カードに適用
+- **丸みのあるデザイン** - `rounded-lg`, `rounded-xl`, `rounded-3xl`
+- **余白をたっぷり** - `space-y-6`, `gap-4` などで詰め込まない
+- **CTAボタンは大きく** - `size="lg"` または `size="xl"`、目立つ配色
+
+❌ **避けるべきこと:**
+- 白黒のシンプルすぎるUI
+- テキストだけの羅列
+- 小さくて目立たないボタン
+- 絵文字の過度な使用（アイコン優先）
+
+#### 必須要件
 - **画面数:** 最低3画面以上
 - **ナビゲーション:** トップナビゲーションバー必須（複雑なアプリは左ペインメニューも検討）
 - **アイコン:** lucide-reactのアイコン優先使用、絵文字は装飾のみ
 - **リッチUI:** shadcn/uiコンポーネント必須使用
 - **デザイン:** グラデーション、丸みのあるカード
 - **CTAボタン:** メインアクション（生成、保存など）は大きく目立たせる（size="lg" or "xl"）
+- **レスポンシブ:** モバイル・タブレット・デスクトップ対応（Tailwindのブレークポイント活用）
+
+### 推奨デザインパターン集
+
+VibeCodingでよく使う実装パターンです。
+
+#### 1. Hero Section（ヒーローセクション）
+
+**用途:** トップページの第一印象
+
+**特徴:**
+- 大きな見出し（グラデーションテキスト）
+- サブタイトル
+- CTAボタン（目立つ配置）
+- 背景グラデーション
+
+**実装例:**
+```jsx
+<div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
+  <div className="max-w-6xl mx-auto px-8 py-20 text-center">
+    <h1 className="text-6xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text">
+      Welcome to Your App
+    </h1>
+    <p className="text-xl text-gray-600 mt-4">
+      魅力的なサブタイトルをここに
+    </p>
+    <div className="mt-8 flex gap-4 justify-center">
+      <Button variant="gradient" size="lg">始める</Button>
+      <Button variant="outline" size="lg">詳しく見る</Button>
+    </div>
+  </div>
+</div>
+```
+
+#### 2. Feature Cards（機能カード）
+
+**用途:** 機能紹介、メニュー選択
+
+**特徴:**
+- アイコン付きカード
+- グリッドレイアウト（2列 or 3列）
+- hover効果で境界線変化
+
+**実装例:**
+```jsx
+<div className="grid md:grid-cols-3 gap-6">
+  <Card className="border-2 hover:border-pink-300 transition-colors">
+    <CardHeader>
+      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mb-4">
+        <Sparkles className="w-6 h-6 text-white" />
+      </div>
+      <CardTitle>機能名</CardTitle>
+      <CardDescription>機能の説明文</CardDescription>
+    </CardHeader>
+  </Card>
+  {/* 他のカード */}
+</div>
+```
+
+#### 3. Image Gallery（画像ギャラリー）
+
+**用途:** 生成画像の表示、作品一覧
+
+**特徴:**
+- グリッドレイアウト
+- 画像プレビュー
+- hover効果（拡大、影）
+
+**実装例:**
+```jsx
+<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+  {images.map((image) => (
+    <div
+      key={image.id}
+      className="relative group rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer"
+    >
+      <img
+        src={image.url}
+        alt={image.title}
+        className="w-full h-64 object-cover group-hover:scale-105 transition-transform"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-4 left-4 text-white">
+          <p className="font-semibold">{image.title}</p>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+```
+
+#### 4. Step-by-Step UI（ステップ式UI）
+
+**用途:** 複数ステップの作成フロー
+
+**特徴:**
+- プログレスバー
+- ステップ表示
+- 前へ/次へボタン
+
+**実装例:**
+```jsx
+// ステップ管理
+const [currentStep, setCurrentStep] = useState(1)
+const totalSteps = 3
+
+<div className="space-y-6">
+  {/* Progress */}
+  <div className="space-y-2">
+    <div className="flex justify-between text-sm text-gray-600">
+      <span>ステップ {currentStep} / {totalSteps}</span>
+      <span>{Math.round((currentStep / totalSteps) * 100)}%</span>
+    </div>
+    <Progress value={(currentStep / totalSteps) * 100} />
+  </div>
+
+  {/* Content */}
+  <Card>
+    <CardContent className="pt-6">
+      {currentStep === 1 && <Step1Content />}
+      {currentStep === 2 && <Step2Content />}
+      {currentStep === 3 && <Step3Content />}
+    </CardContent>
+  </Card>
+
+  {/* Navigation */}
+  <div className="flex justify-between">
+    <Button
+      variant="outline"
+      onClick={() => setCurrentStep(prev => prev - 1)}
+      disabled={currentStep === 1}
+    >
+      前へ
+    </Button>
+    <Button
+      variant="gradient"
+      onClick={() => setCurrentStep(prev => prev + 1)}
+      disabled={currentStep === totalSteps}
+    >
+      {currentStep === totalSteps ? '完了' : '次へ'}
+    </Button>
+  </div>
+</div>
+```
+
+#### 5. Loading & Empty States（ローディング・空状態）
+
+**用途:** データ取得中、データなし
+
+**特徴:**
+- アニメーション付きローディング
+- 視覚的にわかりやすい空状態
+
+**実装例:**
+```jsx
+// Loading
+{loading && (
+  <div className="flex flex-col items-center justify-center py-12">
+    <div className="animate-spin h-12 w-12 border-4 border-gray-200 border-t-purple-600 rounded-full" />
+    <p className="mt-4 text-gray-600">読み込み中...</p>
+  </div>
+)}
+
+// Empty State
+{!loading && items.length === 0 && (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+      <ImageIcon className="w-8 h-8 text-gray-400" />
+    </div>
+    <p className="text-gray-600 font-semibold">まだ作品がありません</p>
+    <p className="text-gray-500 text-sm mt-2">最初の作品を作成してみましょう！</p>
+    <Button variant="gradient" className="mt-4">
+      作成する
+    </Button>
+  </div>
+)}
+```
+
+#### 6. Image Upload Preview（画像アップロードプレビュー）
+
+**用途:** ファイルアップロード時のプレビュー
+
+**特徴:**
+- 画像プレビュー表示
+- ドラッグ&ドロップ対応
+- 削除ボタン
+
+**実装例:**
+```jsx
+{previewUrl && (
+  <div className="relative w-full max-w-md mx-auto">
+    <img
+      src={previewUrl}
+      alt="Preview"
+      className="w-full rounded-xl shadow-lg"
+    />
+    <button
+      onClick={handleRemove}
+      className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+    >
+      <X className="w-4 h-4" />
+    </button>
+  </div>
+)}
+```
+
+### 推奨する視覚要素
+
+#### グラデーション配色パターン
+
+Akatsukiで推奨するグラデーション配色：
+
+```css
+/* 背景グラデーション */
+bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100     /* 明るいパステル */
+bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50      /* 柔らかい */
+bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50          /* クール系 */
+
+/* テキストグラデーション */
+bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text
+
+/* ボタン・カードグラデーション */
+bg-gradient-to-r from-pink-500 to-purple-600                   /* Button variant="gradient" */
+bg-gradient-to-r from-blue-500 to-cyan-600                     /* クール系 */
+bg-gradient-to-r from-orange-500 to-pink-600                   /* 暖色系 */
+```
+
+#### アイコンの使い方
+
+**lucide-react の推奨アイコン:**
+- `Sparkles` - AI生成、キラキラ効果
+- `Wand2` - 魔法、変換
+- `Image` - 画像関連
+- `Camera` - 撮影、カメラ
+- `Palette` - カラー、デザイン
+- `Download` - ダウンロード
+- `Upload` - アップロード
+- `Heart` - お気に入り
+- `Star` - 評価
+- `Zap` - 高速、パワー
+
+**アイコンサイズ:**
+- 小: `w-4 h-4` (ボタン内)
+- 中: `w-6 h-6` (カード内)
+- 大: `w-8 h-8` (メイン要素)
+- 特大: `w-12 h-12` (Hero Section)
+
+#### 丸みのレベル
+
+```css
+rounded-md     /* 小: ボタン、バッジ */
+rounded-lg     /* 中: カード、入力フィールド */
+rounded-xl     /* 大: メインカード、画像 */
+rounded-2xl    /* 特大: Feature Cards */
+rounded-3xl    /* 超特大: Hero Section カード */
+rounded-full   /* 円形: アバター、アイコンボタン */
+```
+
+### 基本方針
+「プリクラ風アプリを作って」のような指示を受けた際、以下の標準設計に従って実装します。
 
 ### カテゴリ別標準設計
 
