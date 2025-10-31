@@ -223,6 +223,36 @@ async function setupProjectName() {
   log.success(`Updated package.json: name = "${projectName}"`)
   log.success(`Updated package.json: description = "${packageJson.description}"`)
 
+  // Update README.md with project information
+  log.step('Updating README.md with project information...')
+  const readmePath = path.join(rootDir, 'README.md')
+  let readme = fs.readFileSync(readmePath, 'utf8')
+
+  // Replace title
+  readme = readme.replace(
+    /# 🚀 Akatsuki \(暁\) Template/,
+    `# 🚀 ${projectName}`
+  )
+
+  // Replace description line
+  readme = readme.replace(
+    /\*\*VITE \+ React \+ Shuttle \(Axum\) \+ Supabase \+ AIGen 統合テンプレート\*\*/,
+    `**${packageJson.description}**`
+  )
+
+  fs.writeFileSync(readmePath, readme)
+  log.success('Updated README.md with project information')
+
+  // Create workspace directory
+  log.step('Creating workspace directory...')
+  const workspaceDir = path.join(rootDir, 'workspace')
+  if (!fs.existsSync(workspaceDir)) {
+    fs.mkdirSync(workspaceDir, { recursive: true })
+    log.success('Created workspace/ directory')
+  } else {
+    log.info('workspace/ directory already exists')
+  }
+
   // Git initialization
   console.log('')
   const gitDir = path.join(rootDir, '.git')
