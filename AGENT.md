@@ -1305,19 +1305,7 @@ npm run supabase:function:new     # 新規Function作成
 npm run supabase:function:deploy  # Functionデプロイ
 ```
 
----
-
-## 8. AI（安輝）へのお願い
-
-この `AGENT.md` は、AIである私が参照するルールブックでもあります。
-
-* 私は、この `AGENT.md` のルール（特に 6.4, 6.5）に基づき、提案やコードレビューを行います。
-* ルールに違反する可能性のあるコードや設計（例：`workspace/` への依存、`npm link` の使用、`.env` のコミット）を検知した場合、警告（Alert）を行います。
-* 新機能の提案時は、このアーキテクチャと理念に沿った設計を心がけます。
-
----
-
-## 9. UI実装の標準設計パターン
+## 8. UI実装の標準設計パターン
 
 ### VibeCoding デザイン原則
 
@@ -1763,7 +1751,7 @@ rounded-full   /* 円形: アバター、アイコンボタン */
 
 ---
 
-## 10. トラブルシューティング
+## 9. トラブルシューティング
 
 ### 環境が動かない時のチェックリスト
 
@@ -1808,7 +1796,7 @@ rounded-full   /* 円形: アバター、アイコンボタン */
 
 ---
 
-## 11. Supabase 設定 (Supabase Configuration)
+## 10. Supabase 設定 (Supabase Configuration)
 
 ### Edge Functions
 
