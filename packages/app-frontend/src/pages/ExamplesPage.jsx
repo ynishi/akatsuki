@@ -20,6 +20,7 @@ import { TopNavigation } from '../components/layout/TopNavigation'
 import { useImageGeneration } from '../hooks'
 import { PublicProfile } from '../models/PublicProfile'
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
+import { WebSearchCard } from '../components/features/search/WebSearchCard'
 
 export function ExamplesPage() {
   const { user } = useAuth()
@@ -1359,6 +1360,9 @@ console.log(edited.publicUrl)`}</code>
             )}
           </CardContent>
         </Card>
+
+        {/* Web Search Example */}
+        <WebSearchCard />
 
         {/* External Integrations Demo */}
         <Card>

@@ -321,6 +321,18 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 supabase secrets set GEMINI_API_KEY=AIza...
 ```
 
+#### Web検索機能を使う場合
+
+```bash
+# Tavily API（Web検索）
+supabase secrets set TAVILY_API_KEY=tvly-...
+```
+
+**取得方法:**
+1. [Tavily](https://tavily.com/) でアカウント作成
+2. Dashboard から API Key を取得
+3. 上記コマンドで設定
+
 #### オプション（外部連携を使う場合）
 
 ```bash

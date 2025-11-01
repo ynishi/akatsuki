@@ -994,7 +994,126 @@ Supabase Edge Functions で共通的に使用する統一ハンドラーを提�
     3. **Agent実行 (LLMタスク):** `/api/aigen/agent-execute`
   - Supabase (PostgreSQL) 連携基盤（`src/db.rs`）
 
-### 5.2. 外部連携統合 (External Integrations)
+### 5.2. Web検索統合 (Web Search Integration)
+
+Akatsuki では、AI統合型Web検索機能を標準搭載しています。2つのプロバイダーから選択可能で、デフォルトはコスパ最高のGemini Google検索です。
+
+#### 対応プロバイダー
+
+| Provider | 特徴 | 料金 | おすすめ用途 |
+|----------|------|------|-------------|
+| **Gemini Google検索** (デフォルト) | Google検索統合、自動判断、引用情報 | Gemini料金のみ（検索追加料金なし） | 汎用Web検索、最新情報取得 |
+| **Tavily AI Search** | AI特化、構造化データ | $5/月（1000req） | 専門的な検索、複数LLM利用時 |
+
+**推奨**: Gemini利用時はGoogle検索が圧倒的にコスパ良い（追加料金なし）
+
+#### Frontend実装
+
+**WebSearchService（基本）:**
+```javascript
+import { WebSearchService } from '@/services/WebSearchService'
+
+// Gemini Google検索（デフォルト）
+const { data, error } = await WebSearchService.search('AIアート 最新動向')
+console.log(data.answer)        // AIの回答
+console.log(data.results)       // 引用元URL
+console.log(data.searchQueries) // 実行された検索クエリ
+
+// Tavily AI Search（オプション）
+const { data, error } = await WebSearchService.search('React hooks', {
+  provider: 'tavily',
+  numResults: 5
+})
+console.log(data.answer)   // Tavilyの要約
+console.log(data.results)  // 検索結果配列
+```
+
+**useWebSearch フック（React Query）:**
+```javascript
+import { useWebSearch } from '@/hooks/useWebSearch'
+
+function MyComponent() {
+  const { searchAsync, isPending, data } = useWebSearch()
+
+  const handleSearch = async () => {
+    const result = await searchAsync({
+      query: '2024年のAI画像生成の最新動向を教えて',
+      provider: 'gemini',  // または 'tavily'
+      numResults: 10
+    })
+    console.log(result.answer)        // AIの回答
+    console.log(result.sources)       // 情報源
+    console.log(result.searchQueries) // 検索クエリ（Geminiのみ）
+  }
+
+  return (
+    <div>
+      <button onClick={handleSearch} disabled={isPending}>
+        Search
+      </button>
+      {data && (
+        <div>
+          <p>{data.answer}</p>
+          {data.results.map((r, i) => (
+            <a key={i} href={r.url}>{r.title}</a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+**WebSearchCard コンポーネント（実装済み）:**
+```javascript
+import { WebSearchCard } from '@/components/features/search/WebSearchCard'
+
+function MyPage() {
+  return <WebSearchCard />
+  // プロバイダー切り替えUI付き
+  // Gemini/Tavily をタブで選択可能
+}
+```
+
+#### Supabase Edge Function
+
+**実装場所:**
+- `supabase/functions/web-search/index.ts`
+
+**パラメータ:**
+```typescript
+{
+  query: string,              // 検索クエリ
+  num_results?: number,       // 結果数（1-20、デフォルト: 10）
+  provider?: 'gemini' | 'tavily'  // プロバイダー（デフォルト: 'gemini'）
+}
+```
+
+**レスポンス:**
+```typescript
+{
+  query: string,
+  answer: string,             // AI生成の要約/回答
+  results: Array<{
+    title: string,
+    url: string,
+    content: string,
+    score?: number            // Tavilyのみ
+  }>,
+  num_results: number,
+  provider: 'gemini' | 'tavily',
+  searchQueries?: string[]    // Geminiのみ（実行された検索クエリ）
+}
+```
+
+#### 実装済み機能
+
+- `WebSearchService` - Web検索統一API（Gemini/Tavily対応）
+- `useWebSearch` - React Query統合フック
+- `WebSearchCard` - プロバイダー切り替えUI付きコンポーネント
+- `web-search` Edge Function - マルチプロバイダー検索エンドポイント
+
+### 5.3. 外部連携統合 (External Integrations)
 
 Akatsuki では、よく使う外部サービス連携の雛形を標準搭載しています。
 
@@ -1077,7 +1196,7 @@ await fetch('https://your-project.supabase.co/functions/v1/send-email', {
 3. 環境変数に Webhook URL や API Key を設定
 4. デプロイ: `npm run supabase:function:deploy`
 
-### 5.3. shadcn/ui コンポーネント (将来の拡張)
+### 5.4. shadcn/ui コンポーネント (将来の拡張)
 
 * `packages/ui-components/` に `shadcn/ui` の主要コンポーネントを導入予定
 * 開発者は即座にコンポーネントを利用・カスタマイズ可能
@@ -2695,6 +2814,9 @@ npx supabase secrets set --env-file .env.secrets
 npx supabase secrets set OPENAI_API_KEY=sk-...
 npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 npx supabase secrets set GEMINI_API_KEY=AIza...
+# WebSearch 向け Option
+npx supabase secrets set TAVILY_API_KEY=tvly-...
+
 
 # 確認
 npx supabase secrets list
