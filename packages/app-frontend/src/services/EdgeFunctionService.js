@@ -18,11 +18,37 @@ import { supabase } from '../lib/supabase'
 export class EdgeFunctionService {
   /**
    * Edge Function を呼び出す（AkatsukiResponse対応）
+   *
+   * AkatsukiハンドラーパターンのEdge Functionは以下の形式でレスポンスを返します:
+   * { success: true, result: {...}, error: null }
+   *
+   * このServiceはresultフィールドを取り出してdataとして返します:
+   * { data: result, error: null }
+   *
    * @param {string} functionName - 関数名
    * @param {Object|FormData} payload - リクエストペイロード
    * @param {Object} options - オプション
    * @param {boolean} options.isFormData - FormDataかどうか
    * @returns {Promise<{data: any, error: Error|null}>} { data, error } 形式
+   *
+   * @example
+   * // 基本的な使用方法
+   * const { data, error } = await EdgeFunctionService.invoke('my-function', {
+   *   param: 'value'
+   * })
+   *
+   * if (error) {
+   *   console.error('Error:', error.message)
+   *   return { data: null, error }
+   * }
+   *
+   * // data は Edge Function の result フィールドの中身
+   * console.log(data.someField)
+   *
+   * @example
+   * // ❌ 間違った使い方
+   * const result = await EdgeFunctionService.invoke('my-function', payload)
+   * console.log(result.someField)  // undefined (result.data.someField が正しい)
    */
   static async invoke(functionName, payload = {}, options = {}) {
     try {

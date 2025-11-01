@@ -984,15 +984,24 @@ const { signedUrl } = await PrivateStorageService.getSignedUrl(result.id)`}</cod
             <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
               <code>{`import { useImageGeneration } from '@/hooks'
 
-const { generate, loading, result } = useImageGeneration({
+// ✅ 方法1: async/await で結果を直接取得
+const { generateAsync, isPending } = useImageGeneration({
   quality: 'standard',
   style: 'vivid'
 })
 
-const image = await generate({
+const image = await generateAsync({
   prompt: 'A beautiful sunset'
 })
-console.log(image.publicUrl) // 永続化された画像URL`}</code>
+console.log(image.publicUrl) // 永続化された画像URL
+
+// ✅ 方法2: Fire-and-forget（結果は result で取得）
+const { generate, loading, result } = useImageGeneration()
+generate({ prompt: 'A beautiful sunset' })
+// result に画像が格納される
+
+// ❌ 間違い: mutate() を await
+const result = await generate({ prompt: 'A cat' }) // undefined`}</code>
             </pre>
 
             <div className="space-y-2">
@@ -1114,6 +1123,7 @@ console.log(image.publicUrl) // 永続化された画像URL`}</code>
             <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
               <code>{`import { useImageGeneration } from '@/hooks'
 
+// ✅ 正しい: generateAsync を使用
 const { generateVariation } = useImageGeneration()
 
 // 既存画像からバリエーション生成
@@ -1230,6 +1240,7 @@ console.log(variation.publicUrl)`}</code>
             <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
               <code>{`import { useImageGeneration } from '@/hooks'
 
+// ✅ 正しい: generateAsync ベースのメソッドを使用
 const { generateEdit } = useImageGeneration()
 
 // 画像をプロンプトで編集

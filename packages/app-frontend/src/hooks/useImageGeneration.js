@@ -15,7 +15,7 @@ import { ImageGenerationService } from '../services/ImageGenerationService'
  * @returns {Object} { generate, generateAsync, isPending, isError, error, data, reset, ... }
  *
  * @example
- * // 基本的な使用
+ * // ✅ 方法1: Fire-and-forget（結果は data で取得）
  * function MyComponent() {
  *   const { generate, isPending, isError, error, data } = useImageGeneration()
  *
@@ -38,17 +38,28 @@ import { ImageGenerationService } from '../services/ImageGenerationService'
  * }
  *
  * @example
- * // async/await での使用
+ * // ✅ 方法2: async/await で結果を直接取得
  * function MyComponent() {
  *   const { generateAsync, isPending } = useImageGeneration()
  *
  *   const handleGenerate = async () => {
  *     try {
  *       const image = await generateAsync({ prompt: 'A cat' })
- *       console.log(image.publicUrl)
+ *       console.log(image.publicUrl)  // 結果を直接使用
  *     } catch (error) {
  *       console.error(error)
  *     }
+ *   }
+ * }
+ *
+ * @example
+ * // ❌ 間違い: mutate() の結果を await しようとする
+ * function MyComponent() {
+ *   const { generate } = useImageGeneration()
+ *
+ *   const handleGenerate = async () => {
+ *     const result = await generate({ prompt: 'A cat' })  // undefined
+ *     console.log(result.publicUrl)  // エラー！
  *   }
  * }
  */

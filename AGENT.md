@@ -197,12 +197,16 @@ src/
    - **レスポンス形式:** すべて `{ data, error }` 形式に統一
    - **パターン:**
      ```javascript
-     // Service で Edge Function 呼び出し
+     // ✅ 正しい使い方（必ず分割代入）
      const { data, error } = await EdgeFunctionService.invoke('my-function', payload)
      if (error) {
-       // エラーハンドリング
+       return { data: null, error }
      }
-     // data を使用
+     console.log(data.someField)  // data は Edge Function の result
+
+     // ❌ 間違い: 分割代入せずに使用
+     const result = await EdgeFunctionService.invoke('my-function', payload)
+     console.log(result.someField)  // undefined (result.data.someField が正しい)
      ```
 
 5. **hooks/** - Custom Hooks（React Query）
@@ -214,9 +218,20 @@ src/
      // Query（データ取得）
      const { profile, isLoading, error, refetch } = usePublicProfile(userId)
 
-     // Mutation（データ変更）
+     // Mutation（データ変更） - Fire-and-forget
      const { generate, isPending, data } = useImageGeneration()
-     generate({ prompt: 'A cat' })
+     generate({ prompt: 'A cat' })  // 結果は data で取得
+
+     // Mutation（データ変更） - async/await で結果を取得
+     const { generateAsync, isPending } = useImageGeneration()
+     const handleGenerate = async () => {
+       const result = await generateAsync({ prompt: 'A cat' })
+       console.log(result.publicUrl)  // 結果を直接使用
+     }
+
+     // ❌ 間違い: mutate() の結果を await
+     const { generate } = useImageGeneration()
+     const result = await generate({ prompt: 'A cat' })  // undefined
      ```
 
 6. **components/** - UIコンポーネント

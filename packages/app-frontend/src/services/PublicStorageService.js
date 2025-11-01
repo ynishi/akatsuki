@@ -90,17 +90,22 @@ export class PublicStorageService {
       console.log('[PublicStorageService] Raw result from Edge Function:', result)
       console.log('[PublicStorageService] Result type:', typeof result)
       console.log('[PublicStorageService] Result keys:', result ? Object.keys(result) : 'null/undefined')
-      console.log('[PublicStorageService] file_id:', result?.file_id)
-      console.log('[PublicStorageService] public_url:', result?.public_url)
-      console.log('[PublicStorageService] bucket:', result?.bucket)
+      console.log('[PublicStorageService] result.data:', result?.data)
+
+      // Edge Functionの結果は {data: {...}, error: null} 形式
+      const responseData = result?.data || result
+
+      console.log('[PublicStorageService] file_id:', responseData?.file_id)
+      console.log('[PublicStorageService] public_url:', responseData?.public_url)
+      console.log('[PublicStorageService] bucket:', responseData?.bucket)
 
       const mappedResult = {
-        id: result.file_id, // files テーブルの ID
-        publicUrl: result.public_url, // 恒久的な公開 URL
-        storagePath: result.storage_path, // Storage 内のパス
-        metadata: result.metadata, // DB に保存されたメタデータ
-        bucket: result.bucket || this.BUCKET_NAME,
-        success: result.success !== undefined ? result.success : true,
+        id: responseData.file_id, // files テーブルの ID
+        publicUrl: responseData.public_url, // 恒久的な公開 URL
+        storagePath: responseData.storage_path, // Storage 内のパス
+        metadata: responseData.metadata, // DB に保存されたメタデータ
+        bucket: responseData.bucket || this.BUCKET_NAME,
+        success: responseData.success !== undefined ? responseData.success : true,
       }
 
       console.log('[PublicStorageService] Mapped result:', mappedResult)
