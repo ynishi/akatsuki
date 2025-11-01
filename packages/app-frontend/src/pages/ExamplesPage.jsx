@@ -18,6 +18,8 @@ import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
 import { TopNavigation } from '../components/layout/TopNavigation'
 import { useImageGeneration } from '../hooks'
+import { PublicProfile } from '../models/PublicProfile'
+import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 
 export function ExamplesPage() {
   const { user } = useAuth()
@@ -27,6 +29,12 @@ export function ExamplesPage() {
   const [loading, setLoading] = useState(false)
   const [helloResult, setHelloResult] = useState(null)
   const [helloLoading, setHelloLoading] = useState(false)
+
+  // Public Profile - 動作確認用
+  const [profileCount, setProfileCount] = useState(0)
+  const [randomProfile, setRandomProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileError, setProfileError] = useState(null)
 
   // LLM Chat states
   const [llmPrompt, setLlmPrompt] = useState('')
@@ -87,6 +95,31 @@ export function ExamplesPage() {
   const [emailBody, setEmailBody] = useState('This is a test email.')
   const [emailResult, setEmailResult] = useState(null)
   const [emailSending, setEmailSending] = useState(false)
+
+  // Public Profile読み込み
+  const loadPublicProfiles = async () => {
+    try {
+      setProfileLoading(true)
+      setProfileError(null)
+
+      // Get count
+      const { count: totalCount, error: countError } = await PublicProfileRepository.count()
+      if (countError) throw countError
+      setProfileCount(totalCount)
+
+      // Get random one
+      const { data, error: profileError } = await PublicProfileRepository.getRandomOne()
+      if (profileError) throw profileError
+
+      const profile = data ? PublicProfile.fromDatabase(data) : null
+      setRandomProfile(profile)
+    } catch (error) {
+      console.error('Load public profiles error:', error)
+      setProfileError(error.message || 'Failed to load profiles')
+    } finally {
+      setProfileLoading(false)
+    }
+  }
 
   // Repository使用例: プロフィール作成
   // 注: このサンプルは実際のユーザー認証が必要です
@@ -464,6 +497,96 @@ export function ExamplesPage() {
                 </div>
               </DialogContent>
             </Dialog>
+          </CardContent>
+        </Card>
+
+        {/* Public Profile Repository Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Public Profile Repository (VIEW)</CardTitle>
+            <CardDescription>
+              public_profiles VIEW からプロフィール総数とランダム1件を取得
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { PublicProfileRepository } from '@/repositories/PublicProfileRepository'
+
+// Get total count
+const { count } = await PublicProfileRepository.count()
+
+// Get random one profile
+const { data } = await PublicProfileRepository.getRandomOne()
+const profile = PublicProfile.fromDatabase(data)`}</code>
+            </pre>
+
+            <Button
+              variant="gradient"
+              onClick={loadPublicProfiles}
+              disabled={profileLoading}
+              className="w-full"
+            >
+              {profileLoading ? 'Loading...' : 'Load Public Profiles'}
+            </Button>
+
+            {/* Counter - Total Profiles */}
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg">
+              <p className="font-bold mb-2">Total Public Profiles:</p>
+              <div className="text-center">
+                <p className="text-5xl font-bold text-gray-800 mb-2">{profileCount}</p>
+                <Badge variant="gradient" className="text-sm">
+                  {profileCount === 0 ? 'No profiles yet' : `${profileCount} user${profileCount > 1 ? 's' : ''} registered`}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Random Profile Display */}
+            {profileError && (
+              <div className="bg-red-50 p-3 rounded-lg">
+                <p className="font-bold mb-2 text-red-600">Error:</p>
+                <p className="text-sm text-gray-700">{profileError}</p>
+              </div>
+            )}
+
+            {randomProfile && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg">
+                <p className="font-bold mb-3 text-green-600">Random Profile Sample:</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-start gap-2">
+                    <strong className="text-gray-700 min-w-[100px]">Display Name:</strong>
+                    <span className="text-gray-600">{randomProfile.getDisplayName()}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <strong className="text-gray-700 min-w-[100px]">Username:</strong>
+                    <span className="text-gray-600">{randomProfile.username || 'Not set'}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <strong className="text-gray-700 min-w-[100px]">Bio:</strong>
+                    <span className="text-gray-600">{randomProfile.bio || 'No bio yet'}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <strong className="text-gray-700 min-w-[100px]">User ID:</strong>
+                    <span className="text-gray-600 font-mono text-xs">{randomProfile.userId?.substring(0, 8)}...</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <strong className="text-gray-700 min-w-[100px]">Created:</strong>
+                    <span className="text-gray-600">{randomProfile.getFormattedDate()}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <strong className="text-gray-700 min-w-[100px]">Complete:</strong>
+                    <Badge variant={randomProfile.isComplete() ? 'default' : 'secondary'}>
+                      {randomProfile.isComplete() ? 'Yes' : 'No'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!profileLoading && !randomProfile && !profileError && profileCount === 0 && (
+              <div className="bg-yellow-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> まだプロフィールが登録されていません。ユーザー登録すると自動作成されます。
+              </div>
+            )}
           </CardContent>
         </Card>
 
