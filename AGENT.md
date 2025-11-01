@@ -2816,6 +2816,9 @@ npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 npx supabase secrets set GEMINI_API_KEY=AIza...
 # WebSearch 向け Option
 npx supabase secrets set TAVILY_API_KEY=tvly-...
+# ComfyUI (RunPod) 向け Option
+npx supabase secrets set RUNPOD_ENDPOINT=https://your-pod-id.proxy.runpod.net
+npx supabase secrets set RUNPOD_API_KEY=your-runpod-auth-token
 
 
 # 確認

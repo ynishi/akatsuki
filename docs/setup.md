@@ -333,6 +333,26 @@ supabase secrets set TAVILY_API_KEY=tvly-...
 2. Dashboard から API Key を取得
 3. 上記コマンドで設定
 
+#### ComfyUI画像生成を使う場合（RunPod）
+
+```bash
+# RunPod ComfyUI Endpoint & Auth
+supabase secrets set RUNPOD_ENDPOINT=https://your-pod-id.proxy.runpod.net
+supabase secrets set RUNPOD_API_KEY=your-runpod-auth-token
+```
+
+**セットアップ方法:**
+1. [RunPod](https://www.runpod.io/) でアカウント作成
+2. ComfyUI テンプレートでPodを起動
+3. 認証サーバーをセットアップ（Flask等の薄いレイヤー推奨）
+   - Basic認証またはトークン認証を実装
+   - `X-Auth` ヘッダーでトークンを検証
+4. Pod URLと認証トークンを上記コマンドで設定
+
+**参考:**
+- RunPodは公開アクセス可能なため、必ず認証を実装してください
+- 詳細な認証実装方法は調査ドキュメント参照
+
 #### オプション（外部連携を使う場合）
 
 ```bash

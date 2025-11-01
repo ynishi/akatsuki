@@ -15,6 +15,7 @@ import { AkatsukiResponse, AkatsukiErrorResponse, ErrorCodes } from './api_types
 import { corsHeaders } from './cors.ts'
 import { UserQuotaRepository } from './repositories/UserQuotaRepository.ts'
 import { LLMCallLogRepository } from './repositories/LLMCallLogRepository.ts'
+import { ComfyUIWorkflowRepository } from './repositories/ComfyUIWorkflowRepository.ts'
 
 /**
  * Repository集約オブジェクト
@@ -22,6 +23,7 @@ import { LLMCallLogRepository } from './repositories/LLMCallLogRepository.ts'
 export interface Repositories {
   userQuota: UserQuotaRepository
   llmCallLog: LLMCallLogRepository
+  comfyuiWorkflow: ComfyUIWorkflowRepository
 }
 
 /**
@@ -110,6 +112,7 @@ function createRepositories(supabaseAdmin: SupabaseClient): Repositories {
   return {
     userQuota: new UserQuotaRepository(supabaseAdmin),
     llmCallLog: new LLMCallLogRepository(supabaseAdmin),
+    comfyuiWorkflow: new ComfyUIWorkflowRepository(supabaseAdmin),
   }
 }
 

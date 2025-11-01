@@ -42,6 +42,9 @@ const InputSchema = z.object({
   style: z.enum(['vivid', 'natural']).optional().default('vivid'),
   model: z.string().optional(),
   image_url: z.string().url().optional(),
+  // ComfyUI専用パラメータ（Phase 2）
+  workflow_id: z.string().uuid().optional(), // DB管理のワークフローID
+  workflow_json: z.record(z.any()).optional(), // 直接指定（開発・テスト用）
 }).refine(
   (data) => {
     // text-to-image / edit: prompt 必須
@@ -289,12 +292,83 @@ Deno.serve(async (req) => {
         }
 
         case 'comfyui': {
-          // ComfyUI integration - Placeholder for future implementation
-          const encodedPrompt = encodeURIComponent(input.prompt.substring(0, 100))
-          imageUrl = `https://placehold.co/${input.size.replace('x', 'x')}/9333EA/FFFFFF.png?text=ComfyUI+(Coming+Soon)\n${encodedPrompt}`
-          usedModel = 'comfyui-placeholder'
+          // ComfyUI integration via RunPod (Phase 2)
+          const { createRunPodClient, RunPodClient } = await import('../_shared/runpod_client.ts')
 
-          console.log('ComfyUI image generation: Placeholder (not yet implemented)')
+          console.log('[generate-image] ComfyUI mode:', input.mode)
+
+          // RunPod Clientを作成
+          const runpodClient = createRunPodClient()
+
+          // ワークフローを取得（優先順位: workflow_json > workflow_id > デフォルト）
+          let workflowData: Record<string, any>
+          let workflowName = 'unknown'
+
+          if (input.workflow_json) {
+            // Option 1: workflow_jsonを直接指定（開発・テスト用）
+            console.log('[generate-image] ComfyUI: Using provided workflow_json')
+            workflowData = input.workflow_json
+            workflowName = 'custom-json'
+          } else if (input.workflow_id) {
+            // Option 2: workflow_idでDB取得
+            console.log('[generate-image] ComfyUI: Fetching workflow by ID:', input.workflow_id)
+            const workflow = await repos.comfyuiWorkflow.getById(input.workflow_id)
+            if (!workflow) {
+              throw new Error(`Workflow not found: ${input.workflow_id}`)
+            }
+            workflowData = workflow.workflow_json
+            workflowName = workflow.name
+          } else {
+            // Option 3: デフォルトワークフローを使用
+            console.log('[generate-image] ComfyUI: Using default workflow')
+            const workflow = await repos.comfyuiWorkflow.getDefault()
+            if (!workflow) {
+              throw new Error('No default ComfyUI workflow configured')
+            }
+            workflowData = workflow.workflow_json
+            workflowName = workflow.name
+          }
+
+          // 変数を準備（{{prompt}}などのプレースホルダーを置換）
+          const [width, height] = input.size.split('x').map(Number)
+          const variables = {
+            prompt: input.prompt,
+            width: width || 1024,
+            height: height || 1024,
+            seed: Math.floor(Math.random() * 1000000000),
+            // 追加の変数はここに追加可能
+          }
+
+          // ワークフローに変数を差し込み
+          const workflow = RunPodClient.injectVariables(workflowData, variables)
+
+          // 未置換プレースホルダーをチェック（警告のみ）
+          RunPodClient.checkUnresolvedPlaceholders(workflow)
+
+          console.log('[generate-image] ComfyUI: Executing workflow:', workflowName)
+
+          // ワークフロー実行
+          const promptId = await runpodClient.executeWorkflow(workflow)
+          console.log('[generate-image] ComfyUI: Workflow submitted, prompt_id:', promptId)
+
+          // 結果取得（最大60秒待機）
+          const images = await runpodClient.getResult(promptId, 30, 2000)
+
+          if (images.length === 0) {
+            throw new Error('ComfyUI did not return any images')
+          }
+
+          // 最初の画像を使用
+          const generatedImage = images[0]
+          imageUrl = `data:${generatedImage.mimeType};base64,${generatedImage.data}`
+          usedModel = `comfyui-${workflowName}`
+
+          console.log('[generate-image] ComfyUI: Image generated successfully', {
+            workflow: workflowName,
+            mimeType: generatedImage.mimeType,
+            dataLength: generatedImage.data.length,
+          })
+
           break
         }
 
