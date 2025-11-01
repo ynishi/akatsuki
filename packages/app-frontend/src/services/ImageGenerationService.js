@@ -1,5 +1,6 @@
 import { EdgeFunctionService } from './EdgeFunctionService'
 import { PublicStorageService } from './PublicStorageService'
+import { PrivateStorageService } from './PrivateStorageService'
 
 /**
  * Image Generation Service
@@ -36,6 +37,8 @@ export class ImageGenerationService {
    * @param {string} options.quality - 品質 ('standard' | 'hd', デフォルト: 'standard')
    * @param {string} options.style - スタイル ('vivid' | 'natural', デフォルト: 'vivid')
    * @param {string} options.model - モデル名（オプション）
+   * @param {string} options.sourceImage - 元画像URL（Variation/Edit時のみ）
+   * @param {string} options.storage - ストレージタイプ ('public' | 'private', デフォルト: 'public')
    * @param {Object} options.metadata - 追加メタデータ（オプション）
    * @returns {Promise<Object>} { id, publicUrl, storagePath, revisedPrompt, provider, model, size, metadata }
    * @throws {Error} プロンプト未指定、生成失敗、保存失敗
@@ -62,29 +65,48 @@ export class ImageGenerationService {
       quality = 'standard',
       style = 'vivid',
       model,
+      mode, // 明示的に mode を受け取る
+      sourceImage,
+      storage = 'public',
       metadata: additionalMetadata = {},
     } = options
 
-    if (!prompt) {
-      throw new Error('Prompt is required')
+    // Mode を決定（明示的に指定されていない場合は推論）
+    const imageMode = mode || (sourceImage ? 'variation' : 'text-to-image')
+
+    // Mode別バリデーション
+    if (imageMode !== 'variation' && !prompt) {
+      throw new Error('Prompt is required for text-to-image and edit modes')
     }
 
     try {
-      console.log('[ImageGenerationService] Generating image with:', { prompt, provider, size, quality, style })
+      console.log('[ImageGenerationService] Generating image with:', {
+        mode: imageMode, prompt, provider, size, quality, style, sourceImage, storage
+      })
 
       // === Step 1: Edge Function で画像生成 ===
-      const generationResult = await EdgeFunctionService.invoke('generate-image', {
+      const edgeFunctionPayload = {
+        mode: imageMode,
         prompt,
         provider,
         size,
         quality,
         style,
         model,
-      })
+      }
+
+      // Image-to-Image パラメータ追加
+      if (sourceImage) {
+        edgeFunctionPayload.image_url = sourceImage
+      }
+
+      const generationResult = await EdgeFunctionService.invoke('generate-image', edgeFunctionPayload)
 
       console.log('[ImageGenerationService] Generation result:', generationResult)
 
-      if (!generationResult.success || !generationResult.image_data) {
+      // EdgeFunctionService.invoke() は AkatsukiResponse の result 部分だけを返す
+      // つまり generationResult = { image_data, mime_type, revised_prompt, provider, model, size }
+      if (!generationResult || !generationResult.image_data) {
         throw new Error('Image generation failed: No image data returned')
       }
 
@@ -112,21 +134,35 @@ export class ImageGenerationService {
         type: imageFile.type,
       })
 
-      // === Step 3: PublicStorageService で永続化 ===
-      const uploadResult = await PublicStorageService.uploadImage(imageFile, {
-        folder: 'generated-images',
-        metadata: {
-          type: 'generated_image',
-          prompt: prompt,
-          revised_prompt: generationResult.revised_prompt,
-          provider: generationResult.provider,
-          model: generationResult.model,
-          size: generationResult.size,
-          quality: quality,
-          style: style,
-          ...additionalMetadata,
-        },
-      })
+      // === Step 3: Storage で永続化 (public or private) ===
+      const uploadMetadata = {
+        type: 'generated_image',
+        mode: imageMode, // text-to-image | variation | edit
+        prompt: prompt,
+        revised_prompt: generationResult.revised_prompt,
+        provider: generationResult.provider,
+        model: generationResult.model,
+        size: generationResult.size,
+        quality: quality,
+        style: style,
+        source_image: sourceImage || null,
+        ...additionalMetadata,
+      }
+
+      let uploadResult
+      if (storage === 'private') {
+        console.log('[ImageGenerationService] Uploading to Private Storage')
+        uploadResult = await PrivateStorageService.uploadDocument(imageFile, {
+          folder: 'generated-images',
+          metadata: uploadMetadata,
+        })
+      } else {
+        console.log('[ImageGenerationService] Uploading to Public Storage')
+        uploadResult = await PublicStorageService.uploadImage(imageFile, {
+          folder: 'generated-images',
+          metadata: uploadMetadata,
+        })
+      }
 
       console.log('[ImageGenerationService] Upload complete:', uploadResult)
 

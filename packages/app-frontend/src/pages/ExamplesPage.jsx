@@ -10,13 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
 import { UserProfileRepository, UserQuotaRepository } from '../repositories'
 import { UserProfile } from '../models'
-import { callHelloFunction, ImageGenerationService, EdgeFunctionService } from '../services'
+import { callHelloFunction, EdgeFunctionService } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
 import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
 import { TopNavigation } from '../components/layout/TopNavigation'
+import { useImageGeneration } from '../hooks'
 
 export function ExamplesPage() {
   const { user } = useAuth()
@@ -45,10 +46,37 @@ export function ExamplesPage() {
   const [privateFileUrl, setPrivateFileUrl] = useState(null)
   const [urlLoading, setUrlLoading] = useState(false)
 
-  // Image Generation states
+  // Image Generation - useImageGeneration Hook
   const [imagePrompt, setImagePrompt] = useState('')
-  const [generatedImage, setGeneratedImage] = useState(null)
-  const [imageGenerating, setImageGenerating] = useState(false)
+  const {
+    generate: generateImage,
+    loading: imageGenerating,
+    result: generatedImage,
+    error: imageError,
+    sizeOptions,
+    qualityOptions,
+    styleOptions,
+  } = useImageGeneration({
+    quality: 'standard',
+    style: 'vivid',
+  })
+
+  // Image Variation - 別のHookインスタンスを使用
+  const {
+    generateVariation,
+    loading: variationGenerating,
+    result: variationImage,
+    error: variationError,
+  } = useImageGeneration()
+
+  // Image Edit - 別のHookインスタンスを使用
+  const {
+    generateEdit,
+    loading: editGenerating,
+    result: editedImage,
+    error: editError,
+  } = useImageGeneration()
+  const [editPrompt, setEditPrompt] = useState('Add a wizard hat to the subject')
 
   // External Integration states
   const [slackMessage, setSlackMessage] = useState('Hello from Akatsuki!')
@@ -216,26 +244,42 @@ export function ExamplesPage() {
     }
   }
 
-  // Image Generation
+  // Image Generation - using useImageGeneration Hook
   const handleGenerateImage = async () => {
     if (!imagePrompt.trim()) return
 
     try {
-      setImageGenerating(true)
-      setGeneratedImage(null)
-
-      const result = await ImageGenerationService.generate({
+      await generateImage({
         prompt: imagePrompt,
-        quality: 'standard',
-        style: 'vivid',
       })
-
-      setGeneratedImage(result)
     } catch (error) {
       console.error('Image generation error:', error)
-      setGeneratedImage({ error: error.message })
-    } finally {
-      setImageGenerating(false)
+    }
+  }
+
+  // Image Variation - Generate variation from existing image
+  const handleGenerateVariation = async () => {
+    if (!generatedImage?.publicUrl) return
+
+    try {
+      await generateVariation(generatedImage.publicUrl, {
+        provider: 'dalle', // DALL-E supports variation
+      })
+    } catch (error) {
+      console.error('Variation generation error:', error)
+    }
+  }
+
+  // Image Edit - Edit image with prompt (Gemini only)
+  const handleEditImage = async () => {
+    if (!generatedImage?.publicUrl || !editPrompt.trim()) return
+
+    try {
+      await generateEdit(generatedImage.publicUrl, editPrompt, {
+        // provider: 'gemini' is automatically set
+      })
+    } catch (error) {
+      console.error('Image edit error:', error)
     }
   }
 
@@ -810,18 +854,22 @@ const { signedUrl } = await PrivateStorageService.getSignedUrl(result.id)`}</cod
           <CardHeader>
             <CardTitle>AI Image Generation (DALL-E)</CardTitle>
             <CardDescription>
-              ImageGenerationService を使った画像生成 + Storage保存の統合例
+              useImageGeneration フックを使った画像生成 + Storage保存の統合例
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
-              <code>{`import { ImageGenerationService } from './services/ImageGenerationService'
-const result = await ImageGenerationService.generate({
-  prompt: 'A beautiful sunset',
-  quality: 'hd',
+              <code>{`import { useImageGeneration } from '@/hooks'
+
+const { generate, loading, result } = useImageGeneration({
+  quality: 'standard',
   style: 'vivid'
 })
-console.log(result.publicUrl) // 永続化された画像URL`}</code>
+
+const image = await generate({
+  prompt: 'A beautiful sunset'
+})
+console.log(image.publicUrl) // 永続化された画像URL`}</code>
             </pre>
 
             <div className="space-y-2">
@@ -854,18 +902,18 @@ console.log(result.publicUrl) // 永続化された画像URL`}</code>
               </Button>
             </div>
 
-            {generatedImage && (
+            {(generatedImage || imageError) && (
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg space-y-3">
-                {generatedImage.error ? (
+                {imageError ? (
                   <>
                     <p className="font-bold mb-2 text-red-600">Error:</p>
-                    <p className="text-sm text-gray-700">{generatedImage.error}</p>
+                    <p className="text-sm text-gray-700">{imageError.message}</p>
                   </>
                 ) : (
                   <>
                     <p className="font-bold text-purple-600">Generation Success!</p>
 
-                    {generatedImage.publicUrl && (
+                    {generatedImage?.publicUrl && (
                       <div className="flex flex-col gap-3">
                         <img
                           src={generatedImage.publicUrl}
@@ -926,6 +974,253 @@ console.log(result.publicUrl) // 永続化された画像URL`}</code>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-purple-600 rounded-full" />
                 <span>Generating image... (通常10-30秒)</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AI Image Variation Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Image Variation (Image-to-Image)</CardTitle>
+            <CardDescription>
+              既存画像からバリエーションを生成（DALL-E / Gemini Imagen対応）
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { useImageGeneration } from '@/hooks'
+
+const { generateVariation } = useImageGeneration()
+
+// 既存画像からバリエーション生成
+const variation = await generateVariation(existingImageUrl, {
+  provider: 'dalle'  // または 'gemini'
+})
+console.log(variation.publicUrl)`}</code>
+            </pre>
+
+            <div className="space-y-3">
+              {generatedImage?.publicUrl ? (
+                <>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm font-semibold mb-2">元画像:</p>
+                    <img
+                      src={generatedImage.publicUrl}
+                      alt="Source"
+                      className="w-full rounded-lg shadow max-h-48 object-cover"
+                    />
+                  </div>
+
+                  <Button
+                    variant="gradient"
+                    onClick={handleGenerateVariation}
+                    disabled={variationGenerating || !user}
+                    className="w-full"
+                  >
+                    {variationGenerating ? 'Generating Variation...' : 'Generate Variation from Above Image'}
+                  </Button>
+                </>
+              ) : (
+                <div className="bg-yellow-50 p-3 rounded-lg text-sm text-gray-700">
+                  <strong>Note:</strong> まず上の「AI Image Generation」で画像を生成してください。
+                  その画像からバリエーションを作成できます。
+                </div>
+              )}
+
+              {variationError && (
+                <div className="bg-red-50 p-3 rounded-lg">
+                  <p className="font-bold mb-2 text-red-600">Error:</p>
+                  <p className="text-sm text-gray-700">{variationError.message}</p>
+                </div>
+              )}
+
+              {variationImage && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg space-y-3">
+                  <p className="font-bold text-green-600">Variation Generated!</p>
+
+                  <div className="flex flex-col gap-3">
+                    <img
+                      src={variationImage.publicUrl}
+                      alt="Variation"
+                      className="w-full rounded-lg shadow-lg"
+                    />
+
+                    <div className="bg-white/70 p-3 rounded space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                        <div>
+                          <strong>Provider:</strong> {variationImage.provider}
+                        </div>
+                        <div>
+                          <strong>Model:</strong> {variationImage.model}
+                        </div>
+                        <div>
+                          <strong>Mode:</strong> variation
+                        </div>
+                        <div>
+                          <strong>File ID:</strong> {variationImage.id?.substring(0, 8)}...
+                        </div>
+                      </div>
+
+                      <a
+                        href={variationImage.publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline block"
+                      >
+                        Open in new tab →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> 画像バリエーション生成には
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+
+            {variationGenerating && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-green-600 rounded-full" />
+                <span>Generating variation... (通常10-30秒)</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AI Image Edit Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Image Edit (Image-to-Image with Prompt)</CardTitle>
+            <CardDescription>
+              画像をプロンプトで編集（Gemini Imagen のみ対応）
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { useImageGeneration } from '@/hooks'
+
+const { generateEdit } = useImageGeneration()
+
+// 画像をプロンプトで編集
+const edited = await generateEdit(imageUrl, 'Add a wizard hat', {
+  // provider: 'gemini' (自動的に Gemini を使用)
+})
+console.log(edited.publicUrl)`}</code>
+            </pre>
+
+            <div className="space-y-3">
+              {generatedImage?.publicUrl ? (
+                <>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm font-semibold mb-2">元画像:</p>
+                    <img
+                      src={generatedImage.publicUrl}
+                      alt="Source"
+                      className="w-full rounded-lg shadow max-h-48 object-cover"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      編集指示（英語推奨）
+                    </label>
+                    <Input
+                      placeholder="e.g., Add a wizard hat to the subject"
+                      value={editPrompt}
+                      onChange={(e) => setEditPrompt(e.target.value)}
+                    />
+                  </div>
+
+                  <Button
+                    variant="gradient"
+                    onClick={handleEditImage}
+                    disabled={editGenerating || !editPrompt.trim() || !user}
+                    className="w-full"
+                  >
+                    {editGenerating ? 'Editing Image...' : 'Edit Image with Gemini'}
+                  </Button>
+                </>
+              ) : (
+                <div className="bg-yellow-50 p-3 rounded-lg text-sm text-gray-700">
+                  <strong>Note:</strong> まず上の「AI Image Generation」で画像を生成してください。
+                  その画像を編集できます。
+                </div>
+              )}
+
+              {editError && (
+                <div className="bg-red-50 p-3 rounded-lg">
+                  <p className="font-bold mb-2 text-red-600">Error:</p>
+                  <p className="text-sm text-gray-700">{editError.message}</p>
+                </div>
+              )}
+
+              {editedImage && (
+                <div className="space-y-3">
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <p className="font-bold mb-2 text-green-600">Edited Image Generated!</p>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-semibold mb-2">編集結果:</p>
+                        <img
+                          src={editedImage.publicUrl}
+                          alt="Edited"
+                          className="w-full rounded-lg shadow"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                          <div>
+                            <strong>Provider:</strong> {editedImage.provider}
+                          </div>
+                          <div>
+                            <strong>Model:</strong> {editedImage.model}
+                          </div>
+                          <div>
+                            <strong>Size:</strong> {editedImage.size}
+                          </div>
+                          <div>
+                            <strong>File ID:</strong> {editedImage.id?.substring(0, 8)}...
+                          </div>
+                        </div>
+
+                        <a
+                          href={editedImage.publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline block mt-2"
+                        >
+                          Open in new tab →
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> 画像編集には
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+
+            {editGenerating && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-600 rounded-full" />
+                <span>Editing image with Gemini... (通常10-30秒)</span>
               </div>
             )}
           </CardContent>
