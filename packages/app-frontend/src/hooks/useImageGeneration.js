@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { ImageGenerationService } from '../services/ImageGenerationService'
 
 /**
- * 画像生成専用カスタムフック
+ * 画像生成専用カスタムフック (React Query版)
  * ImageGenerationService をラップし、画像生成からStorage保存までを自動化
  *
  * @param {Object} defaultOptions - デフォルトオプション
@@ -12,205 +12,103 @@ import { ImageGenerationService } from '../services/ImageGenerationService'
  * @param {string} defaultOptions.style - デフォルトスタイル ('vivid' | 'natural')
  * @param {string} defaultOptions.storage - デフォルトストレージ ('public' | 'private')
  *
- * @returns {Object} { generate, generateVariation, generateEdit, loading, error, result, sizeOptions, qualityOptions, styleOptions, providerOptions }
+ * @returns {Object} { generate, generateAsync, isPending, isError, error, data, reset, ... }
  *
  * @example
  * // 基本的な使用
  * function MyComponent() {
- *   const { generate, loading, error, result } = useImageGeneration()
+ *   const { generate, isPending, isError, error, data } = useImageGeneration()
  *
- *   const handleGenerate = async () => {
- *     const image = await generate({
+ *   const handleGenerate = () => {
+ *     generate({
  *       prompt: 'A cute cat playing with yarn',
  *       quality: 'hd'
  *     })
- *     console.log(image.publicUrl)
  *   }
  *
- *   if (loading) return <Skeleton />
- *   if (error) return <p>Error: {error.message}</p>
+ *   if (isPending) return <Skeleton />
+ *   if (isError) return <p>Error: {error.message}</p>
  *
  *   return (
  *     <div>
  *       <button onClick={handleGenerate}>Generate Image</button>
- *       {result && <img src={result.publicUrl} alt="Generated" />}
+ *       {data && <img src={data.publicUrl} alt="Generated" />}
  *     </div>
  *   )
  * }
  *
  * @example
- * // デフォルトオプション付き
+ * // async/await での使用
  * function MyComponent() {
- *   const { generate, sizeOptions, qualityOptions } = useImageGeneration({
- *     provider: 'dalle',
- *     quality: 'hd',
- *     style: 'vivid'
- *   })
+ *   const { generateAsync, isPending } = useImageGeneration()
  *
- *   return (
- *     <div>
- *       <select>
- *         {sizeOptions.map(opt => (
- *           <option key={opt.value} value={opt.value}>
- *             {opt.label}
- *           </option>
- *         ))}
- *       </select>
- *     </div>
- *   )
+ *   const handleGenerate = async () => {
+ *     try {
+ *       const image = await generateAsync({ prompt: 'A cat' })
+ *       console.log(image.publicUrl)
+ *     } catch (error) {
+ *       console.error(error)
+ *     }
+ *   }
  * }
  */
 export function useImageGeneration(defaultOptions = {}) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [result, setResult] = useState(null)
-
-  /**
-   * 画像を生成してStorage保存
-   *
-   * @param {Object} options - 生成オプション
-   * @param {string} options.prompt - プロンプト（必須）
-   * @param {string} options.provider - プロバイダー ('dalle' | 'gemini')
-   * @param {string} options.size - サイズ ('1024x1024' | '1792x1024' | '1024x1792')
-   * @param {string} options.quality - 品質 ('standard' | 'hd')
-   * @param {string} options.style - スタイル ('vivid' | 'natural')
-   * @param {Object} options.metadata - 追加メタデータ
-   * @returns {Promise<Object>} { id, publicUrl, storagePath, revisedPrompt, provider, model, size, metadata }
-   */
-  const generate = useCallback(
-    async (options) => {
-      // Variation モード（sourceImage あり）の場合はプロンプト不要
-      // Text-to-Image / Inpainting の場合はプロンプト必須
-      if (!options.sourceImage && !options.prompt) {
-        const err = new Error('Prompt is required for text-to-image generation')
-        setError(err)
-        throw err
-      }
-
-      setLoading(true)
-      setError(null)
-
-      try {
-        const data = await ImageGenerationService.generate({
-          ...defaultOptions,
-          ...options,
-        })
-        setResult(data)
-        return data
-      } catch (err) {
-        setError(err)
-        throw err
-      } finally {
-        setLoading(false)
-      }
-    },
-    [defaultOptions]
-  )
-
-  /**
-   * DALL-E で画像生成（ショートカット）
-   */
-  const generateWithDallE = useCallback(
-    async (prompt, options = {}) => {
-      return generate({
-        prompt,
-        provider: 'dalle',
+  // React Query Mutation
+  const mutation = useMutation({
+    mutationFn: async (options) => {
+      const { data, error } = await ImageGenerationService.generate({
+        ...defaultOptions,
         ...options,
       })
-    },
-    [generate]
-  )
 
-  /**
-   * Gemini で画像生成（ショートカット）
-   */
-  const generateWithGemini = useCallback(
-    async (prompt, options = {}) => {
-      return generate({
-        prompt,
-        provider: 'gemini',
-        ...options,
-      })
+      if (error) throw error
+      return data
     },
-    [generate]
-  )
+  })
 
-  /**
-   * バリエーション生成（既存画像から類似画像を生成）
-   *
-   * Note: DALL-E の Variation API はプロンプト不要（画像のみ）
-   * Gemini はプロンプトで指示可能
-   *
-   * @param {string} sourceImageUrl - 元画像URL
-   * @param {Object} options - オプション
-   * @returns {Promise<Object>}
-   *
-   * @example
-   * // DALL-E: プロンプト不要
-   * const image = await generateVariation(existingImageUrl, { provider: 'dalle' })
-   *
-   * // Gemini: プロンプトで指示可能
-   * const image = await generateVariation(existingImageUrl, {
-   *   provider: 'gemini',
-   *   prompt: 'Make it look like a watercolor painting'
-   * })
-   */
-  const generateVariation = useCallback(
-    async (sourceImageUrl, options = {}) => {
-      // Gemini の場合はプロンプトで編集指示可能
+  return {
+    // 基本メソッド
+    generate: mutation.mutate,
+    generateAsync: mutation.mutateAsync,
+
+    // ショートカット
+    generateWithDallE: (prompt, options = {}) => {
+      return mutation.mutateAsync({ prompt, provider: 'dalle', ...options })
+    },
+    generateWithGemini: (prompt, options = {}) => {
+      return mutation.mutateAsync({ prompt, provider: 'gemini', ...options })
+    },
+    generateVariation: (sourceImageUrl, options = {}) => {
       const provider = options.provider || defaultOptions.provider || 'dalle'
-      const defaultPrompt = provider === 'gemini'
-        ? 'Create a variation of this image'
-        : '' // DALL-E は空文字列（プロンプト不要）
-
-      return generate({
-        mode: 'variation', // 明示的に mode を指定
+      const defaultPrompt = provider === 'gemini' ? 'Create a variation of this image' : ''
+      return mutation.mutateAsync({
+        mode: 'variation',
         prompt: options.prompt || defaultPrompt,
         sourceImage: sourceImageUrl,
         ...options,
       })
     },
-    [generate, defaultOptions]
-  )
-
-  /**
-   * Edit（画像をプロンプトで編集）
-   * Image-to-Image 編集機能（Gemini のみサポート）
-   *
-   * @param {string} sourceImageUrl - 元画像URL
-   * @param {string} prompt - 編集内容の説明
-   * @param {Object} options - オプション
-   * @returns {Promise<Object>}
-   *
-   * @example
-   * // Gemini で画像編集
-   * const image = await generateEdit(imageUrl, 'Add a wizard hat to the cat', { provider: 'gemini' })
-   */
-  const generateEdit = useCallback(
-    async (sourceImageUrl, prompt, options = {}) => {
-      return generate({
+    generateEdit: (sourceImageUrl, prompt, options = {}) => {
+      return mutation.mutateAsync({
         mode: 'edit',
         prompt,
         sourceImage: sourceImageUrl,
-        provider: 'gemini', // Edit mode は Gemini のみサポート
+        provider: 'gemini',
         ...options,
       })
     },
-    [generate]
-  )
 
-  return {
-    // メソッド
-    generate,
-    generateWithDallE,
-    generateWithGemini,
-    generateVariation,
-    generateEdit,
+    // React Query 状態
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    isSuccess: mutation.isSuccess,
+    error: mutation.error,
+    data: mutation.data,
+    reset: mutation.reset,
 
-    // 状態
-    loading,
-    error,
-    result,
+    // 互換性のため（既存コードが使用）
+    loading: mutation.isPending,
+    result: mutation.data,
 
     // オプションヘルパー
     sizeOptions: ImageGenerationService.getSizeOptions(),

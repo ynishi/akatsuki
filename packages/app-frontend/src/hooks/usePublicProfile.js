@@ -1,210 +1,125 @@
 /**
- * usePublicProfile Hook
+ * usePublicProfile Hook (React Query版)
  * Manages public profile state and operations
  *
  * Usage:
  * ```javascript
- * const { profile, loading, error, refresh, updateProfile } = usePublicProfile(userId)
+ * const { profile, isLoading, error, refetch, updateProfile } = usePublicProfile(userId)
  * ```
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 import { PublicProfile } from '../models/PublicProfile'
 
 export function usePublicProfile(userId, { autoLoad = true } = {}) {
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const queryClient = useQueryClient()
 
   /**
-   * Load public profile
+   * Query: プロフィール取得
    */
-  const loadProfile = useCallback(async () => {
-    if (!userId) {
-      setProfile(null)
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const { data, error: fetchError } = await PublicProfileRepository.findByUserId(userId)
-
-      if (fetchError) throw fetchError
-
-      const profileModel = data ? PublicProfile.fromDatabase(data) : null
-      setProfile(profileModel)
-    } catch (err) {
-      console.error('usePublicProfile.loadProfile error:', err)
-      setError(err.message || 'Failed to load public profile')
-      setProfile(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [userId])
-
-  /**
-   * Refresh profile
-   */
-  const refresh = useCallback(() => {
-    loadProfile()
-  }, [loadProfile])
-
-  /**
-   * Update public profile
-   */
-  const updateProfile = useCallback(
-    async (updates) => {
-      if (!userId) {
-        throw new Error('User ID is required to update profile')
-      }
-
-      setLoading(true)
-      setError(null)
-
-      try {
-        const { data, error: updateError } = await PublicProfileRepository.update(userId, updates)
-
-        if (updateError) throw updateError
-
-        const updatedProfile = PublicProfile.fromDatabase(data)
-        setProfile(updatedProfile)
-
-        return { data: updatedProfile, error: null }
-      } catch (err) {
-        console.error('usePublicProfile.updateProfile error:', err)
-        const errorMessage = err.message || 'Failed to update public profile'
-        setError(errorMessage)
-        return { data: null, error: err }
-      } finally {
-        setLoading(false)
-      }
+  const query = useQuery({
+    queryKey: ['publicProfile', userId],
+    queryFn: async () => {
+      const { data, error } = await PublicProfileRepository.findByUserId(userId)
+      if (error) throw error
+      return data ? PublicProfile.fromDatabase(data) : null
     },
-    [userId]
-  )
+    enabled: !!userId && autoLoad,
+  })
 
   /**
-   * Create public profile
+   * Mutation: プロフィール更新
    */
-  const createProfile = useCallback(
-    async (profileData) => {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const { data, error: createError } = await PublicProfileRepository.create(profileData)
-
-        if (createError) throw createError
-
-        const newProfile = PublicProfile.fromDatabase(data)
-        setProfile(newProfile)
-
-        return { data: newProfile, error: null }
-      } catch (err) {
-        console.error('usePublicProfile.createProfile error:', err)
-        const errorMessage = err.message || 'Failed to create public profile'
-        setError(errorMessage)
-        return { data: null, error: err }
-      } finally {
-        setLoading(false)
-      }
+  const updateMutation = useMutation({
+    mutationFn: async (updates) => {
+      const { data, error } = await PublicProfileRepository.update(userId, updates)
+      if (error) throw error
+      return PublicProfile.fromDatabase(data)
     },
-    []
-  )
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['publicProfile', userId] })
+    },
+  })
 
   /**
-   * Delete public profile
+   * Mutation: プロフィール作成
    */
-  const deleteProfile = useCallback(async () => {
-    if (!userId) {
-      throw new Error('User ID is required to delete profile')
-    }
+  const createMutation = useMutation({
+    mutationFn: async (profileData) => {
+      const { data, error } = await PublicProfileRepository.create(profileData)
+      if (error) throw error
+      return PublicProfile.fromDatabase(data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['publicProfile', userId] })
+    },
+  })
 
-    setLoading(true)
-    setError(null)
-
-    try {
-      const { error: deleteError } = await PublicProfileRepository.delete(userId)
-
-      if (deleteError) throw deleteError
-
-      setProfile(null)
-
-      return { error: null }
-    } catch (err) {
-      console.error('usePublicProfile.deleteProfile error:', err)
-      const errorMessage = err.message || 'Failed to delete public profile'
-      setError(errorMessage)
-      return { error: err }
-    } finally {
-      setLoading(false)
-    }
-  }, [userId])
-
-  // Auto-load on mount or when userId changes
-  useEffect(() => {
-    if (autoLoad) {
-      loadProfile()
-    }
-  }, [autoLoad, loadProfile])
+  /**
+   * Mutation: プロフィール削除
+   */
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await PublicProfileRepository.delete(userId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['publicProfile', userId] })
+    },
+  })
 
   return {
-    profile,
-    loading,
-    error,
-    refresh,
-    updateProfile,
-    createProfile,
-    deleteProfile,
+    // Query状態
+    profile: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+
+    // Mutation
+    updateProfile: updateMutation.mutate,
+    updateProfileAsync: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
+
+    createProfile: createMutation.mutate,
+    createProfileAsync: createMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+
+    deleteProfile: deleteMutation.mutate,
+    deleteProfileAsync: deleteMutation.mutateAsync,
+    isDeleting: deleteMutation.isPending,
+
+    // 互換性のため（既存コードが使用）
+    loading: query.isLoading,
+    refresh: query.refetch,
   }
 }
 
 /**
- * usePublicProfileByUsername Hook
+ * usePublicProfileByUsername Hook (React Query版)
  * Load public profile by username
  */
 export function usePublicProfileByUsername(username, { autoLoad = true } = {}) {
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const loadProfile = useCallback(async () => {
-    if (!username) {
-      setProfile(null)
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const { data, error: fetchError } = await PublicProfileRepository.findByUsername(username)
-
-      if (fetchError) throw fetchError
-
-      const profileModel = data ? PublicProfile.fromDatabase(data) : null
-      setProfile(profileModel)
-    } catch (err) {
-      console.error('usePublicProfileByUsername.loadProfile error:', err)
-      setError(err.message || 'Failed to load public profile')
-      setProfile(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [username])
-
-  useEffect(() => {
-    if (autoLoad) {
-      loadProfile()
-    }
-  }, [autoLoad, loadProfile])
+  const query = useQuery({
+    queryKey: ['publicProfile', 'username', username],
+    queryFn: async () => {
+      const { data, error } = await PublicProfileRepository.findByUsername(username)
+      if (error) throw error
+      return data ? PublicProfile.fromDatabase(data) : null
+    },
+    enabled: !!username && autoLoad,
+  })
 
   return {
-    profile,
-    loading,
-    error,
-    refresh: loadProfile,
+    profile: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+
+    // 互換性のため
+    loading: query.isLoading,
+    refresh: query.refetch,
   }
 }

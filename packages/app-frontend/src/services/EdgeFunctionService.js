@@ -6,13 +6,13 @@ import { supabase } from '../lib/supabase'
  *
  * Akatsukiハンドラーパターン対応:
  * - すべてのレスポンスは { success, result, error } 形式
- * - success: true の場合、result を返す
- * - success: false の場合、エラーをthrow
+ * - このServiceは { data, error } 形式に変換して返す
+ * - data: 成功時のresult、error: 失敗時のエラーオブジェクト
  *
  * サービスレイヤーの利点:
  * - Edge Functions の呼び出しを一箇所に集約
  * - エラーハンドリングの統一
- * - 型安全性の向上（将来的にTypeScript化した場合）
+ * - { data, error } 形式でReact Queryとの相性が良い
  * - テストが容易（モックしやすい）
  */
 export class EdgeFunctionService {
@@ -22,12 +22,11 @@ export class EdgeFunctionService {
    * @param {Object|FormData} payload - リクエストペイロード
    * @param {Object} options - オプション
    * @param {boolean} options.isFormData - FormDataかどうか
-   * @param {boolean} options.rawResponse - 生のレスポンスを返すか（デフォルト: false）
-   * @returns {Promise<any>} レスポンスのresult部分（またはrawResponse: trueの場合は全体）
+   * @returns {Promise<{data: any, error: Error|null}>} { data, error } 形式
    */
   static async invoke(functionName, payload = {}, options = {}) {
     try {
-      const { isFormData = false, rawResponse = false } = options
+      const { isFormData = false } = options
 
       const invokeOptions = {}
 
@@ -50,34 +49,34 @@ export class EdgeFunctionService {
       // Supabase Functions自体のエラー（ネットワークエラー等）
       if (error) {
         console.error(`[EdgeFunctionService] ${functionName} Supabase error:`, error)
-        throw new Error(error.message || 'Edge Function invocation failed')
+        return { data: null, error: new Error(error.message || 'Edge Function invocation failed') }
       }
 
       // dataがない、またはオブジェクトでない場合
       if (!data || typeof data !== 'object') {
         console.warn(`[EdgeFunctionService] ${functionName} returned invalid response:`, data)
-        return data
+        return { data, error: null }
       }
 
       // AkatsukiResponse形式でない場合（旧実装との互換性）
       // upload-file等のEdge Functionは独自形式を返す
       if (!('success' in data)) {
         console.warn(`[EdgeFunctionService] ${functionName} returned non-Akatsuki response:`, data)
-        return data
+        return { data, error: null }
       }
 
       // successフィールドがあるが、resultフィールドがない場合（upload-file等）
       if (data.success && !('result' in data)) {
         console.log(`[EdgeFunctionService] ${functionName} returned success without result field:`, data)
-        return data // データ全体を返す
+        return { data, error: null }
       }
 
       // AkatsukiResponse形式の処理
       if (data.success) {
-        // 成功: resultを返す
-        return rawResponse ? data : data.result
+        // 成功: { data: result, error: null }
+        return { data: data.result, error: null }
       } else {
-        // 失敗: エラーをthrow
+        // 失敗: { data: null, error: Error }
         const errorMessage = data.error?.message || data.error || 'Unknown error'
         const errorCode = data.error?.code || 'UNKNOWN_ERROR'
         const error = new Error(errorMessage)
@@ -86,11 +85,11 @@ export class EdgeFunctionService {
           message: errorMessage,
           code: errorCode,
         })
-        throw error
+        return { data: null, error }
       }
     } catch (error) {
       console.error(`[EdgeFunctionService] ${functionName} 呼び出し失敗:`, error)
-      throw error
+      return { data: null, error }
     }
   }
 
@@ -131,7 +130,7 @@ export class EdgeFunctionService {
 /**
  * サンプル: Hello Function
  * @param {string} name - 名前
- * @returns {Promise<Object>}
+ * @returns {Promise<{data: any, error: Error|null}>}
  */
 export async function callHelloFunction(name) {
   return EdgeFunctionService.invoke('hello-world', { name })
@@ -140,7 +139,7 @@ export async function callHelloFunction(name) {
 /**
  * サンプル: AI生成 Function（認証必要）
  * @param {string} prompt - プロンプト
- * @returns {Promise<Object>}
+ * @returns {Promise<{data: any, error: Error|null}>}
  */
 export async function generateWithAI(prompt) {
   return EdgeFunctionService.invokeWithAuth('generate-ai', { prompt })

@@ -29,15 +29,19 @@ export class GeminiProvider extends BaseProvider {
       responseJson: options.responseJson || false,
     }
 
-    // EdgeFunctionServiceは既にresultを抽出して返す
+    // EdgeFunctionServiceは { data, error } 形式を返す
     // ai-chatのレスポンス: { response, model, usage, tokens }
-    const result = await EdgeFunctionService.invoke('ai-chat', payload)
+    const { data, error } = await EdgeFunctionService.invoke('ai-chat', payload)
+
+    if (error) {
+      throw error
+    }
 
     return {
-      text: result.response,
-      usage: result.usage,
-      tokens: result.tokens,
-      model: result.model,
+      text: data.response,
+      usage: data.usage,
+      tokens: data.tokens,
+      model: data.model,
     }
   }
 
@@ -93,11 +97,15 @@ export class GeminiProvider extends BaseProvider {
       model: options.model || 'text-embedding-004',
     }
 
-    const result = await EdgeFunctionService.invoke('ai-embed', payload)
+    const { data, error } = await EdgeFunctionService.invoke('ai-embed', payload)
+
+    if (error) {
+      throw error
+    }
 
     return {
-      embedding: result.embedding,
-      model: result.model,
+      embedding: data.embedding,
+      model: data.model,
     }
   }
 }

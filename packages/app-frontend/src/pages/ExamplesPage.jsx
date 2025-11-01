@@ -320,51 +320,51 @@ export function ExamplesPage() {
   const handleSlackNotify = async () => {
     if (!slackMessage.trim()) return
 
-    try {
-      setSlackSending(true)
-      setSlackResult(null)
+    setSlackSending(true)
+    setSlackResult(null)
 
-      const result = await EdgeFunctionService.invoke('slack-notify', {
-        text: slackMessage,
-        metadata: {
-          source: 'homepage-test',
-          event_type: 'manual_test',
-        },
-      })
+    const { data, error } = await EdgeFunctionService.invoke('slack-notify', {
+      text: slackMessage,
+      metadata: {
+        source: 'homepage-test',
+        event_type: 'manual_test',
+      },
+    })
 
-      setSlackResult({ success: true, ...result })
-    } catch (error) {
+    if (error) {
       console.error('Slack notify error:', error)
       setSlackResult({ success: false, error: error.message })
-    } finally {
-      setSlackSending(false)
+    } else {
+      setSlackResult({ success: true, ...data })
     }
+
+    setSlackSending(false)
   }
 
   // Send Email
   const handleSendEmail = async () => {
     if (!emailTo.trim() || !emailSubject.trim() || !emailBody.trim()) return
 
-    try {
-      setEmailSending(true)
-      setEmailResult(null)
+    setEmailSending(true)
+    setEmailResult(null)
 
-      const result = await EdgeFunctionService.invoke('send-email', {
-        to: emailTo,
-        subject: emailSubject,
-        text: emailBody,
-        metadata: {
-          template: 'test',
-        },
-      })
+    const { data, error } = await EdgeFunctionService.invoke('send-email', {
+      to: emailTo,
+      subject: emailSubject,
+      text: emailBody,
+      metadata: {
+        template: 'test',
+      },
+    })
 
-      setEmailResult({ success: true, ...result })
-    } catch (error) {
+    if (error) {
       console.error('Send email error:', error)
       setEmailResult({ success: false, error: error.message })
-    } finally {
-      setEmailSending(false)
+    } else {
+      setEmailResult({ success: true, ...data })
     }
+
+    setEmailSending(false)
   }
 
   return (

@@ -45,6 +45,7 @@ Step 6: 振り返り（docs/に整理）
 - レイアウト: `TopNavigation`
 - ストレージ: `FileUpload`
 - AI: `useAIGen`, `useImageGeneration`, `AIService`, `ImageGenerationService`
+- Hooks: `usePublicProfile` (React Query)
 - UI: shadcn/ui 44コンポーネント（`components/ui/`）
 
 **Edge Functions（デプロイ済み）:**
@@ -193,50 +194,93 @@ src/
    - Supabase Edge Functions の呼び出しを抽象化
    - 外部API連携
    - **例:** `EdgeFunctionService.js`, `AIGenerationService.js`
+   - **レスポンス形式:** すべて `{ data, error }` 形式に統一
    - **パターン:**
      ```javascript
      // Service で Edge Function 呼び出し
-     const result = await EdgeFunctionService.invoke('my-function', payload)
-     // または認証付き
-     const result = await EdgeFunctionService.invokeWithAuth('my-function', payload)
+     const { data, error } = await EdgeFunctionService.invoke('my-function', payload)
+     if (error) {
+       // エラーハンドリング
+     }
+     // data を使用
      ```
 
-5. **components/** - UIコンポーネント
+5. **hooks/** - Custom Hooks（React Query）
+   - **React Query** を使用した状態管理
+   - Repository/Service を呼び出し、UIとビジネスロジックを分離
+   - **例:** `useImageGeneration`, `usePublicProfile`
+   - **パターン:**
+     ```javascript
+     // Query（データ取得）
+     const { profile, isLoading, error, refetch } = usePublicProfile(userId)
+
+     // Mutation（データ変更）
+     const { generate, isPending, data } = useImageGeneration()
+     generate({ prompt: 'A cat' })
+     ```
+
+6. **components/** - UIコンポーネント
    - 再利用可能なUI部品
    - Presentationalコンポーネント
    - **例:** `Button.jsx`, `Card.jsx`, `UserCard.jsx`
 
-6. **pages/** - ページコンポーネント
+7. **pages/** - ページコンポーネント
    - 画面全体の構成
-   - Containerコンポーネント（State管理）
-   - Repository/Serviceの呼び出し
+   - Containerコンポーネント（Hooksで状態管理）
    - **例:** `HomePage.jsx`, `ProfilePage.jsx`
 
 #### 実装例
 
-**データフロー全体:**
+**データフロー全体（React Query版）:**
 ```javascript
-// pages/ProfilePage.jsx
+// hooks/useUserProfile.js
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserProfileRepository } from '../repositories'
 import { UserProfile } from '../models'
-import { EdgeFunctionService } from '../services'
 
-// 1. Repository でDB取得
-const data = await UserProfileRepository.findByUserId(userId)
+export function useUserProfile(userId) {
+  const queryClient = useQueryClient()
 
-// 2. Model で変換
-const profile = UserProfile.fromDatabase(data)
+  // Query: プロフィール取得
+  const query = useQuery({
+    queryKey: ['userProfile', userId],
+    queryFn: async () => {
+      const { data, error } = await UserProfileRepository.findByUserId(userId)
+      if (error) throw error
+      return data ? UserProfile.fromDatabase(data) : null
+    },
+    enabled: !!userId,
+  })
 
-// 3. Model で更新データ作成
-const updated = new UserProfile({ ...profile, displayName: 'New Name' })
+  // Mutation: プロフィール更新
+  const updateMutation = useMutation({
+    mutationFn: async (updates) => {
+      const { data, error } = await UserProfileRepository.update(userId, updates)
+      if (error) throw error
+      return UserProfile.fromDatabase(data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] })
+    },
+  })
 
-// 4. Repository で保存
-await UserProfileRepository.update(userId, updated.toUpdateDatabase())
+  return {
+    profile: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    updateProfile: updateMutation.mutate,
+  }
+}
 
-// 5. Service で Edge Function 呼び出し
-const aiResult = await EdgeFunctionService.invoke('generate-bio', {
-  username: profile.username
-})
+// pages/ProfilePage.jsx
+function ProfilePage() {
+  const { user } = useAuth()
+  const { profile, isLoading, updateProfile } = useUserProfile(user?.id)
+
+  if (isLoading) return <Skeleton />
+
+  return <div>{profile.displayName}</div>
+}
 ```
 
 #### Component設計原則
@@ -341,19 +385,26 @@ export function LLMChatCard() {
 export function useLLMChat() {
   const [prompt, setPrompt] = useState('')
   const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const sendMessage = async () => {
     setLoading(true)
+    setError(null)
     try {
-      const response = await AIService.chat(prompt)
-      setResult(response)
+      const { data, error: chatError } = await AIService.chat(prompt)
+      if (chatError) {
+        setError(chatError)
+        setResult(null)
+      } else {
+        setResult(data)
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  return { prompt, setPrompt, result, loading, sendMessage }
+  return { prompt, setPrompt, result, error, loading, sendMessage }
 }
 ```
 
@@ -1092,10 +1143,15 @@ async function generateDummyProfiles() {
   for (let i = 0; i < 10; i++) {
     try {
       // 1. 画像生成（Storage + file_metadata に自動保存）
-      const avatar = await ImageGenerationService.generate({
+      const { data: avatar, error: genError } = await ImageGenerationService.generate({
         prompt: `Professional headshot of person ${i + 1}, studio lighting, neutral background`,
         quality: 'standard',
       })
+
+      if (genError) {
+        console.error(`✗ Failed to generate avatar: ${genError.message}`)
+        continue
+      }
 
       console.log(`✓ Generated avatar: ${avatar.id}`)
 
@@ -2424,21 +2480,21 @@ npx supabase migration list
 
 **症状:**
 - Edge Functionは成功しているのに、サービス層で「データがない」エラー
-- `generationResult.success is undefined`
+- `data` と `error` の扱いを間違えている
 - `No image data returned` などのエラーメッセージ
 
 **診断方法:**
 ```javascript
 // サービス層でレスポンスをログ出力
-const result = await EdgeFunctionService.invoke('generate-image', {...})
-console.log('[Debug] EdgeFunctionService response:', result)
+const { data, error } = await EdgeFunctionService.invoke('generate-image', {...})
+console.log('[Debug] EdgeFunctionService response:', { data, error })
 ```
 
 **原因:**
-`EdgeFunctionService.invoke()` は **AkatsukiResponse形式の `result` 部分のみ** を返します。
+`EdgeFunctionService.invoke()` は **`{ data, error }` 形式** を返します。AkatsukiResponse形式の `{ success, result, error }` を `{ data, error }` 形式に変換しています。
 
 ```javascript
-// Edge Function が返すレスポンス
+// Edge Function が返すレスポンス (AkatsukiResponse)
 {
   success: true,
   result: {
@@ -2447,36 +2503,54 @@ console.log('[Debug] EdgeFunctionService response:', result)
   }
 }
 
-// EdgeFunctionService.invoke() が返す値（result部分だけ！）
+// EdgeFunctionService.invoke() が返す値 ({ data, error } 形式)
 {
-  image_data: "base64...",
-  mime_type: "image/png"
+  data: {
+    image_data: "base64...",
+    mime_type: "image/png"
+  },
+  error: null
+}
+
+// エラー時
+{
+  data: null,
+  error: Error("エラーメッセージ")
 }
 ```
 
 **解決方法:**
 
 ```javascript
-// ❌ 悪い例: success フィールドをチェック（存在しない！）
+// ❌ 悪い例: 分割代入せずに使用
 const result = await EdgeFunctionService.invoke('generate-image', {...})
-if (!result.success || !result.image_data) {  // ← result.success は undefined
+if (!result.image_data) {  // ← result.data.image_data が正しい
   throw new Error('No data')
 }
 
-// ✅ 良い例: 直接データをチェック
-const result = await EdgeFunctionService.invoke('generate-image', {...})
-if (!result || !result.image_data) {  // ← result.image_data を直接チェック
-  throw new Error('No data')
+// ✅ 良い例: { data, error } 形式で分割代入
+const { data, error } = await EdgeFunctionService.invoke('generate-image', {...})
+if (error) {
+  return { data: null, error }  // エラーをそのまま返す
 }
+
+if (!data || !data.image_data) {
+  return { data: null, error: new Error('No image data returned') }
+}
+
+// data を使用
+console.log(data.image_data)
 ```
 
 **重要:**
-- `EdgeFunctionService.invoke()` 内でエラーハンドリング済み（success: false は throw される）
-- サービス層に到達した時点で **成功したresultのみ** が返ってくる
-- エラー時は既に例外がthrowされているので、try-catchでキャッチするだけでOK
+- すべてのServiceは `{ data, error }` 形式を返す（統一仕様）
+- **エラー時も throw しない**: `{ data: null, error: Error }` を返す
+- 呼び出し側で必ず `error` チェックを行う
+- React Query との相性が良い設計
 
 **関連ファイル:**
-- `src/services/EdgeFunctionService.js:76-90` - エラーハンドリングロジック
+- `src/services/EdgeFunctionService.js:25-94` - `{ data, error }` 形式への変換ロジック
+- `src/services/ImageGenerationService.js:43-189` - Service の実装例
 
 ---
 

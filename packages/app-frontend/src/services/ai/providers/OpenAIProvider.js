@@ -25,18 +25,19 @@ export class OpenAIProvider extends BaseProvider {
       messages: options.messages || [],
     }
 
-    try {
-      // EdgeFunctionServiceは既にresultを抽出して返す
-      // ai-chatのレスポンス: { response, model, usage, tokens }
-      const result = await EdgeFunctionService.invoke('ai-chat', payload)
-      return {
-        text: result.response, // responseフィールドに変更
-        usage: result.usage,
-        model: result.model,
-        tokens: result.tokens, // トークン情報も追加
-      }
-    } catch (error) {
+    // EdgeFunctionServiceは { data, error } 形式を返す
+    // ai-chatのレスポンス: { response, model, usage, tokens }
+    const { data, error } = await EdgeFunctionService.invoke('ai-chat', payload)
+
+    if (error) {
       throw new Error(`OpenAI chat failed: ${error.message}`)
+    }
+
+    return {
+      text: data.response,
+      usage: data.usage,
+      model: data.model,
+      tokens: data.tokens,
     }
   }
 
@@ -54,17 +55,17 @@ export class OpenAIProvider extends BaseProvider {
       stream: true,
     }
 
-    try {
-      // TODO: SSE (Server-Sent Events) 実装
-      // Edge Function 'ai-stream' を呼び出してストリーミング受信
-      const result = await EdgeFunctionService.invoke('ai-stream', payload)
+    // TODO: SSE (Server-Sent Events) 実装
+    // Edge Function 'ai-stream' を呼び出してストリーミング受信
+    const { data, error } = await EdgeFunctionService.invoke('ai-stream', payload)
 
-      // 暫定: 非ストリーミングで全体を返す
-      onChunk({ text: result.text, done: false })
-      onChunk({ text: '', done: true })
-    } catch (error) {
+    if (error) {
       throw new Error(`OpenAI stream failed: ${error.message}`)
     }
+
+    // 暫定: 非ストリーミングで全体を返す
+    onChunk({ text: data.text, done: false })
+    onChunk({ text: '', done: true })
   }
 
   /**
@@ -80,14 +81,15 @@ export class OpenAIProvider extends BaseProvider {
       n: options.n || 1,
     }
 
-    try {
-      const result = await EdgeFunctionService.invoke('ai-image', payload)
-      return {
-        url: result.url,
-        data: result.data,
-      }
-    } catch (error) {
+    const { data, error } = await EdgeFunctionService.invoke('ai-image', payload)
+
+    if (error) {
       throw new Error(`OpenAI image generation failed: ${error.message}`)
+    }
+
+    return {
+      url: data.url,
+      data: data.data,
     }
   }
 
@@ -103,14 +105,15 @@ export class OpenAIProvider extends BaseProvider {
       size: options.size || '1024x1024',
     }
 
-    try {
-      const result = await EdgeFunctionService.invoke('ai-image-edit', payload)
-      return {
-        url: result.url,
-        data: result.data,
-      }
-    } catch (error) {
+    const { data, error } = await EdgeFunctionService.invoke('ai-image-edit', payload)
+
+    if (error) {
       throw new Error(`OpenAI image edit failed: ${error.message}`)
+    }
+
+    return {
+      url: data.url,
+      data: data.data,
     }
   }
 
@@ -124,11 +127,12 @@ export class OpenAIProvider extends BaseProvider {
       model: options.model || 'text-embedding-3-small',
     }
 
-    try {
-      const result = await EdgeFunctionService.invoke('ai-embed', payload)
-      return result.embedding
-    } catch (error) {
+    const { data, error } = await EdgeFunctionService.invoke('ai-embed', payload)
+
+    if (error) {
       throw new Error(`OpenAI embedding failed: ${error.message}`)
     }
+
+    return data.embedding
   }
 }

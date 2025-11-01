@@ -24,18 +24,19 @@ export class AnthropicProvider extends BaseProvider {
       messages: options.messages || [],
     }
 
-    try {
-      // EdgeFunctionServiceは既にresultを抽出して返す
-      // ai-chatのレスポンス: { response, model, usage, tokens }
-      const result = await EdgeFunctionService.invoke('ai-chat', payload)
-      return {
-        text: result.response, // responseフィールドに変更
-        usage: result.usage,
-        model: result.model,
-        tokens: result.tokens, // トークン情報も追加
-      }
-    } catch (error) {
+    // EdgeFunctionServiceは { data, error } 形式を返す
+    // ai-chatのレスポンス: { response, model, usage, tokens }
+    const { data, error } = await EdgeFunctionService.invoke('ai-chat', payload)
+
+    if (error) {
       throw new Error(`Anthropic chat failed: ${error.message}`)
+    }
+
+    return {
+      text: data.response,
+      usage: data.usage,
+      model: data.model,
+      tokens: data.tokens,
     }
   }
 
@@ -53,16 +54,16 @@ export class AnthropicProvider extends BaseProvider {
       stream: true,
     }
 
-    try {
-      // TODO: SSE (Server-Sent Events) 実装
-      const result = await EdgeFunctionService.invoke('ai-stream', payload)
+    // TODO: SSE (Server-Sent Events) 実装
+    const { data, error } = await EdgeFunctionService.invoke('ai-stream', payload)
 
-      // 暫定: 非ストリーミングで全体を返す
-      onChunk({ text: result.text, done: false })
-      onChunk({ text: '', done: true })
-    } catch (error) {
+    if (error) {
       throw new Error(`Anthropic stream failed: ${error.message}`)
     }
+
+    // 暫定: 非ストリーミングで全体を返す
+    onChunk({ text: data.text, done: false })
+    onChunk({ text: '', done: true })
   }
 
   /**

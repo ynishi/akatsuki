@@ -40,7 +40,7 @@ export class ImageGenerationService {
    * @param {string} options.sourceImage - 元画像URL（Variation/Edit時のみ）
    * @param {string} options.storage - ストレージタイプ ('public' | 'private', デフォルト: 'public')
    * @param {Object} options.metadata - 追加メタデータ（オプション）
-   * @returns {Promise<Object>} { id, publicUrl, storagePath, revisedPrompt, provider, model, size, metadata }
+   * @returns {Promise<{data: Object|null, error: Error|null}>} { data: { id, publicUrl, ... }, error }
    * @throws {Error} プロンプト未指定、生成失敗、保存失敗
    *
    * @example
@@ -76,7 +76,7 @@ export class ImageGenerationService {
 
     // Mode別バリデーション
     if (imageMode !== 'variation' && !prompt) {
-      throw new Error('Prompt is required for text-to-image and edit modes')
+      return { data: null, error: new Error('Prompt is required for text-to-image and edit modes') }
     }
 
     try {
@@ -100,14 +100,17 @@ export class ImageGenerationService {
         edgeFunctionPayload.image_url = sourceImage
       }
 
-      const generationResult = await EdgeFunctionService.invoke('generate-image', edgeFunctionPayload)
+      const { data: generationResult, error: genError } = await EdgeFunctionService.invoke('generate-image', edgeFunctionPayload)
 
-      console.log('[ImageGenerationService] Generation result:', generationResult)
+      console.log('[ImageGenerationService] Generation result:', generationResult, genError)
 
-      // EdgeFunctionService.invoke() は AkatsukiResponse の result 部分だけを返す
-      // つまり generationResult = { image_data, mime_type, revised_prompt, provider, model, size }
+      // EdgeFunctionService.invoke() は { data, error } を返す
+      if (genError) {
+        return { data: null, error: genError }
+      }
+
       if (!generationResult || !generationResult.image_data) {
-        throw new Error('Image generation failed: No image data returned')
+        return { data: null, error: new Error('Image generation failed: No image data returned') }
       }
 
       // === Step 2: base64データをBlobに変換 ===
@@ -167,19 +170,21 @@ export class ImageGenerationService {
       console.log('[ImageGenerationService] Upload complete:', uploadResult)
 
       return {
-        id: uploadResult.id, // files テーブルの ID
-        publicUrl: uploadResult.publicUrl, // 恒久的な公開URL
-        storagePath: uploadResult.storagePath,
-        revisedPrompt: generationResult.revised_prompt, // DALL-Eが修正したプロンプト
-        provider: generationResult.provider,
-        model: generationResult.model,
-        size: generationResult.size,
-        metadata: uploadResult.metadata,
-        success: true,
+        data: {
+          id: uploadResult.id, // files テーブルの ID
+          publicUrl: uploadResult.publicUrl, // 恒久的な公開URL
+          storagePath: uploadResult.storagePath,
+          revisedPrompt: generationResult.revised_prompt, // DALL-Eが修正したプロンプト
+          provider: generationResult.provider,
+          model: generationResult.model,
+          size: generationResult.size,
+          metadata: uploadResult.metadata,
+        },
+        error: null,
       }
     } catch (error) {
       console.error('[ImageGenerationService] Error:', error)
-      throw new Error(`画像生成に失敗しました: ${error.message}`)
+      return { data: null, error: new Error(`画像生成に失敗しました: ${error.message}`) }
     }
   }
 
