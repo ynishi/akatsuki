@@ -9,6 +9,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { ModelManagementPage } from './pages/admin/ModelManagementPage'
+import { QuotaManagementPage } from './pages/admin/QuotaManagementPage'
 
 function App() {
   return (
@@ -37,6 +38,14 @@ function App() {
             element={
               <AuthGuard>
                 <ModelManagementPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/quotas"
+            element={
+              <AuthGuard>
+                <QuotaManagementPage />
               </AuthGuard>
             }
           />

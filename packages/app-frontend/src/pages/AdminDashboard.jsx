@@ -160,8 +160,12 @@ export function AdminDashboard() {
               >
                 🎨 ComfyUI Models管理
               </Button>
-              <Button variant="outline" className="w-full">
-                👥 ユーザー管理
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => navigate('/admin/quotas')}
+              >
+                💎 LLM Quota管理
               </Button>
               <Button variant="secondary" className="w-full">
                 📊 統計・レポート
