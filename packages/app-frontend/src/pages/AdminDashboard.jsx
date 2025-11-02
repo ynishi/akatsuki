@@ -167,6 +167,13 @@ export function AdminDashboard() {
               >
                 💎 LLM Quota管理
               </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate('/admin/events')}
+              >
+                🔴 Event Monitor
+              </Button>
               <Button variant="secondary" className="w-full">
                 📊 統計・レポート
               </Button>

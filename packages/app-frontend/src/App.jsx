@@ -10,6 +10,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { ModelManagementPage } from './pages/admin/ModelManagementPage'
 import { QuotaManagementPage } from './pages/admin/QuotaManagementPage'
+import { EventMonitorPage } from './pages/admin/EventMonitorPage'
 
 function App() {
   return (
@@ -46,6 +47,14 @@ function App() {
             element={
               <AuthGuard>
                 <QuotaManagementPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/events"
+            element={
+              <AuthGuard>
+                <EventMonitorPage />
               </AuthGuard>
             }
           />
