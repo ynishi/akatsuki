@@ -2830,8 +2830,117 @@ npx supabase secrets list
 - **llm_call_logs**: LLM API呼び出し履歴
 - **user_quotas**: ユーザーごとの月間使用制限
 - **profiles**: ユーザープロフィール情報
+- **system_events**: イベントキュー（非同期ジョブ処理）
+- **event_handlers**: イベントハンドラー設定
 
 詳細は `docs/SUPABASE_CONFIGURATION.md` を参照してください。
+
+### Event System (イベント駆動アーキテクチャ)
+
+軽量なイベント駆動ジョブキューシステムを実装しています。
+
+**アーキテクチャ:**
+```
+EventService.emit() → system_events (DB)
+  ↓
+  ├─→ Supabase Realtime → Frontend (即座に通知)
+  └─→ Cron (毎分) → process-events → Handler Edge Functions
+```
+
+**使用例:**
+```javascript
+// Frontend: イベント発行
+import { EventService } from './services/EventService'
+await EventService.emit('image.generated', {
+  imageId: '123',
+  imageUrl: 'https://...',
+  userId: user.id
+})
+
+// Frontend: リアルタイムリスナー
+import { useEventListener } from './hooks/useEventListener'
+useEventListener('image.generated', (event) => {
+  toast.success('画像生成完了！')
+  refetchImages()
+})
+```
+
+**実装済みイベントタイプ:**
+- `image.generated` - 画像生成完了
+- `quota.exceeded` - クォータ超過
+- `quota.warning` - クォータ警告
+- `user.registered` - ユーザー登録
+- `model.synced` - モデル同期完了
+
+**特徴:**
+- シンプルな発行: `EventService.emit(type, payload)`
+- Realtime通知: 別タブでも即座に反映
+- 自動リトライ: 指数バックオフ（5分 × retry_count）
+- 優先度制御: `priority`で処理順を制御
+- スケジュール実行: `scheduledAt`で遅延実行
+
+**Admin UI:** `/admin/events` でリアルタイム監視可能
+
+詳細は `workspace/event-system-guide.md` を参照してください。
+
+### RLS ベストプラクティス
+
+**❌ 間違い: 関数を直接呼ぶ**
+```sql
+CREATE POLICY "Admin only"
+  ON table_name
+  FOR ALL
+  USING (is_admin());  -- NG
+```
+
+**✅ 正しい: SELECT でラップ**
+```sql
+CREATE POLICY "Admin only"
+  ON table_name
+  FOR ALL
+  USING ((SELECT is_admin()) = true);  -- OK
+```
+
+**理由:**
+- RLSポリシー内で関数を直接呼ぶとエラーになる場合がある
+- `SELECT` でラップすることで安全に実行可能
+- `= true` で明示的にboolean比較
+
+**is_admin() 実装:**
+```sql
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN (
+    SELECT COALESCE(
+      (auth.jwt() -> 'app_metadata' -> 'role')::text = '"admin"',
+      false
+    )
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+**重要:**
+- `raw_app_meta_data` を使用（ユーザーが変更不可）
+- `raw_user_meta_data` は使用しない（セキュリティリスク）
+
+### Realtime 設定
+
+**重要:** Realtimeを使用するテーブルは手動で有効化が必要です。
+
+**設定方法:**
+1. Supabase Dashboard → Database → Replication
+2. `supabase_realtime_messages_publication` を選択
+3. 対象テーブル（例: `system_events`）を追加
+
+**動作確認:**
+```javascript
+// ExamplesPage (/examples) で確認
+// イベントを発行 → リアルタイムで受信されることを確認
+```
+
+詳細は `docs/setup.md` の「4.6. Supabase Realtime 設定」を参照してください。
 
 ---
 
