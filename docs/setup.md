@@ -370,7 +370,40 @@ supabase secrets set EMAIL_FROM=noreply@yourdomain.com
 supabase secrets list
 ```
 
-### 4.6. バックエンドのコンパイルチェック
+### 4.6. Supabase Realtime 設定（Event System用）
+
+Event Systemを使用する場合、`system_events` テーブルのRealtime機能を有効化する必要があります。
+
+**⚠️ 重要:** マイグレーションで設定しますが、動作しない場合このセクションを参考にSupabaseダッシュボードから手動で有効化します。
+
+#### 設定手順
+
+1. **Supabase Dashboard** にアクセス
+   ```
+   https://app.supabase.com/project/<YOUR-PROJECT-REF>
+   ```
+
+2. **Database に移動**
+
+3. **Database → Replication**
+   - `supabase_realtime_messages_publication` を選択
+   - `system_events` テーブルを追加
+
+#### 動作確認
+
+ExamplesPage (`/examples`) のEvent Systemセクションで以下を確認:
+
+```javascript
+// イベントを発行
+await EventService.emit('test.demo', { message: 'Hello!' })
+
+// リアルタイムで受信されることを確認
+// "Real-time Listener" セクションに即座に表示される
+```
+
+別タブで発行したイベントも即座に反映されます。
+
+### 4.7. バックエンドのコンパイルチェック
 
 ```bash
 # プロジェクトルートで実行

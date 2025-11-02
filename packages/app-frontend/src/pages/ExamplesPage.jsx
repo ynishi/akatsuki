@@ -11,14 +11,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { UserProfileRepository, UserQuotaRepository, ComfyUIWorkflowRepository, ComfyUIModelRepository } from '../repositories'
 import { UserProfile } from '../models'
-import { callHelloFunction, EdgeFunctionService } from '../services'
+import { callHelloFunction, EdgeFunctionService, EventService } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
 import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
 import { TopNavigation } from '../components/layout/TopNavigation'
-import { useImageGeneration } from '../hooks'
+import { useImageGeneration, useEventListener } from '../hooks'
 import { PublicProfile } from '../models/PublicProfile'
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
@@ -120,6 +120,18 @@ export function ExamplesPage() {
   const [emailBody, setEmailBody] = useState('This is a test email.')
   const [emailResult, setEmailResult] = useState(null)
   const [emailSending, setEmailSending] = useState(false)
+
+  // Event System states
+  const [eventType, setEventType] = useState('test.demo')
+  const [eventPayload, setEventPayload] = useState('{"message": "Hello Event System!"}')
+  const [eventResult, setEventResult] = useState(null)
+  const [eventEmitting, setEventEmitting] = useState(false)
+  const [receivedEvents, setReceivedEvents] = useState([])
+
+  // Real-time event listener
+  useEventListener(['test.demo', 'image.generated', 'quota.warning'], (event) => {
+    setReceivedEvents(prev => [event, ...prev].slice(0, 10))
+  })
 
   // Public Profile読み込み
   const loadPublicProfiles = async () => {
@@ -511,6 +523,39 @@ export function ExamplesPage() {
     }
 
     setEmailSending(false)
+  }
+
+  // Event System: Emit event
+  const handleEmitEvent = async () => {
+    if (!eventType.trim()) return
+
+    if (!user) {
+      setEventResult({ error: 'ログインが必要です' })
+      return
+    }
+
+    try {
+      setEventEmitting(true)
+      setEventResult(null)
+
+      // Parse payload
+      let payload
+      try {
+        payload = JSON.parse(eventPayload)
+      } catch (e) {
+        setEventResult({ error: 'Invalid JSON format' })
+        setEventEmitting(false)
+        return
+      }
+
+      const result = await EventService.emit(eventType, payload)
+      setEventResult({ success: true, event: result })
+    } catch (error) {
+      console.error('Event emit error:', error)
+      setEventResult({ error: error.message })
+    } finally {
+      setEventEmitting(false)
+    }
   }
 
   return (
@@ -1854,6 +1899,142 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
 
         {/* Web Search Example */}
         <WebSearchCard />
+
+        {/* Event System Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Event System (Real-time)</CardTitle>
+            <CardDescription>
+              EventServiceでイベント発行 + Realtime通知のデモ
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { EventService } from './services/EventService'
+import { useEventListener } from './hooks/useEventListener'
+
+// イベント発行
+await EventService.emit('test.demo', {
+  message: 'Hello Event System!',
+  timestamp: new Date().toISOString()
+})
+
+// リアルタイムリスナー
+useEventListener(['test.demo'], (event) => {
+  console.log('Received:', event.payload)
+})`}</code>
+            </pre>
+
+            {/* Event Emission */}
+            <div className="space-y-3 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-700">📤 Emit Event</h3>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">Event Type</label>
+                <Input
+                  placeholder="test.demo"
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">Payload (JSON)</label>
+                <textarea
+                  className="w-full p-2 border rounded-md font-mono text-xs mt-1"
+                  rows={3}
+                  placeholder='{"message": "Hello Event System!"}'
+                  value={eventPayload}
+                  onChange={(e) => setEventPayload(e.target.value)}
+                />
+              </div>
+
+              <Button
+                variant="gradient"
+                onClick={handleEmitEvent}
+                disabled={eventEmitting || !user}
+                className="w-full"
+              >
+                {eventEmitting ? 'Emitting...' : user ? 'Emit Event' : 'Login Required'}
+              </Button>
+
+              {eventResult && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  eventResult.success
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
+                }`}>
+                  {eventResult.success ? (
+                    <>
+                      <strong>✓ Event Emitted!</strong>
+                      <div className="mt-2 text-xs space-y-1">
+                        <div><strong>ID:</strong> {eventResult.event.id?.substring(0, 16)}...</div>
+                        <div><strong>Type:</strong> {eventResult.event.event_type}</div>
+                        <div><strong>Status:</strong> {eventResult.event.status}</div>
+                        <div><strong>Created:</strong> {new Date(eventResult.event.created_at).toLocaleString()}</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <strong>✗ Error:</strong> {eventResult.error}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Event Listener */}
+            <div className="space-y-3 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-700">📥 Real-time Listener</h3>
+                <Badge variant="gradient">
+                  🔴 Live ({receivedEvents.length})
+                </Badge>
+              </div>
+
+              <p className="text-xs text-gray-600">
+                Listening to: <strong>test.demo</strong>, <strong>image.generated</strong>, <strong>quota.warning</strong>
+              </p>
+
+              {receivedEvents.length === 0 ? (
+                <div className="bg-white/70 p-4 rounded text-center text-sm text-gray-500">
+                  Waiting for events... Try emitting an event above!
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {receivedEvents.map((event, index) => (
+                    <div key={event.id || index} className="bg-white/70 p-3 rounded border-l-4 border-blue-500">
+                      <div className="flex items-center justify-between mb-1">
+                        <Badge variant="outline">{event.event_type}</Badge>
+                        <span className="text-xs text-gray-500">
+                          {new Date(event.created_at).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto">
+                        {JSON.stringify(event.payload, null, 2)}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="text-xs text-gray-500 bg-white/50 p-2 rounded">
+                💡 Tip: イベントは自動でRealtime通知されます。別タブで発行しても即座に反映されます！
+              </div>
+            </div>
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> イベント発行には
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* External Integrations Demo */}
         <Card>

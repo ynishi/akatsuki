@@ -165,4 +165,6 @@ COMMENT ON FUNCTION fail_event(UUID, TEXT) IS 'Mark event as failed with exponen
 -- ============================================================
 -- Enable Realtime for Frontend notifications
 -- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE system_events;
+-- Note: This needs to be manually enabled in Supabase Dashboard:
+-- Database -> Tables -> system_events -> Enable Realtime
+-- Or add to publication: supabase_realtime_messages_publication

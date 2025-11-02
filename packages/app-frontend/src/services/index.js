@@ -2,3 +2,4 @@ export { EdgeFunctionService, callHelloFunction, generateWithAI } from './EdgeFu
 export { ImageGenerationService } from './ImageGenerationService'
 export { PublicStorageService } from './PublicStorageService'
 export { PrivateStorageService } from './PrivateStorageService'
+export { EventService } from './EventService'
