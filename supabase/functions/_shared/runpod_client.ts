@@ -2,9 +2,11 @@
  * RunPod ComfyUI Client
  *
  * RunPod上のComfyUIインスタンスと通信するためのクライアント。
- * - 認証ヘッダーの自動付与（X-Auth）
+ * - 認証ヘッダーの自動付与（Authorization: Bearer）
  * - ワークフロー実行と結果取得
  * - エラーハンドリング
+ *
+ * 認証方式: ComfyUI-Login プラグインの Authorization Bearer トークン
  */
 
 import { ErrorCodes } from './api_types.ts'
@@ -94,7 +96,7 @@ export class RunPodClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Auth': this.config.apiKey,
+          'Authorization': `Bearer ${this.config.apiKey}`,
         },
         body: JSON.stringify({ prompt: workflow }),
         signal: controller.signal,
@@ -205,7 +207,7 @@ export class RunPodClient {
   private async getHistory(promptId: string): Promise<ComfyUIHistoryResponse> {
     const response = await fetch(`${this.config.endpoint}/history/${promptId}`, {
       headers: {
-        'X-Auth': this.config.apiKey,
+        'Authorization': `Bearer ${this.config.apiKey}`,
       },
     })
 
@@ -241,7 +243,7 @@ export class RunPodClient {
       `${this.config.endpoint}/view?${params.toString()}`,
       {
         headers: {
-          'X-Auth': this.config.apiKey,
+          'Authorization': `Bearer ${this.config.apiKey}`,
         },
       }
     )
@@ -376,6 +378,55 @@ export class RunPodClient {
     }
 
     return Array.from(unresolvedPlaceholders)
+  }
+
+  /**
+   * ComfyUIから利用可能なモデル（チェックポイント）一覧を取得
+   *
+   * /object_info/CheckpointLoaderSimple エンドポイントから取得します。
+   *
+   * @returns モデルファイル名の配列
+   * @example
+   * ```typescript
+   * const client = new RunPodClient({ endpoint, apiKey })
+   * const models = await client.getAvailableModels()
+   * // => ["bismuthIllustrious_v30.safetensors", "amanatsuIllustrious_v11.safetensors", ...]
+   * ```
+   */
+  async getAvailableModels(): Promise<string[]> {
+    try {
+      const response = await fetch(
+        `${this.config.endpoint}/object_info/CheckpointLoaderSimple`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.apiKey}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw Object.assign(
+          new Error(`Failed to get available models: ${response.status}`),
+          { code: ErrorCodes.INTERNAL_ERROR, status: response.status }
+        )
+      }
+
+      const data = await response.json()
+
+      // CheckpointLoaderSimple.input.required.ckpt_name[0] に配列がある
+      const models = data?.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]
+
+      if (!Array.isArray(models)) {
+        console.warn('[RunPodClient] No models found in object_info response')
+        return []
+      }
+
+      return models
+    } catch (error: any) {
+      console.error('[RunPodClient] Failed to get available models:', error)
+      // モデル取得失敗は致命的エラーではないので空配列を返す
+      return []
+    }
   }
 }
 

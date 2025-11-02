@@ -33,6 +33,20 @@ import { GoogleGenAI } from 'https://esm.sh/@google/genai@1.28.0'
  * - 特定のプロバイダーを使いたい場合のみ指定
  * - 内部でモデルの制約を自動的に吸収
  */
+// ComfyUI専用設定のスキーマ
+const ComfyUIConfigSchema = z.object({
+  workflow_id: z.string().uuid().optional(), // DB管理のワークフローID
+  workflow_json: z.record(z.any()).optional(), // 直接指定（開発・テスト用）
+  // 動的パラメータ（ワークフロー変数として使用）
+  ckpt_name: z.string().optional(), // チェックポイント名（モデル）
+  steps: z.number().int().min(1).max(150).optional().default(25),
+  cfg: z.number().min(1).max(30).optional().default(7.0),
+  sampler_name: z.string().optional(),
+  scheduler: z.string().optional(),
+  width: z.number().int().optional(),
+  height: z.number().int().optional(),
+}).optional()
+
 const InputSchema = z.object({
   provider: z.enum(['dalle', 'openai', 'gemini', 'comfyui']).optional().default('dalle'),
   mode: z.enum(['text-to-image', 'variation', 'edit']).optional().default('text-to-image'),
@@ -42,9 +56,8 @@ const InputSchema = z.object({
   style: z.enum(['vivid', 'natural']).optional().default('vivid'),
   model: z.string().optional(),
   image_url: z.string().url().optional(),
-  // ComfyUI専用パラメータ（Phase 2）
-  workflow_id: z.string().uuid().optional(), // DB管理のワークフローID
-  workflow_json: z.record(z.any()).optional(), // 直接指定（開発・テスト用）
+  // ComfyUI専用設定（ネストされた設定オブジェクト）
+  comfyui_config: ComfyUIConfigSchema,
 }).refine(
   (data) => {
     // text-to-image / edit: prompt 必須
@@ -300,21 +313,24 @@ Deno.serve(async (req) => {
           // RunPod Clientを作成
           const runpodClient = createRunPodClient()
 
+          // ComfyUI設定を取得（デフォルト値を設定）
+          const comfyConfig = input.comfyui_config || {}
+
           // ワークフローを取得（優先順位: workflow_json > workflow_id > デフォルト）
           let workflowData: Record<string, any>
           let workflowName = 'unknown'
 
-          if (input.workflow_json) {
+          if (comfyConfig.workflow_json) {
             // Option 1: workflow_jsonを直接指定（開発・テスト用）
             console.log('[generate-image] ComfyUI: Using provided workflow_json')
-            workflowData = input.workflow_json
+            workflowData = comfyConfig.workflow_json
             workflowName = 'custom-json'
-          } else if (input.workflow_id) {
+          } else if (comfyConfig.workflow_id) {
             // Option 2: workflow_idでDB取得
-            console.log('[generate-image] ComfyUI: Fetching workflow by ID:', input.workflow_id)
-            const workflow = await repos.comfyuiWorkflow.getById(input.workflow_id)
+            console.log('[generate-image] ComfyUI: Fetching workflow by ID:', comfyConfig.workflow_id)
+            const workflow = await repos.comfyuiWorkflow.getById(comfyConfig.workflow_id)
             if (!workflow) {
-              throw new Error(`Workflow not found: ${input.workflow_id}`)
+              throw new Error(`Workflow not found: ${comfyConfig.workflow_id}`)
             }
             workflowData = workflow.workflow_json
             workflowName = workflow.name
@@ -330,13 +346,22 @@ Deno.serve(async (req) => {
           }
 
           // 変数を準備（{{prompt}}などのプレースホルダーを置換）
-          const [width, height] = input.size.split('x').map(Number)
-          const variables = {
+          // comfyui_configのwidth/heightが優先、なければsizeから取得
+          const [sizeWidth, sizeHeight] = input.size.split('x').map(Number)
+          const variables: Record<string, any> = {
             prompt: input.prompt,
-            width: width || 1024,
-            height: height || 1024,
+            width: comfyConfig.width || sizeWidth || 1024,
+            height: comfyConfig.height || sizeHeight || 1024,
             seed: Math.floor(Math.random() * 1000000000),
-            // 追加の変数はここに追加可能
+            steps: comfyConfig.steps ?? 25,
+            cfg: comfyConfig.cfg ?? 7.0,
+            sampler_name: comfyConfig.sampler_name || 'euler',
+            scheduler: comfyConfig.scheduler || 'normal',
+          }
+
+          // ckpt_name（モデル）が指定されている場合は追加
+          if (comfyConfig.ckpt_name) {
+            variables.ckpt_name = comfyConfig.ckpt_name
           }
 
           // ワークフローに変数を差し込み

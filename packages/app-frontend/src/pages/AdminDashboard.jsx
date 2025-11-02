@@ -143,27 +143,31 @@ export function AdminDashboard() {
           </Card>
         </div>
 
-        {/* 機能サンプル */}
+        {/* 管理機能 */}
         <Card>
           <CardHeader>
             <CardTitle>管理機能</CardTitle>
             <CardDescription>
-              ここに管理機能を追加できます
+              システム管理とコンテンツ管理
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button variant="gradient" className="w-full">
-                ユーザー管理
+              <Button
+                variant="gradient"
+                className="w-full"
+                onClick={() => navigate('/admin/models')}
+              >
+                🎨 ComfyUI Models管理
               </Button>
               <Button variant="outline" className="w-full">
-                コンテンツ管理
+                👥 ユーザー管理
               </Button>
               <Button variant="secondary" className="w-full">
-                設定
+                📊 統計・レポート
               </Button>
               <Button variant="ghost" className="w-full">
-                レポート
+                ⚙️ システム設定
               </Button>
             </div>
           </CardContent>

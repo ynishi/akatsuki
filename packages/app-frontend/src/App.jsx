@@ -8,6 +8,7 @@ import { SignupPage } from './pages/SignupPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { AdminDashboard } from './pages/AdminDashboard'
+import { ModelManagementPage } from './pages/admin/ModelManagementPage'
 
 function App() {
   return (
@@ -28,6 +29,14 @@ function App() {
             element={
               <AuthGuard>
                 <AdminDashboard />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/models"
+            element={
+              <AuthGuard>
+                <ModelManagementPage />
               </AuthGuard>
             }
           />

@@ -8,7 +8,8 @@ import { Slider } from '../components/ui/slider'
 import { Input } from '../components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
-import { UserProfileRepository, UserQuotaRepository } from '../repositories'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { UserProfileRepository, UserQuotaRepository, ComfyUIWorkflowRepository, ComfyUIModelRepository } from '../repositories'
 import { UserProfile } from '../models'
 import { callHelloFunction, EdgeFunctionService } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
@@ -86,6 +87,29 @@ export function ExamplesPage() {
     error: editError,
   } = useImageGeneration()
   const [editPrompt, setEditPrompt] = useState('Add a wizard hat to the subject')
+
+  // RunPod ComfyUI - 別のHookインスタンスを使用
+  const {
+    generate: generateComfyUI,
+    loading: comfyUIGenerating,
+    result: comfyUIImage,
+    error: comfyUIError,
+  } = useImageGeneration()
+  const [comfyUIPrompt, setComfyUIPrompt] = useState('A serene Japanese garden with cherry blossoms in full bloom')
+  const [workflows, setWorkflows] = useState([])
+  const [selectedWorkflow, setSelectedWorkflow] = useState(null)
+  const [workflowsLoading, setWorkflowsLoading] = useState(false)
+  const [workflowFormOpen, setWorkflowFormOpen] = useState(false)
+  const [newWorkflowName, setNewWorkflowName] = useState('')
+  const [newWorkflowDescription, setNewWorkflowDescription] = useState('')
+  const [newWorkflowJSON, setNewWorkflowJSON] = useState('')
+  const [workflowCreating, setWorkflowCreating] = useState(false)
+  const [comfyUISteps, setComfyUISteps] = useState([25])
+  const [comfyUICfg, setComfyUICfg] = useState([7.0])
+  const [comfyUISize, setComfyUISize] = useState('1024x1024')
+  const [comfyUIModel, setComfyUIModel] = useState('bismuthIllustrious_v30.safetensors')
+  const [availableModels, setAvailableModels] = useState([])
+  const [modelsLoading, setModelsLoading] = useState(false)
 
   // External Integration states
   const [slackMessage, setSlackMessage] = useState('Hello from Akatsuki!')
@@ -314,6 +338,127 @@ export function ExamplesPage() {
       })
     } catch (error) {
       console.error('Image edit error:', error)
+    }
+  }
+
+  // RunPod ComfyUI - Load workflows
+  const loadWorkflows = async () => {
+    try {
+      setWorkflowsLoading(true)
+      const { data, error } = await ComfyUIWorkflowRepository.getAll()
+
+      if (error) {
+        console.error('Failed to load workflows:', error)
+        return
+      }
+
+      setWorkflows(data || [])
+
+      // Set default workflow if exists
+      const defaultWorkflow = data?.find(w => w.is_default)
+      if (defaultWorkflow) {
+        setSelectedWorkflow(defaultWorkflow)
+      }
+    } catch (error) {
+      console.error('Load workflows error:', error)
+    } finally {
+      setWorkflowsLoading(false)
+    }
+  }
+
+  // RunPod ComfyUI - Load available models from DB
+  const loadAvailableModels = async () => {
+    try {
+      setModelsLoading(true)
+      const { data, error } = await ComfyUIModelRepository.getAll()
+
+      if (error) {
+        console.error('Failed to load models:', error)
+        return
+      }
+
+      // ファイル名のみを抽出（既存のUIと互換性のため）
+      const modelFilenames = data.map(model => model.filename)
+      setAvailableModels(modelFilenames)
+    } catch (error) {
+      console.error('Load models error:', error)
+    } finally {
+      setModelsLoading(false)
+    }
+  }
+
+  // RunPod ComfyUI - Create new workflow
+  const handleCreateWorkflow = async () => {
+    if (!newWorkflowName.trim() || !newWorkflowJSON.trim()) {
+      alert('Name and Workflow JSON are required')
+      return
+    }
+
+    if (!user) {
+      alert('Login required')
+      return
+    }
+
+    try {
+      setWorkflowCreating(true)
+
+      // Parse and validate JSON
+      let workflowJson
+      try {
+        workflowJson = JSON.parse(newWorkflowJSON)
+      } catch (e) {
+        alert('Invalid JSON format')
+        return
+      }
+
+      const { data, error } = await ComfyUIWorkflowRepository.create({
+        name: newWorkflowName,
+        description: newWorkflowDescription || null,
+        workflow_json: workflowJson,
+        is_active: true,
+        is_default: false,
+        tags: [],
+      })
+
+      if (error) {
+        console.error('Create workflow error:', error)
+        alert(`Failed to create workflow: ${error.message}`)
+        return
+      }
+
+      // Success - reload workflows and close form
+      alert('Workflow created successfully!')
+      setNewWorkflowName('')
+      setNewWorkflowDescription('')
+      setNewWorkflowJSON('')
+      setWorkflowFormOpen(false)
+      await loadWorkflows()
+    } catch (error) {
+      console.error('Create workflow error:', error)
+      alert(`Error: ${error.message}`)
+    } finally {
+      setWorkflowCreating(false)
+    }
+  }
+
+  // RunPod ComfyUI - Generate image with ComfyUI
+  const handleGenerateComfyUI = async () => {
+    if (!comfyUIPrompt.trim()) return
+
+    try {
+      await generateComfyUI({
+        prompt: comfyUIPrompt,
+        provider: 'comfyui',
+        workflowId: selectedWorkflow?.id,
+        size: comfyUISize,
+        comfyui_config: {
+          steps: comfyUISteps[0],
+          cfg: comfyUICfg[0],
+          ckpt_name: comfyUIModel,
+        },
+      })
+    } catch (error) {
+      console.error('ComfyUI generation error:', error)
     }
   }
 
@@ -1356,6 +1501,352 @@ console.log(edited.publicUrl)`}</code>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-600 rounded-full" />
                 <span>Editing image with Gemini... (通常10-30秒)</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* RunPod ComfyUI Example */}
+        <Card>
+          <CardHeader>
+            <CardTitle>RunPod ComfyUI Image Generation</CardTitle>
+            <CardDescription>
+              RunPod上のComfyUIインスタンスで画像生成（GPU: NVIDIA A40）
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { useImageGeneration } from '@/hooks'
+
+const { generate, loading, result } = useImageGeneration()
+
+// RunPod ComfyUIで画像生成
+await generate({
+  prompt: 'A serene Japanese garden',
+  provider: 'comfyui'
+})
+
+console.log(result.publicUrl) // 生成された画像URL`}</code>
+            </pre>
+
+            <div className="bg-blue-50 p-3 rounded-lg text-sm">
+              <p className="font-semibold mb-1">RunPod GPU Specs:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
+                <div><strong>GPU:</strong> NVIDIA A40</div>
+                <div><strong>VRAM:</strong> 47GB</div>
+                <div><strong>ComfyUI:</strong> v0.3.62</div>
+                <div><strong>PyTorch:</strong> 2.6.0+cu124</div>
+              </div>
+            </div>
+
+            {/* Workflow Selection */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  ComfyUIワークフロー
+                </label>
+                <div className="flex gap-2">
+                  <Dialog open={workflowFormOpen} onOpenChange={setWorkflowFormOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        + New
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Create New Workflow</DialogTitle>
+                        <DialogDescription>
+                          Add a new ComfyUI workflow. Admin権限が必要です。
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div>
+                          <label className="text-sm font-medium">Name *</label>
+                          <Input
+                            placeholder="SDXL Basic Text-to-Image"
+                            value={newWorkflowName}
+                            onChange={(e) => setNewWorkflowName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Description</label>
+                          <Input
+                            placeholder="Stable Diffusion XL basic workflow"
+                            value={newWorkflowDescription}
+                            onChange={(e) => setNewWorkflowDescription(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Workflow JSON *</label>
+                          <textarea
+                            className="w-full h-64 p-2 border rounded-md font-mono text-xs"
+                            placeholder='{"3": {"inputs": {...}, "class_type": "KSampler"}, ...}'
+                            value={newWorkflowJSON}
+                            onChange={(e) => setNewWorkflowJSON(e.target.value)}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Tip: Use {"{{prompt}}"} as placeholder for dynamic prompt injection
+                          </p>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            onClick={() => setWorkflowFormOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="gradient"
+                            onClick={handleCreateWorkflow}
+                            disabled={workflowCreating || !newWorkflowName.trim() || !newWorkflowJSON.trim()}
+                          >
+                            {workflowCreating ? 'Creating...' : 'Create Workflow'}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadWorkflows}
+                    disabled={workflowsLoading}
+                  >
+                    {workflowsLoading ? 'Loading...' : 'Reload'}
+                  </Button>
+                </div>
+              </div>
+
+              {workflows.length > 0 ? (
+                <>
+                  <Select
+                    value={selectedWorkflow?.id}
+                    onValueChange={(value) => {
+                      const workflow = workflows.find(w => w.id === value)
+                      setSelectedWorkflow(workflow)
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a workflow" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workflows.map((workflow) => (
+                        <SelectItem key={workflow.id} value={workflow.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{workflow.name}</span>
+                            {workflow.is_default && (
+                              <Badge variant="outline" className="text-xs">Default</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedWorkflow && (
+                    <div className="bg-gray-50 p-3 rounded text-xs text-gray-600">
+                      <p className="font-semibold mb-1">{selectedWorkflow.name}</p>
+                      {selectedWorkflow.description && (
+                        <p className="mb-2">{selectedWorkflow.description}</p>
+                      )}
+                      {selectedWorkflow.tags && selectedWorkflow.tags.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {selectedWorkflow.tags.map((tag, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="bg-yellow-50 p-3 rounded-lg text-sm text-gray-700">
+                  <strong>Note:</strong> ワークフローをロードしてください
+                </div>
+              )}
+            </div>
+
+            {/* Dynamic Parameters */}
+            <div className="space-y-3 bg-gray-50 p-3 rounded-lg">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-700">Generation Parameters</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadAvailableModels}
+                  disabled={modelsLoading}
+                >
+                  {modelsLoading ? 'Loading...' : 'Load Models'}
+                </Button>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Model (Checkpoint)</label>
+                <Select value={comfyUIModel} onValueChange={setComfyUIModel}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {availableModels.length > 0 ? (
+                      availableModels.map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="bismuthIllustrious_v30.safetensors">
+                        bismuthIllustrious_v30.safetensors (Default)
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {availableModels.length > 0
+                    ? `${availableModels.length} models available`
+                    : 'Click "Load Models" to fetch from RunPod'}
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Steps: {comfyUISteps[0]}</label>
+                <Slider
+                  value={comfyUISteps}
+                  onValueChange={setComfyUISteps}
+                  min={1}
+                  max={50}
+                  step={1}
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">Higher = more detailed (slower)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">CFG Scale: {comfyUICfg[0]}</label>
+                <Slider
+                  value={comfyUICfg}
+                  onValueChange={setComfyUICfg}
+                  min={1}
+                  max={20}
+                  step={0.5}
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">Higher = more faithful to prompt</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Size</label>
+                <Select value={comfyUISize} onValueChange={setComfyUISize}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="512x512">512x512 (Square - Fast)</SelectItem>
+                    <SelectItem value="768x768">768x768 (Square)</SelectItem>
+                    <SelectItem value="1024x1024">1024x1024 (Square - Default)</SelectItem>
+                    <SelectItem value="1024x1536">1024x1536 (Portrait)</SelectItem>
+                    <SelectItem value="1536x1024">1536x1024 (Landscape)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">
+                  プロンプト（英語推奨）
+                </span>
+                <Input
+                  type="text"
+                  value={comfyUIPrompt}
+                  onChange={(e) => setComfyUIPrompt(e.target.value)}
+                  placeholder="A serene Japanese garden with cherry blossoms"
+                  disabled={comfyUIGenerating || !user}
+                  className="mt-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !comfyUIGenerating && user) {
+                      handleGenerateComfyUI()
+                    }
+                  }}
+                />
+              </label>
+
+              <Button
+                variant="gradient"
+                onClick={handleGenerateComfyUI}
+                disabled={comfyUIGenerating || !comfyUIPrompt.trim() || !user}
+                className="w-full"
+              >
+                {comfyUIGenerating ? 'Generating on RunPod...' : 'Generate with ComfyUI'}
+              </Button>
+            </div>
+
+            {(comfyUIImage || comfyUIError) && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg space-y-3">
+                {comfyUIError ? (
+                  <>
+                    <p className="font-bold mb-2 text-red-600">Error:</p>
+                    <p className="text-sm text-gray-700">{comfyUIError.message}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-purple-600">ComfyUI Generation Success!</p>
+
+                    {comfyUIImage?.publicUrl && (
+                      <div className="flex flex-col gap-3">
+                        <img
+                          src={comfyUIImage.publicUrl}
+                          alt="Generated with ComfyUI"
+                          className="w-full rounded-lg shadow-lg"
+                        />
+
+                        <div className="bg-white/70 p-3 rounded space-y-2">
+                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                            <div>
+                              <strong>Provider:</strong> {comfyUIImage.provider}
+                            </div>
+                            <div>
+                              <strong>Model:</strong> {comfyUIImage.model || 'ComfyUI Workflow'}
+                            </div>
+                            <div>
+                              <strong>Size:</strong> {comfyUIImage.size || 'Default'}
+                            </div>
+                            <div>
+                              <strong>File ID:</strong> {comfyUIImage.id?.substring(0, 8)}...
+                            </div>
+                          </div>
+
+                          <a
+                            href={comfyUIImage.publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline block"
+                          >
+                            Open in new tab →
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> ComfyUI画像生成には
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+
+            {comfyUIGenerating && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-purple-600 rounded-full" />
+                <span>Generating on RunPod GPU... (通常30-60秒)</span>
               </div>
             )}
           </CardContent>

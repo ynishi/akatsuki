@@ -10,8 +10,8 @@ RunPod上でホストされるComfyUIインスタンスをSupabase Edge Function
 Client
   ↓ (Supabase Auth)
 Supabase Edge Function (generate-image)
-  ↓ (X-Auth: RUNPOD_API_KEY)
-RunPod ComfyUI (認証サーバー付き)
+  ↓ (Authorization: Bearer RUNPOD_API_KEY)
+RunPod ComfyUI (ComfyUI-Login認証)
 ```
 
 ### コンポーネント
@@ -136,16 +136,19 @@ htpasswd -c /etc/nginx/passwords username
 
 ### 採用方式
 
-**Akatsukiでの採用: カスタムトークン認証（X-Auth ヘッダー）**
+**Akatsukiでの採用: ComfyUI-Login（Authorization Bearer認証）**
 
 理由：
 1. **シンプル**: FlaskやNginxを追加せず、ComfyUIプラグインで完結
 2. **柔軟**: Supabase Secretsでトークン管理
 3. **統合**: Edge Functionから直接アクセス可能
+4. **標準**: Authorization Bearerヘッダーは業界標準
 
 実装：
-- RunPod側: ComfyUI-LoginまたはComfyUI-Basic-Authを使用
-- Edge Function側: `X-Auth` ヘッダーにトークンを付与
+- RunPod側: ComfyUI-Loginプラグインを使用
+  - 起動時にコンソールに表示されるトークンを使用
+  - 例: `token=$2b$12$iySehdsCxXYIhwqg3kEdxOIRUzxzv682hxu8aUYkVG.WWoDQrJfoG`
+- Edge Function側: `Authorization: Bearer` ヘッダーにトークンを付与
 - Secrets: `RUNPOD_ENDPOINT`, `RUNPOD_API_KEY` で管理
 
 ## ComfyUI API仕様
@@ -157,7 +160,7 @@ htpasswd -c /etc/nginx/passwords username
 ```http
 POST /prompt
 Content-Type: application/json
-X-Auth: <token>
+Authorization: Bearer $2b$12$iySehdsCxXYIhwqg3kEdxOIRUzxzv682hxu8aUYkVG.WWoDQrJfoG
 
 {
   "prompt": {
@@ -187,7 +190,7 @@ X-Auth: <token>
 
 ```http
 GET /history/<prompt_id>
-X-Auth: <token>
+Authorization: Bearer $2b$12$iySehdsCxXYIhwqg3kEdxOIRUzxzv682hxu8aUYkVG.WWoDQrJfoG
 ```
 
 **レスポンス:**
@@ -219,7 +222,7 @@ X-Auth: <token>
 
 ```http
 GET /view?filename=<filename>&subfolder=<subfolder>&type=<type>
-X-Auth: <token>
+Authorization: Bearer $2b$12$iySehdsCxXYIhwqg3kEdxOIRUzxzv682hxu8aUYkVG.WWoDQrJfoG
 ```
 
 **レスポンス:** 画像バイナリ（PNG/JPEG）
@@ -305,4 +308,5 @@ ComfyUIのワークフローはノードベースのJSON構造：
 ## 実装履歴
 
 - **2025-11-02**: 調査完了、Phase 1実装、ドキュメント作成
+- **2025-11-02**: ComfyUI-Login認証方式をAuthorization Bearerに修正
 - **Phase 2予定**: DB管理ワークフロー、柔軟な差し込み機構
