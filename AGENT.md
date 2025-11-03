@@ -23,22 +23,25 @@
 **新機能実装の流れ:**
 ```
 Step 1: 要件整理 → workspace/[feature]-design.md
-Step 2: テンプレート参考 → 8.9を見て、近いパターンを把握（自由に設計）
+Step 2: テンプレート参考 → L2018「8.9 Design Templates」で近いパターンを参考にする
 Step 3: 設計（画面・DB・アーキテクチャ層）
 Step 4: 実装（Model → Repository → Service → Hook → Component → Page）
 Step 5: 動作確認（workspace/でダミーデータ生成）
 Step 6: 振り返り（docs/に整理）
 
 ※ テンプレートは「参考」であり、要件に応じて自由にカスタマイズ
-詳細 → 6.4.1「QuickStart Checklist」
+詳細 → L1402「6.4 VibeCoding実践ガイド」
 ```
 
-**よく使うセクション:**
-- 🚀 **実装開始時**: 6.4（VibeCoding実践ガイド）
-- 📋 **テンプレート**: 8.9（Design Templates）
-- 🐛 **トラブル対応**: 9.2（よくあるトラブル）
-- 🏗️ **アーキテクチャ**: 4.1（Component設計）
-- 🗄️ **DB運用**: 6.1（マイグレーション）
+**📍 よく使うセクション（行番号付き）:**
+- 🚀 **実装開始時**: L1402「6.4 VibeCoding実践ガイド」
+- 📋 **実装パターンテンプレート**: L2018「8.9 Design Templates」
+- 🐛 **エラー対処**: L2359「9.2 よくあるトラブル」
+- 🏗️ **Component設計**: L131「4.1 フロントエンドアーキテクチャ」
+- 🗄️ **DB変更・マイグレーション**: L1204「6.1 ワークフロー」
+- 🔐 **認証・RLS**: L574「4.2 認証アーキテクチャ」+ L2890「RLS ベストプラクティス」
+- 📡 **Event System**: L2842「Event System（イベント駆動）」
+- 📦 **技術スタック全体**: L131「4. 技術スタック」
 
 **実装済みコンポーネント（すぐ使える）:**
 - 認証: `AuthGuard`, `LoginForm`, `SignupForm`
@@ -74,6 +77,16 @@ cd workspace && node generate-dummy-data.js
 2. RLS エラー → Supabase Dashboard → Database → Policies
 3. 型エラー → Model の `fromDatabase()` 実装確認
 4. 再レンダリング → useEffect 依存配列確認
+
+**🎯 よくあるシチュエーション別クイックジャンプ:**
+- 「新しい画面を作りたい」 → L2018 Template 1: CRUD画面
+- 「画像生成機能を追加したい」 → L783「5.1 AIGen統合」+ L2018 Template 3
+- 「ファイルアップロードしたい」 → L783「5.1 AIGen統合」のStorage例
+- 「ユーザー認証を実装したい」 → L574「4.2 認証アーキテクチャ」
+- 「データベーステーブル追加したい」 → L1204「6.1 マイグレーション」
+- 「React Queryのキャッシュがおかしい」 → L2359「9.2 よくあるトラブル」
+- 「RLSポリシーでエラーになる」 → L2890「RLS ベストプラクティス」
+- 「イベント駆動で通知したい」 → L2842「Event System」
 
 ## 3. アーキテクチャ概要 (Architecture)
 
@@ -1408,12 +1421,15 @@ VibeCodingで新機能を実装する際の実践的なガイドです。
 新機能実装時は、以下の順序で進めると最速です。
 
 ```
-□ Step 1: 要件を3行で整理
+□ Step 1: 要件を整理
    → workspace/[feature-name]-design.md に下書き
+   → ユーザーのやりたいこと
+   
 
 □ Step 2: テンプレート参考（自由に設計）
    → 8.9を見て、近いパターンを把握
    → 要件に合わせて自由にカスタマイズ（そのまま適用しない）
+   → ExamplePage/AdminPageで実装パターンを調査する
 
 □ Step 3: 設計整理
    → 画面数・ルーティング（3-5画面推奨）
@@ -1423,7 +1439,7 @@ VibeCodingで新機能を実装する際の実践的なガイドです。
 □ Step 4: TodoWrite でタスク管理開始
    → Phase分割は内部管理、ユーザーへの中間報告は不要
 
-□ Step 5: 一気に実装
+□ Step 5: 設計をもとに実装
    → 詰まったら報告、それ以外は進める
 
 □ Step 6: 動作確認
@@ -1445,14 +1461,13 @@ VibeCodingで新機能を実装する際の実践的なガイドです。
 
 **VibeCodingの本質: スピード重視、要件を動かすことを最優先**
 
-設計・方針が固まったら、AIは基本的に実装を一気に進めます。
+設計・方針が固まったら、AIはそれに従って実装を進めます。
 
 **実装時のルール:**
 
 1. **Phase分けは内部管理でOK**
    - TodoWriteツールでPhaseを管理
    - ユーザーへの中間報告は不要
-   - 初期作成時は特に一気に作り込んでOK（基本設計確認もいらない）
 
 2. **相談が必要な時のみ停止**
    - 技術的に詰まった時
@@ -1460,11 +1475,11 @@ VibeCodingで新機能を実装する際の実践的なガイドです。
    - ユーザーが明示的に「相談しよう」「設計をしよう」などと言った時
    - それ以外は基本的に実装を進める
 
-3. **品質はAGENT.mdのルールで担保**
+3. **品質はAGENT.mdのルールとExampleで担保**
    - Repository/Modelパターン徹底
    - 統一ハンドラー（createAkatsukiHandler）使用
    - RLS設計を最初から考慮
-   - コミット前なら簡単に戻せる
+   - ExamplePageや初期実装を必ず調査
 
 **✅ 良い例:**
 ```
@@ -1496,9 +1511,9 @@ AI: 「次はRepositoryを作りますが、よろしいですか？」
 
 #### 6.4.3. 設計ドキュメントテンプレート
 
-**VibeCodingでも最小限の設計整理は必須です。**
+**設計整理は必須です**
 
-新機能を実装する前に、以下の項目を `workspace/[feature-name]-design.md` に整理します。
+新機能を実装する前に、以下の項目を `workspace/[feature-name]-design.md` に書き出します。
 
 ```markdown
 # [機能名] - 設計ドキュメント
@@ -1567,7 +1582,7 @@ HomePage (/) → TemplateSelectPage (/create/template) → CustomizePage (/creat
 - RLS Policy設計（必須）
 
 ## 5. 使用するAkatsuki機能
-- 実装済み: AI、Storage、Database等
+- 実装済み: AI、Storage、Database等（ExamplePage/AdminPageを参考）
 - 既存のEdge Functions
 - 新規作成が必要な機能
 
@@ -1593,14 +1608,16 @@ HomePage (/) → TemplateSelectPage (/create/template) → CustomizePage (/creat
 
 **ワークフロー:**
 
-1. **下書き作成**: `workspace/[feature-name]-design.md` に上記形式で整理
+1. **下書き作成**: `workspace/[feature-name]-design.md` にファイル保存
 2. **テンプレート確認**: 8.9のテンプレートが使えるか判断
-3. **実装開始**: 設計を見ながらVibeCoding
-4. **完了後**: 実装中の変更なども整理して `docs/design/` にコミット
+3. **ソース・Example調査して実装計画**: ExamplePage/AdminPage、ソースコードのJSDocなどを調べてデザインファイルを更新
+4. **実装開始**: 設計を見ながらVibeCoding
+5. **完了後**: 実装中の変更なども整理して `docs/design/` にコミット
 
 **ポイント:**
-- ✅ **最小限の整理で開始** - 完璧を求めない
+- ✅ **最小限の整理で開始** - 機能的な完璧を求めない。見栄えが良く動くものを
 - ✅ **テンプレート活用** - よくあるパターンは8.9参照
+- ✅ **Example活用** - 豊富なExampleがあるので参照して車輪の再発明やハレーションを避ける
 - ✅ **RLS設計を最初から** - 後付けは不整合の元
 - ✅ **workspace → docs** - 下書き→確定版の流れ
 
@@ -1669,7 +1686,7 @@ A: 以下の場合のみ停止して確認：
 
 #### 2. 外部ライブラリ (Monorepo External)
 
-* **対象:** `LLM_TOOLKIT` や個人OSSなど、私たちが管理するが、このリポジトリの**外部**にあるもの。
+* **対象:** 個人OSSなど、私たちが管理するが、このリポジトリの**外部**にあるもの。
 * **参照:** `npm link` や `path:` 指定による**ローカルパス参照は原則禁止**します。
 * **修正:** 修正が必要な場合、**元の（外部）リポジトリ側をクリーンに修正・Publish**し、`package.json`のバージョンを更新して対応します。
 
