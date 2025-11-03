@@ -12,8 +12,9 @@
  * 6. Apply database migrations
  * 7. Deploy Edge Functions (optional)
  * 8. Guide for setting up Secrets
- * 9. Final setup verification
- * 10. Create initial Git commit (optional)
+ * 9. Verify backend setup
+ * 10. Setup Claude Code notification hooks (optional)
+ * 11. Create initial Git commit (optional)
  */
 
 import inquirer from 'inquirer'
@@ -596,10 +597,122 @@ async function verifyBackendSetup() {
 }
 
 /**
- * Step 9: Create initial Git commit
+ * Step 9: Setup Claude Code hooks (optional)
+ */
+async function setupClaudeCodeHooks() {
+  log.section('🔔 Step 9: Claude Code Development Experience (Optional)')
+
+  log.info('Claude Code can play a notification sound when AI completes a task.')
+  log.info('This is very useful for VibeCoding - you can focus on other work while AI implements.')
+  console.log('')
+
+  const { setupHooks } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'setupHooks',
+      message: 'Setup Claude Code notification hooks?',
+      default: true
+    }
+  ])
+
+  if (!setupHooks) {
+    log.info('Skipped Claude Code hooks setup.')
+    return false
+  }
+
+  const claudeDir = path.join(rootDir, '.claude')
+  const settingsPath = path.join(claudeDir, 'settings.local.json')
+
+  // Ensure .claude directory exists
+  if (!fs.existsSync(claudeDir)) {
+    fs.mkdirSync(claudeDir, { recursive: true })
+    log.success('Created .claude/ directory')
+  }
+
+  // Read existing settings or create new
+  let settings = {}
+  if (fs.existsSync(settingsPath)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'))
+      log.info('.claude/settings.local.json already exists')
+    } catch (error) {
+      log.warning('Could not parse existing settings.local.json, will create new')
+      settings = {}
+    }
+  }
+
+  // Check if hooks already exist
+  if (settings.hooks && settings.hooks.Stop) {
+    log.info('Hooks already configured. Skipping to avoid overwriting existing setup.')
+    return false
+  }
+
+  // Detect platform and suggest appropriate command
+  const platform = process.platform
+  let soundCommand
+  let soundName
+
+  if (platform === 'darwin') {
+    soundCommand = 'afplay /System/Library/Sounds/Glass.aiff'
+    soundName = 'Glass (macOS)'
+  } else if (platform === 'linux') {
+    soundCommand = 'paplay /usr/share/sounds/freedesktop/stereo/complete.oga'
+    soundName = 'complete.oga (Linux)'
+  } else if (platform === 'win32') {
+    soundCommand = '[console]::beep(800,300)'
+    soundName = 'System beep (Windows)'
+  } else {
+    log.warning(`Unknown platform: ${platform}. Skipping hooks setup.`)
+    return false
+  }
+
+  log.step(`Recommended notification sound: ${soundName}`)
+  console.log('')
+
+  const { confirmSound } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirmSound',
+      message: `Add notification hook: ${soundCommand}?`,
+      default: true
+    }
+  ])
+
+  if (!confirmSound) {
+    log.info('Skipped adding notification hooks.')
+    return false
+  }
+
+  // Add hooks to settings
+  if (!settings.hooks) {
+    settings.hooks = {}
+  }
+
+  settings.hooks.Stop = [
+    {
+      matcher: '',
+      hooks: [
+        {
+          type: 'command',
+          command: soundCommand
+        }
+      ]
+    }
+  ]
+
+  // Write settings
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n')
+  log.success('Added notification hook to .claude/settings.local.json')
+  log.info('Now Claude Code will play a sound when it completes tasks!')
+
+  return true
+}
+
+/**
+ * Step 10: Create initial Git commit
  */
 async function createInitialCommit(projectName, projectDescription) {
-  log.section('📝 Step 9: Initial Git Commit')
+  log.section('📝 Step 10: Initial Git Commit')
 
   const { createCommit } = await inquirer.prompt([
     {
@@ -717,7 +830,10 @@ async function main() {
     // Step 8: Verify backend
     await verifyBackendSetup()
 
-    // Step 9: Initial Git commit
+    // Step 9: Claude Code hooks (optional)
+    await setupClaudeCodeHooks()
+
+    // Step 10: Initial Git commit
     await createInitialCommit(projectName, projectDescription)
 
     // Summary

@@ -573,7 +573,74 @@ npm run setup:check       # セットアップ状況確認
 
 ---
 
-## 8. 次のステップ
+## 8. 開発体験向上 Tips
+
+### 8.1. AI エージェント作業完了通知（推奨）
+
+Claude Code や Cursor などの AI エージェントで開発する際、実装が完了したタイミングで通知音を鳴らすと非常に便利です。
+
+**VibeCoding の作業単位:**
+- 基本的に 5 分程度のまとまりで作業が進む
+- 複数ファイルの修正 → 軽く動作確認 → 「実装完了しました」の報告
+- このタイミングで通知音が鳴ると、別作業中でも作業完了に気づける
+
+#### Claude Code の場合
+
+`.claude/settings.local.json` の `hooks` セクションに追加します。
+
+```json
+{
+  "permissions": {
+    "allow": [...],
+    "deny": [],
+    "ask": []
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**重要:** すでに `hooks` セクションがある場合は、既存の設定を壊さないように注意してください。
+
+**macOS の主要な通知音:**
+- `Glass.aiff` - クリアで心地よい音（推奨）
+- `Ping.aiff` - シンプルな通知音
+- `Hero.aiff` - 達成感のある音
+- `Submarine.aiff` - 控えめな通知音
+
+**その他のプラットフォーム:**
+
+```bash
+# Linux (beep)
+beep
+
+# Linux (paplay)
+paplay /usr/share/sounds/freedesktop/stereo/complete.oga
+
+# Windows (PowerShell)
+[console]::beep(800,300)
+```
+
+**メリット:**
+- ✅ 別作業中でもエージェントの作業完了に気づける
+- ✅ 長時間かかる実装も安心して待てる
+- ✅ 集中力を保ったまま効率的に開発できる
+- ✅ VibeCoding のリズムに乗れる
+
+---
+
+## 9. 次のステップ
 
 セットアップが完了したら、以下のドキュメントを参照してください：
 
