@@ -291,6 +291,348 @@ export interface SortConfig {
 }
 
 // ============================================================
+// Edge Function Types
+// ============================================================
+
+/**
+ * Standard Edge Function response pattern
+ *
+ * All Edge Functions return this pattern for consistency
+ *
+ * @template T - The data type on success
+ */
+export interface EdgeFunctionResponse<T = any> {
+  /**
+   * Response data (null on error)
+   */
+  data: T | null
+
+  /**
+   * Error object (null on success)
+   */
+  error: Error | null
+}
+
+/**
+ * Akatsuki Handler Pattern response
+ *
+ * Internal Edge Function format (converted to EdgeFunctionResponse by EdgeFunctionService)
+ */
+export interface AkatsukiResponse<T = any> {
+  /**
+   * Operation success flag
+   */
+  success: boolean
+
+  /**
+   * Result data (on success)
+   */
+  result?: T
+
+  /**
+   * Error information (on failure)
+   */
+  error?: {
+    message: string
+    code?: string
+  } | string
+}
+
+/**
+ * AI Chat request parameters
+ */
+export interface AIChatRequest {
+  /**
+   * User message
+   */
+  message: string
+
+  /**
+   * AI provider ('openai' | 'anthropic' | 'gemini')
+   */
+  provider?: string
+
+  /**
+   * Model name (e.g., 'gpt-4', 'claude-3-sonnet')
+   */
+  model?: string
+
+  /**
+   * Conversation history
+   */
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>
+
+  /**
+   * Temperature (0-2)
+   */
+  temperature?: number
+
+  /**
+   * Max tokens to generate
+   */
+  maxTokens?: number
+}
+
+/**
+ * AI Chat response
+ */
+export interface AIChatResponse {
+  /**
+   * AI-generated response
+   */
+  response: string
+
+  /**
+   * Model used
+   */
+  model: string
+
+  /**
+   * Provider used
+   */
+  provider: string
+
+  /**
+   * Tokens used
+   */
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+}
+
+/**
+ * Image Generation request parameters
+ */
+export interface ImageGenerationRequest {
+  /**
+   * Generation mode
+   */
+  mode?: 'text-to-image' | 'variation' | 'edit'
+
+  /**
+   * Text prompt
+   */
+  prompt?: string
+
+  /**
+   * Provider ('dalle' | 'gemini' | 'comfyui')
+   */
+  provider?: string
+
+  /**
+   * Image size
+   */
+  size?: '1024x1024' | '1792x1024' | '1024x1792' | string
+
+  /**
+   * Quality ('standard' | 'hd')
+   */
+  quality?: 'standard' | 'hd'
+
+  /**
+   * Style ('vivid' | 'natural')
+   */
+  style?: 'vivid' | 'natural'
+
+  /**
+   * Model name (optional)
+   */
+  model?: string
+
+  /**
+   * Source image URL (for variation/edit)
+   */
+  sourceImage?: string
+
+  /**
+   * ComfyUI-specific config
+   */
+  comfyui_config?: {
+    workflowId?: string
+    workflow?: Record<string, any>
+  }
+}
+
+/**
+ * Image Generation response from Edge Function
+ */
+export interface ImageGenerationEdgeResponse {
+  /**
+   * Generated image URL
+   */
+  imageUrl: string
+
+  /**
+   * Provider used
+   */
+  provider: string
+
+  /**
+   * Model used
+   */
+  model: string
+
+  /**
+   * Revised prompt (DALL-E)
+   */
+  revisedPrompt?: string
+
+  /**
+   * Image size
+   */
+  size: string
+}
+
+/**
+ * Image Generation Service response (with Storage)
+ */
+export interface ImageGenerationServiceResponse {
+  /**
+   * File ID in storage
+   */
+  id: string
+
+  /**
+   * Permanent public URL
+   */
+  publicUrl: string
+
+  /**
+   * Provider used
+   */
+  provider: string
+
+  /**
+   * Model used
+   */
+  model: string
+
+  /**
+   * Image size
+   */
+  size: string
+
+  /**
+   * Revised prompt (if applicable)
+   */
+  revisedPrompt?: string
+
+  /**
+   * Full metadata
+   */
+  metadata?: Record<string, any>
+}
+
+/**
+ * File Upload response
+ */
+export interface FileUploadResponse {
+  /**
+   * File ID
+   */
+  id: string
+
+  /**
+   * File path in storage
+   */
+  path: string
+
+  /**
+   * Public URL (if public storage)
+   */
+  publicUrl?: string
+
+  /**
+   * Signed URL (if private storage)
+   */
+  signedUrl?: string
+
+  /**
+   * File size in bytes
+   */
+  size: number
+
+  /**
+   * MIME type
+   */
+  mimeType: string
+}
+
+/**
+ * Web Search request
+ */
+export interface WebSearchRequest {
+  /**
+   * Search query
+   */
+  query: string
+
+  /**
+   * Max results
+   */
+  maxResults?: number
+
+  /**
+   * Search depth ('basic' | 'advanced')
+   */
+  searchDepth?: 'basic' | 'advanced'
+}
+
+/**
+ * Web Search result
+ */
+export interface WebSearchResult {
+  /**
+   * Page title
+   */
+  title: string
+
+  /**
+   * Page URL
+   */
+  url: string
+
+  /**
+   * Content snippet
+   */
+  content: string
+
+  /**
+   * Relevance score
+   */
+  score?: number
+}
+
+/**
+ * Web Search response
+ */
+export interface WebSearchResponse {
+  /**
+   * Search results
+   */
+  results: WebSearchResult[]
+
+  /**
+   * Query used
+   */
+  query: string
+
+  /**
+   * Provider used
+   */
+  provider: string
+}
+
+// ============================================================
+// Service Types
+// ============================================================
+
+// Note: EventService.emit() returns SystemEvent directly (throws on error)
+// EventEmitOptions is defined in Event System Types section above
+
+// ============================================================
 // Re-export common types
 // ============================================================
 
