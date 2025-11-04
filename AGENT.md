@@ -63,11 +63,27 @@ Step 6: 振り返り（docs/に整理）
 ```bash
 # Frontend
 npm run dev:frontend              # 開発サーバー
+npm run build:frontend            # 本番ビルド
+npm run preview:frontend          # ビルド結果をプレビュー
+npx tsc --noEmit                  # TypeScript型チェック（app-frontend内で実行）
+
+# Backend (Rust)
+npm run dev:backend               # 開発サーバー（Shuttle）
+npm run build:backend             # リリースビルド
+npm run check:backend             # 型チェック（cargo check）
+npm run test:backend              # テスト実行
+npm run deploy:backend            # Shuttleにデプロイ
 
 # Supabase
 npm run supabase:migration:new    # Migration作成
 npm run supabase:push             # Migration適用
 npm run supabase:function:deploy  # Edge Function デプロイ
+npm run supabase:secrets:list     # Secrets一覧
+npm run supabase:secrets:set      # Secrets設定
+
+# Setup
+npm run setup                     # 初回セットアップウィザード
+npm run setup:check               # セットアップ状態確認
 
 # workspace/ でダミーデータ生成
 cd workspace && node generate-dummy-data.js
@@ -76,8 +92,10 @@ cd workspace && node generate-dummy-data.js
 **トラブル時の診断:**
 1. Edge Function エラー → `npx supabase functions logs <name> --tail`
 2. RLS エラー → Supabase Dashboard → Database → Policies
-3. 型エラー → Model の `fromDatabase()` 実装確認
-4. 再レンダリング → useEffect 依存配列確認
+3. TypeScript型エラー → `npx tsc --noEmit` で詳細確認
+4. Model型エラー → Model の `fromDatabase()` 実装確認
+5. 再レンダリング → useEffect 依存配列確認
+6. ビルドエラー → `npm run build:frontend` で詳細確認
 
 **🎯 よくあるシチュエーション別クイックジャンプ:**
 - 「新しい画面を作りたい」 → L2018 Template 1: CRUD画面
@@ -149,7 +167,8 @@ akatsuki/
 
 | 領域 | 技術選定 | 備考 |
 | :--- | :--- | :--- |
-| **フロントエンド** | **VITE + React + Tailwind CSS** | 0→1最速のデファクトスタンダード構成 |
+| **フロントエンド** | **VITE + React + TypeScript + Tailwind CSS** | 0→1最速のデファクトスタンダード構成 |
+| **型システム** | **TypeScript (段階的移行中)** | 新規ファイルは全て `.tsx`/`.ts` で作成 |
 | **バックエンド** | **Shuttle + Axum (Rust)** | Rust BEのデファクトスタンダード |
 | **データベース** | **Supabase (PostgreSQL)** | 開発環境は `Supabase-dev` を共有 |
 | **リポジトリ** | **モノレポ (NPM Workspaces)** | ルートの `package.json` で全体管理 |
@@ -586,7 +605,40 @@ function CleanComponent() {
    - Edge Functions のラッパー
    - 外部API連携
 
-### 4.2. 認証アーキテクチャ (Authentication)
+### 4.2. TypeScript
+
+AkatsukiはTypeScriptを採用しています。一部既存のJSXファイルも実行可能になっています。
+
+- 🔄 新規ファイルは全て `.tsx` / `.ts` で作成
+
+#### 型定義の使い方
+
+- 型定義はtypesにまとめて定義しています。`src/types/index.ts`
+- 以下の例のように使用可能です。
+
+**例： Edge Function呼び出し:**
+```typescript
+import type { EdgeFunctionResponse, AIChatResponse } from '@/types'
+
+const { data, error }: EdgeFunctionResponse<AIChatResponse> =
+  await EdgeFunctionService.invoke('ai-chat', { message: 'Hello' })
+
+if (error) {
+  console.error(error.message)  // TypeScriptが型チェック
+  return
+}
+
+#### 主な型定義コンポーネント
+* EdgeFunction 関連
+* Async Job 関連
+
+#### 参考資料
+
+- 型定義一覧: `src/types/index.ts`
+- 使用例とガイド: `src/types/README.md`
+- テストコンポーネント: `/type-test` (開発サーバーでアクセス可能)
+
+### 4.3. 認証アーキテクチャ (Authentication)
 
 Akatsuki では、Supabase Auth を使用した公開/非公開ページ混在型の認証システムを標準実装しています。
 
