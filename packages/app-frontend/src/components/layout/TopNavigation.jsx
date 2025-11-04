@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { useAuth } from '../../contexts/AuthContext'
-import { Home, BookOpen, LogIn, LogOut, LayoutDashboard } from 'lucide-react'
+import { Home, BookOpen, LogIn, LogOut, LayoutDashboard, Sparkles, Images } from 'lucide-react'
 
 /**
  * TopNavigation コンポーネント
@@ -52,6 +52,18 @@ export function TopNavigation() {
             {/* Auth-dependent Buttons */}
             {user ? (
               <>
+                <Link to="/character-generator">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="hidden sm:inline">Generator</span>
+                  </Button>
+                </Link>
+                <Link to="/character-gallery">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Images className="w-4 h-4" />
+                    <span className="hidden sm:inline">Gallery</span>
+                  </Button>
+                </Link>
                 <Link to="/admin">
                   <Button variant="ghost" size="sm" className="gap-2">
                     <LayoutDashboard className="w-4 h-4" />

@@ -174,6 +174,13 @@ export function AdminDashboard() {
               >
                 🔴 Event Monitor
               </Button>
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => navigate('/admin/character-presets')}
+              >
+                ✨ Character Presets管理
+              </Button>
               <Button variant="secondary" className="w-full">
                 📊 統計・レポート
               </Button>

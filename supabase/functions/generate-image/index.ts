@@ -305,29 +305,23 @@ Deno.serve(async (req) => {
         }
 
         case 'comfyui': {
-          // ComfyUI integration via RunPod (Phase 2)
-          const { createRunPodClient, RunPodClient } = await import('../_shared/runpod_client.ts')
+          // ComfyUI: Synchronous processing via RunPod
+          console.log('[generate-image] ComfyUI: Starting synchronous generation')
 
-          console.log('[generate-image] ComfyUI mode:', input.mode)
-
-          // RunPod Clientを作成
-          const runpodClient = createRunPodClient()
-
-          // ComfyUI設定を取得（デフォルト値を設定）
           const comfyConfig = input.comfyui_config || {}
 
-          // ワークフローを取得（優先順位: workflow_json > workflow_id > デフォルト）
+          // Import RunPod client
+          const { createRunPodClient, RunPodClient } = await import('../_shared/runpod_client.ts')
+          const runpodClient = createRunPodClient()
+
+          // Get workflow
           let workflowData: Record<string, any>
           let workflowName = 'unknown'
 
           if (comfyConfig.workflow_json) {
-            // Option 1: workflow_jsonを直接指定（開発・テスト用）
-            console.log('[generate-image] ComfyUI: Using provided workflow_json')
             workflowData = comfyConfig.workflow_json
             workflowName = 'custom-json'
           } else if (comfyConfig.workflow_id) {
-            // Option 2: workflow_idでDB取得
-            console.log('[generate-image] ComfyUI: Fetching workflow by ID:', comfyConfig.workflow_id)
             const workflow = await repos.comfyuiWorkflow.getById(comfyConfig.workflow_id)
             if (!workflow) {
               throw new Error(`Workflow not found: ${comfyConfig.workflow_id}`)
@@ -335,8 +329,6 @@ Deno.serve(async (req) => {
             workflowData = workflow.workflow_json
             workflowName = workflow.name
           } else {
-            // Option 3: デフォルトワークフローを使用
-            console.log('[generate-image] ComfyUI: Using default workflow')
             const workflow = await repos.comfyuiWorkflow.getDefault()
             if (!workflow) {
               throw new Error('No default ComfyUI workflow configured')
@@ -345,9 +337,8 @@ Deno.serve(async (req) => {
             workflowName = workflow.name
           }
 
-          // 変数を準備（{{prompt}}などのプレースホルダーを置換）
-          // comfyui_configのwidth/heightが優先、なければsizeから取得
-          const [sizeWidth, sizeHeight] = input.size.split('x').map(Number)
+          // Prepare variables
+          const [sizeWidth, sizeHeight] = (input.size || '1024x1024').split('x').map(Number)
           const variables: Record<string, any> = {
             prompt: input.prompt,
             width: comfyConfig.width || sizeWidth || 1024,
@@ -359,34 +350,47 @@ Deno.serve(async (req) => {
             scheduler: comfyConfig.scheduler || 'normal',
           }
 
-          // ckpt_name（モデル）が指定されている場合は追加
           if (comfyConfig.ckpt_name) {
             variables.ckpt_name = comfyConfig.ckpt_name
           }
 
-          // ワークフローに変数を差し込み
-          const workflow = RunPodClient.injectVariables(workflowData, variables)
+          console.log('[generate-image] ComfyUI: Variables prepared:', {
+            ckpt_name: variables.ckpt_name,
+            steps: variables.steps,
+            cfg: variables.cfg,
+            width: variables.width,
+            height: variables.height,
+          })
 
-          // 未置換プレースホルダーをチェック（警告のみ）
-          RunPodClient.checkUnresolvedPlaceholders(workflow)
+          // Inject variables into workflow
+          const workflow = RunPodClient.injectVariables(workflowData, variables)
+          const unresolvedPlaceholders = RunPodClient.checkUnresolvedPlaceholders(workflow)
+
+          // Log checkpoint node after injection
+          if (workflow['4']?.inputs?.ckpt_name) {
+            console.log('[generate-image] ComfyUI: Checkpoint after injection:', workflow['4'].inputs.ckpt_name)
+          } else {
+            console.warn('[generate-image] ComfyUI: No ckpt_name found in node 4!')
+          }
+
+          if (unresolvedPlaceholders.length > 0) {
+            console.warn('[generate-image] ComfyUI: Unresolved placeholders:', unresolvedPlaceholders)
+          }
 
           console.log('[generate-image] ComfyUI: Executing workflow:', workflowName)
 
-          // ワークフロー実行
+          // Execute workflow
           const promptId = await runpodClient.executeWorkflow(workflow)
           console.log('[generate-image] ComfyUI: Workflow submitted, prompt_id:', promptId)
 
-          // 結果取得（最大60秒待機）
+          // Get result (max 60 seconds)
           const images = await runpodClient.getResult(promptId, 30, 2000)
 
           if (images.length === 0) {
             throw new Error('ComfyUI did not return any images')
           }
 
-          // 最初の画像を使用
           const generatedImage = images[0]
-          imageUrl = `data:${generatedImage.mimeType};base64,${generatedImage.data}`
-          usedModel = `comfyui-${workflowName}`
 
           console.log('[generate-image] ComfyUI: Image generated successfully', {
             workflow: workflowName,
@@ -394,6 +398,9 @@ Deno.serve(async (req) => {
             dataLength: generatedImage.data.length,
           })
 
+          // Set imageUrl as data URL for downstream processing
+          imageUrl = `data:${generatedImage.mimeType};base64,${generatedImage.data}`
+          usedModel = `comfyui-${workflowName}`
           break
         }
 

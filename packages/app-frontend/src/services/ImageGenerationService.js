@@ -69,6 +69,7 @@ export class ImageGenerationService {
       sourceImage,
       storage = 'public',
       metadata: additionalMetadata = {},
+      comfyui_config, // ComfyUI専用設定
     } = options
 
     // Mode を決定（明示的に指定されていない場合は推論）
@@ -98,6 +99,11 @@ export class ImageGenerationService {
       // Image-to-Image パラメータ追加
       if (sourceImage) {
         edgeFunctionPayload.image_url = sourceImage
+      }
+
+      // ComfyUI設定を追加
+      if (comfyui_config) {
+        edgeFunctionPayload.comfyui_config = comfyui_config
       }
 
       const { data: generationResult, error: genError } = await EdgeFunctionService.invoke('generate-image', edgeFunctionPayload)

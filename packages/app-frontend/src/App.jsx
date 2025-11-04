@@ -11,6 +11,9 @@ import { AdminDashboard } from './pages/AdminDashboard'
 import { ModelManagementPage } from './pages/admin/ModelManagementPage'
 import { QuotaManagementPage } from './pages/admin/QuotaManagementPage'
 import { EventMonitorPage } from './pages/admin/EventMonitorPage'
+import { CharacterPresetManagementPage } from './pages/admin/CharacterPresetManagementPage'
+import { CharacterGeneratorPage } from './pages/CharacterGeneratorPage'
+import { CharacterGalleryPage } from './pages/CharacterGalleryPage'
 
 function App() {
   return (
@@ -24,6 +27,24 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+          {/* Character Generation Routes (Private) */}
+          <Route
+            path="/character-generator"
+            element={
+              <AuthGuard>
+                <CharacterGeneratorPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/character-gallery"
+            element={
+              <AuthGuard>
+                <CharacterGalleryPage />
+              </AuthGuard>
+            }
+          />
 
           {/* Private Routes */}
           <Route
@@ -55,6 +76,14 @@ function App() {
             element={
               <AuthGuard>
                 <EventMonitorPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/character-presets"
+            element={
+              <AuthGuard>
+                <CharacterPresetManagementPage />
               </AuthGuard>
             }
           />
