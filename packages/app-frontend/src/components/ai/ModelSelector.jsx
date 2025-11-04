@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   Select,
   SelectContent,
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { AIModelRepository } from '@/repositories/AIModelRepository'
+import { useAIModels, useAIProviders } from '@/hooks/useAIModels'
 
 /**
  * AIモデル選択コンポーネント
@@ -43,33 +43,15 @@ export function ModelSelector({
   className = '',
   activeOnly = true,
 }) {
-  const [models, setModels] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  // DBからモデルを取得（カスタムフック経由）
+  const allFilters = useMemo(() => ({
+    ...filters,
+    ...(provider && { provider }),
+    ...(isBasic !== null && { isBasic }),
+    activeOnly,
+  }), [filters, provider, isBasic, activeOnly])
 
-  // DBからモデルを取得
-  useEffect(() => {
-    const fetchModels = async () => {
-      try {
-        setLoading(true)
-        const allFilters = {
-          ...filters,
-          ...(provider && { provider }),
-          ...(isBasic !== null && { isBasic }),
-          activeOnly,
-        }
-        const data = await AIModelRepository.findByFilters(allFilters)
-        setModels(data)
-      } catch (err) {
-        setError(err)
-        console.error('Failed to fetch AI models:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchModels()
-  }, [provider, isBasic, filters, activeOnly])
+  const { models, loading, error } = useAIModels(allFilters)
 
   // グルーピング
   const groupedModels = useMemo(() => {
@@ -196,15 +178,7 @@ export function ModelSelector({
  * プロバイダー選択コンポーネント
  */
 export function ProviderSelector({ value, onChange, label = 'AI Provider', className = '' }) {
-  const [providers, setProviders] = useState([])
-
-  useEffect(() => {
-    const fetchProviders = async () => {
-      const data = await AIModelRepository.getProviders()
-      setProviders(data)
-    }
-    fetchProviders()
-  }, [])
+  const { providers } = useAIProviders()
 
   return (
     <div className={`space-y-2 ${className}`}>

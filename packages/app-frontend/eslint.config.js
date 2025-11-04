@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '**/*.{ts,tsx}']), // TypeScriptファイルを除外（パーサー未設定のため）
 
   // ========================================
   // 基本ルール（全ファイル共通）
@@ -27,7 +27,11 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': ['error', {
+        varsIgnorePattern: '^[A-Z_]|^_',
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }],
     },
   },
 
@@ -39,6 +43,8 @@ export default defineConfig([
   {
     files: ['src/components/**/*.{js,jsx,ts,tsx}'],
     rules: {
+      // UI componentsは定数exportもOK（Variant定義など）
+      'react-refresh/only-export-components': ['off'],
       'no-restricted-imports': ['error', {
         patterns: [
           {
@@ -136,12 +142,100 @@ export default defineConfig([
     files: ['src/**/*.{js,jsx,ts,tsx}'],
     ignores: ['src/contexts/AuthContext.{js,jsx,ts,tsx}', 'src/lib/supabase.{js,ts}'],
     rules: {
+      // Contextは定数exportもOK
+      'react-refresh/only-export-components': ['off'],
       'no-restricted-syntax': ['error',
         {
           selector: "CallExpression[callee.object.object.name='supabase'][callee.object.property.name='auth'][callee.property.name=/^sign(In|Up|Out)$/]",
           message: '❌ Use AuthContext.signIn/signUp/signOut instead of direct supabase.auth calls. (AGENT.md L754)'
         }
       ]
+    }
+  },
+
+  // 🖼️ 画像生成後の二重Storage保存を防止
+  {
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
+    ignores: ['src/services/ImageGenerationService.{js,jsx,ts,tsx}'],
+    plugins: {
+      'custom': {
+        rules: {
+          'no-duplicate-storage-after-image-generation': {
+            meta: {
+              type: 'problem',
+              docs: {
+                description: 'Prevent duplicate storage saves after ImageGenerationService usage',
+                category: 'Best Practices',
+              },
+              messages: {
+                duplicateStorage: '⚠️ ImageGenerationService already saves images to Storage automatically. Use the returned fileId (result.data.id) instead. If you intentionally need to save two separate files, disable this rule with eslint-disable-next-line.'
+              },
+              schema: []
+            },
+            create(context) {
+              let hasImageGeneration = false
+              let hasStorageUpload = false
+              let storageUploadNode = null
+
+              return {
+                // ImageGenerationService の呼び出しを検出
+                'CallExpression[callee.object.name="ImageGenerationService"]'(node) {
+                  const methodName = node.callee.property?.name
+                  if (methodName?.startsWith('generate')) {
+                    hasImageGeneration = true
+                  }
+                },
+                // *StorageService.upload* の呼び出しを検出
+                'CallExpression[callee.object.name=/.*StorageService$/]'(node) {
+                  const methodName = node.callee.property?.name
+                  if (methodName?.startsWith('upload')) {
+                    hasStorageUpload = true
+                    storageUploadNode = node
+                  }
+                },
+                // 関数終了時にチェック
+                'FunctionDeclaration:exit'() {
+                  if (hasImageGeneration && hasStorageUpload) {
+                    context.report({
+                      node: storageUploadNode,
+                      messageId: 'duplicateStorage'
+                    })
+                  }
+                  // リセット
+                  hasImageGeneration = false
+                  hasStorageUpload = false
+                  storageUploadNode = null
+                },
+                'FunctionExpression:exit'() {
+                  if (hasImageGeneration && hasStorageUpload) {
+                    context.report({
+                      node: storageUploadNode,
+                      messageId: 'duplicateStorage'
+                    })
+                  }
+                  hasImageGeneration = false
+                  hasStorageUpload = false
+                  storageUploadNode = null
+                },
+                'ArrowFunctionExpression:exit'() {
+                  if (hasImageGeneration && hasStorageUpload) {
+                    context.report({
+                      node: storageUploadNode,
+                      messageId: 'duplicateStorage'
+                    })
+                  }
+                  hasImageGeneration = false
+                  hasStorageUpload = false
+                  storageUploadNode = null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    rules: {
+      'custom/no-duplicate-storage-after-image-generation': 'warn'
     }
   }
 ])

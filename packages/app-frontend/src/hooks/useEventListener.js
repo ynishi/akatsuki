@@ -73,6 +73,7 @@ export function useEventListener(eventTypes, onEvent, options = {}) {
     return () => {
       supabase.removeChannel(channel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, types.join(','), userId, status, onEvent])
 
   return events

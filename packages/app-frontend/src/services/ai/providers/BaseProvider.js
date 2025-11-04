@@ -17,7 +17,7 @@ export class BaseProvider {
    * @param {Array} options.messages - メッセージ履歴
    * @returns {Promise<Object>} { text, usage, model }
    */
-  async chat(prompt, options = {}) {
+  async chat(prompt, _options = {}) {
     throw new Error('chat() must be implemented by subclass')
   }
 
@@ -28,7 +28,7 @@ export class BaseProvider {
    * @param {Object} options - オプション
    * @returns {Promise<void>}
    */
-  async chatStream(prompt, onChunk, options = {}) {
+  async chatStream(prompt, onChunk, _options = {}) {
     throw new Error('chatStream() must be implemented by subclass')
   }
 
@@ -41,7 +41,7 @@ export class BaseProvider {
    * @param {string} options.quality - 品質（"standard", "hd"）
    * @returns {Promise<Object>} { url, data }
    */
-  async generateImage(prompt, options = {}) {
+  async generateImage(prompt, _options = {}) {
     throw new Error('generateImage() must be implemented by subclass')
   }
 
@@ -52,7 +52,7 @@ export class BaseProvider {
    * @param {Object} options - オプション
    * @returns {Promise<Object>} { url, data }
    */
-  async editImage(imageUrl, prompt, options = {}) {
+  async editImage(imageUrl, prompt, _options = {}) {
     throw new Error('editImage() must be implemented by subclass')
   }
 
@@ -62,7 +62,7 @@ export class BaseProvider {
    * @param {Object} options - オプション
    * @returns {Promise<Array>} ベクトル配列
    */
-  async embed(text, options = {}) {
+  async embed(text, _options = {}) {
     throw new Error('embed() must be implemented by subclass')
   }
 }

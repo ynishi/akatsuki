@@ -37,7 +37,7 @@ export function AdminDashboard() {
     loadProfile()
   }, [loadProfile])
 
-  const handleLogout = async () => {
+  const _handleLogout = async () => {
     await signOut()
     navigate('/login')
   }

@@ -72,7 +72,7 @@ export class GeminiProvider extends BaseProvider {
    * 画像生成
    * Geminiは画像生成未対応
    */
-  async generateImage(prompt, options = {}) {
+  async generateImage(prompt, _options = {}) {
     throw new Error('Gemini does not support image generation. Use OpenAI provider instead.')
   }
 
@@ -80,7 +80,7 @@ export class GeminiProvider extends BaseProvider {
    * 画像編集
    * Geminiは画像編集未対応
    */
-  async editImage(imageUrl, prompt, options = {}) {
+  async editImage(imageUrl, prompt, _options = {}) {
     throw new Error('Gemini does not support image editing. Use OpenAI provider instead.')
   }
 

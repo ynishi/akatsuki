@@ -232,6 +232,7 @@ export function useJobs(jobIds, options = {}) {
     return () => {
       supabase.removeChannel(channel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobIds.join(','), options.onProgress, options.onComplete, options.onError])
 
   return jobs

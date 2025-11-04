@@ -69,21 +69,21 @@ export class AnthropicProvider extends BaseProvider {
   /**
    * 画像生成（Anthropic は未対応）
    */
-  async generateImage(prompt, options = {}) {
+  async generateImage(prompt, _options = {}) {
     throw new Error('Anthropic does not support image generation. Use OpenAI or other providers.')
   }
 
   /**
    * 画像編集（Anthropic は未対応）
    */
-  async editImage(imageUrl, prompt, options = {}) {
+  async editImage(imageUrl, prompt, _options = {}) {
     throw new Error('Anthropic does not support image editing. Use OpenAI or other providers.')
   }
 
   /**
    * 埋め込み生成（Anthropic は未対応）
    */
-  async embed(text, options = {}) {
+  async embed(text, _options = {}) {
     throw new Error('Anthropic does not support embeddings. Use OpenAI or other providers.')
   }
 }

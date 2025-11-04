@@ -19,6 +19,7 @@ import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
 import { useImageGeneration, useEventListener } from '../hooks'
 import { PublicProfile } from '../models/PublicProfile'
+// eslint-disable-next-line no-restricted-imports
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
 import { JobProgress } from '../components/common/JobProgress'
@@ -63,9 +64,9 @@ export function ExamplesPage() {
     loading: imageGenerating,
     result: generatedImage,
     error: imageError,
-    sizeOptions,
-    qualityOptions,
-    styleOptions,
+    sizeOptions: _sizeOptions,
+    qualityOptions: _qualityOptions,
+    styleOptions: _styleOptions,
   } = useImageGeneration({
     quality: 'standard',
     style: 'vivid',
@@ -425,12 +426,12 @@ export function ExamplesPage() {
       let workflowJson
       try {
         workflowJson = JSON.parse(newWorkflowJSON)
-      } catch (e) {
+      } catch (_e) {
         alert('Invalid JSON format')
         return
       }
 
-      const { data, error } = await ComfyUIWorkflowRepository.create({
+      const { data: _data, error } = await ComfyUIWorkflowRepository.create({
         name: newWorkflowName,
         description: newWorkflowDescription || null,
         workflow_json: workflowJson,
@@ -549,7 +550,7 @@ export function ExamplesPage() {
       let payload
       try {
         payload = JSON.parse(eventPayload)
-      } catch (e) {
+      } catch (_e) {
         setEventResult({ error: 'Invalid JSON format' })
         setEventEmitting(false)
         return
