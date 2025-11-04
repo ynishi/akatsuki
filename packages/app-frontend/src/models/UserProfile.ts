@@ -7,7 +7,44 @@
  * - user_id で auth.users と 1:1 関連
  * - RLS (Row Level Security) でユーザー自身のみアクセス可能に設定
  */
+
+export type UserRole = 'user' | 'admin' | 'moderator'
+
+export interface UserProfileData {
+  id?: string | null
+  userId: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  bio?: string | null
+  role?: UserRole
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface UserProfileDatabaseRecord {
+  id: string
+  user_id: string
+  username: string | null
+  display_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  role: UserRole
+  created_at: string
+  updated_at: string
+}
+
 export class UserProfile {
+  id: string | null
+  userId: string
+  username: string | null
+  displayName: string | null
+  avatarUrl: string | null
+  bio: string | null
+  role: UserRole
+  createdAt: string | null
+  updatedAt: string | null
+
   constructor({
     id = null,
     userId,
@@ -18,7 +55,7 @@ export class UserProfile {
     role = 'user',
     createdAt = null,
     updatedAt = null,
-  } = {}) {
+  }: UserProfileData) {
     this.id = id
     this.userId = userId // auth.users.id との紐付け
     this.username = username
@@ -32,10 +69,8 @@ export class UserProfile {
 
   /**
    * Supabaseのレコードからインスタンスを生成
-   * @param {Object} data - データベースレコード
-   * @returns {UserProfile}
    */
-  static fromDatabase(data) {
+  static fromDatabase(data: UserProfileDatabaseRecord): UserProfile {
     return new UserProfile({
       id: data.id,
       userId: data.user_id,
@@ -51,7 +86,6 @@ export class UserProfile {
 
   /**
    * Supabase保存用の形式に変換
-   * @returns {Object} データベース保存用オブジェクト
    */
   toDatabase() {
     return {
@@ -65,7 +99,6 @@ export class UserProfile {
 
   /**
    * 更新用のデータ形式に変換（user_idを除外）
-   * @returns {Object} 更新用オブジェクト
    */
   toUpdateDatabase() {
     return {
@@ -78,33 +111,29 @@ export class UserProfile {
 
   /**
    * 表示名を取得（優先順位: displayName > username > "ゲスト"）
-   * @returns {string}
    */
-  getDisplayName() {
+  getDisplayName(): string {
     return this.displayName || this.username || 'ゲスト'
   }
 
   /**
    * プロフィールが完成しているかチェック
-   * @returns {boolean}
    */
-  isComplete() {
+  isComplete(): boolean {
     return !!(this.username && this.displayName)
   }
 
   /**
    * 管理者権限を持っているかチェック
-   * @returns {boolean}
    */
-  isAdmin() {
+  isAdmin(): boolean {
     return this.role === 'admin'
   }
 
   /**
    * モデレーター権限を持っているかチェック
-   * @returns {boolean}
    */
-  isModerator() {
+  isModerator(): boolean {
     return this.role === 'moderator' || this.role === 'admin'
   }
 }

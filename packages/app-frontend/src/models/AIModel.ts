@@ -2,29 +2,74 @@
  * AIモデル定義
  * プロバイダーごとのモデル情報を管理
  */
+
+export type AIProvider = 'openai' | 'anthropic' | 'gemini'
+
+export interface AIModelData {
+  id: string
+  provider: AIProvider
+  modelId: string
+  label: string
+  isActive?: boolean
+  isBasic?: boolean
+  sortOrder?: number
+  supportsText?: boolean
+  supportsImageInput?: boolean
+  supportsImageOutput?: boolean
+  supportsAudio?: boolean
+  supportsVideo?: boolean
+  supportsStreaming?: boolean
+  supportsFunctionCalling?: boolean
+  supportsJson?: boolean
+  maxTokens?: number | null
+  contextWindow?: number | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface AIModelDatabaseRecord {
+  id: string
+  provider: string
+  model_id: string
+  label: string
+  is_active: boolean
+  is_basic: boolean
+  sort_order: number
+  supports_text: boolean
+  supports_image_input: boolean
+  supports_image_output: boolean
+  supports_audio: boolean
+  supports_video: boolean
+  supports_streaming: boolean
+  supports_function_calling: boolean
+  supports_json: boolean
+  max_tokens: number | null
+  context_window: number | null
+  created_at: string
+  updated_at: string
+}
+
 export class AIModel {
-  /**
-   * @param {Object} params
-   * @param {string} params.id - UUID
-   * @param {string} params.provider - プロバイダー名 (openai, claude, gemini)
-   * @param {string} params.modelId - プロバイダー側のモデルID (例: "gpt-4o")
-   * @param {string} params.label - UI表示名 (例: "GPT-4o")
-   * @param {boolean} params.isActive - 有効/無効
-   * @param {boolean} params.isBasic - Basic tier (false = Advanced)
-   * @param {number} params.sortOrder - 表示順
-   * @param {boolean} params.supportsText - テキスト対応
-   * @param {boolean} params.supportsImageInput - 画像入力対応 (Vision)
-   * @param {boolean} params.supportsImageOutput - 画像出力対応 (生成)
-   * @param {boolean} params.supportsAudio - 音声対応
-   * @param {boolean} params.supportsVideo - 動画対応
-   * @param {boolean} params.supportsStreaming - ストリーミング対応
-   * @param {boolean} params.supportsFunctionCalling - Function Calling対応
-   * @param {boolean} params.supportsJson - JSON mode対応
-   * @param {number} params.maxTokens - 最大出力トークン数
-   * @param {number} params.contextWindow - コンテキストウィンドウサイズ
-   * @param {string} params.createdAt - 作成日時
-   * @param {string} params.updatedAt - 更新日時
-   */
+  id: string
+  provider: AIProvider
+  modelId: string
+  label: string
+  isActive: boolean
+  isBasic: boolean
+  sortOrder: number
+  supportsText: boolean
+  supportsImageInput: boolean
+  supportsImageOutput: boolean
+  supportsAudio: boolean
+  supportsVideo: boolean
+  supportsStreaming: boolean
+  supportsFunctionCalling: boolean
+  supportsJson: boolean
+  maxTokens: number | null
+  contextWindow: number | null
+  createdAt: string | null
+  updatedAt: string | null
+
   constructor({
     id,
     provider,
@@ -45,7 +90,7 @@ export class AIModel {
     contextWindow = null,
     createdAt = null,
     updatedAt = null,
-  }) {
+  }: AIModelData) {
     this.id = id
     this.provider = provider
     this.modelId = modelId
@@ -70,22 +115,22 @@ export class AIModel {
   /**
    * Advancedモデルかどうか
    */
-  isAdvanced() {
+  isAdvanced(): boolean {
     return !this.isBasic
   }
 
   /**
    * UI表示用のラベル
    */
-  getLabel() {
+  getLabel(): string {
     return `${this.label} (${this.provider})`
   }
 
   /**
    * UI表示用の詳細説明
    */
-  getDescription() {
-    const features = []
+  getDescription(): string {
+    const features: string[] = []
     if (this.supportsStreaming) features.push('Streaming')
     if (this.supportsImageInput) features.push('Vision')
     if (this.supportsImageOutput) features.push('Image Gen')
@@ -102,10 +147,10 @@ export class AIModel {
   /**
    * データベースレコードから生成
    */
-  static fromDatabase(record) {
+  static fromDatabase(record: AIModelDatabaseRecord): AIModel {
     return new AIModel({
       id: record.id,
-      provider: record.provider,
+      provider: record.provider as AIProvider,
       modelId: record.model_id,
       label: record.label,
       isActive: record.is_active,
@@ -156,7 +201,7 @@ export class AIModel {
   /**
    * JSON化
    */
-  toJSON() {
+  toJSON(): AIModelData {
     return {
       id: this.id,
       provider: this.provider,

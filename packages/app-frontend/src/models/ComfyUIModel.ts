@@ -7,7 +7,77 @@
  * - カテゴリ分類とメタデータ管理
  * - 使用統計とおすすめモデル表示
  */
+
+export type ComfyUIModelType = 'checkpoint' | 'lora' | 'vae' | 'embedding'
+export type ComfyUIModelCategory = 'anime' | 'pony' | '3d' | 'realistic' | 'other'
+export type ComfyUIBaseModel = 'SDXL' | 'SD1.5' | 'Flux' | null
+
+export interface ComfyUIModelSettings {
+  steps?: number
+  cfg?: number
+  sampler?: string
+  scheduler?: string
+}
+
+export interface ComfyUIModelData {
+  id?: string | null
+  filename: string
+  displayName?: string | null
+  description?: string | null
+  category?: ComfyUIModelCategory | null
+  tags?: string[]
+  modelType?: ComfyUIModelType
+  baseModel?: ComfyUIBaseModel
+  recommendedSettings?: ComfyUIModelSettings | null
+  usageCount?: number
+  lastUsedAt?: string | null
+  isActive?: boolean
+  isFeatured?: boolean
+  sortOrder?: number
+  createdAt?: string | null
+  updatedAt?: string | null
+  lastSyncedAt?: string | null
+}
+
+export interface ComfyUIModelDatabaseRecord {
+  id: string
+  filename: string
+  display_name: string | null
+  description: string | null
+  category: ComfyUIModelCategory | null
+  tags: string[]
+  model_type: ComfyUIModelType
+  base_model: ComfyUIBaseModel
+  recommended_settings: ComfyUIModelSettings | null
+  usage_count: number
+  last_used_at: string | null
+  is_active: boolean
+  is_featured: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+  last_synced_at: string | null
+}
+
 export class ComfyUIModel {
+  id: string | null
+  filename: string
+  displayName: string | null
+  description: string | null
+  category: ComfyUIModelCategory | null
+  tags: string[]
+  modelType: ComfyUIModelType
+  baseModel: ComfyUIBaseModel
+  recommendedSettings: ComfyUIModelSettings | null
+  usageCount: number
+  lastUsedAt: string | null
+  isActive: boolean
+  isFeatured: boolean
+  sortOrder: number
+  createdAt: string | null
+  updatedAt: string | null
+  lastSyncedAt: string | null
+
   constructor({
     id = null,
     filename,
@@ -26,7 +96,7 @@ export class ComfyUIModel {
     createdAt = null,
     updatedAt = null,
     lastSyncedAt = null,
-  } = {}) {
+  }: ComfyUIModelData) {
     this.id = id
     this.filename = filename // 一意識別子
     this.displayName = displayName
@@ -48,10 +118,8 @@ export class ComfyUIModel {
 
   /**
    * Supabaseのレコードからインスタンスを生成
-   * @param {Object} data - データベースレコード
-   * @returns {ComfyUIModel}
    */
-  static fromDatabase(data) {
+  static fromDatabase(data: ComfyUIModelDatabaseRecord): ComfyUIModel {
     return new ComfyUIModel({
       id: data.id,
       filename: data.filename,
@@ -75,7 +143,6 @@ export class ComfyUIModel {
 
   /**
    * Supabase保存用のオブジェクトに変換
-   * @returns {Object}
    */
   toDatabase() {
     return {
@@ -99,9 +166,8 @@ export class ComfyUIModel {
 
   /**
    * 表示名を取得（なければファイル名から生成）
-   * @returns {string}
    */
-  getDisplayName() {
+  getDisplayName(): string {
     if (this.displayName) return this.displayName
     // .safetensorsを削除して表示
     return this.filename.replace('.safetensors', '')
@@ -109,24 +175,22 @@ export class ComfyUIModel {
 
   /**
    * カテゴリの表示名を取得
-   * @returns {string}
    */
-  getCategoryDisplay() {
-    const categoryMap = {
+  getCategoryDisplay(): string {
+    const categoryMap: Record<string, string> = {
       anime: 'Anime',
       pony: 'Pony',
       '3d': '3D',
       realistic: 'Realistic',
       other: 'Other',
     }
-    return categoryMap[this.category] || 'Uncategorized'
+    return categoryMap[this.category || ''] || 'Uncategorized'
   }
 
   /**
    * おすすめ設定を取得（なければデフォルト値）
-   * @returns {Object}
    */
-  getRecommendedSettings() {
+  getRecommendedSettings(): ComfyUIModelSettings {
     return this.recommendedSettings || {
       steps: 25,
       cfg: 7.0,
@@ -137,17 +201,15 @@ export class ComfyUIModel {
 
   /**
    * 人気モデルかどうか（使用回数で判定）
-   * @returns {boolean}
    */
-  isPopular() {
+  isPopular(): boolean {
     return this.usageCount > 10 // 閾値は適宜調整
   }
 
   /**
    * 最近使われたかどうか（7日以内）
-   * @returns {boolean}
    */
-  isRecentlyUsed() {
+  isRecentlyUsed(): boolean {
     if (!this.lastUsedAt) return false
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
@@ -156,10 +218,8 @@ export class ComfyUIModel {
 
   /**
    * タグで検索マッチするか
-   * @param {string} query - 検索クエリ
-   * @returns {boolean}
    */
-  matchesSearch(query) {
+  matchesSearch(query: string): boolean {
     if (!query) return true
     const lowerQuery = query.toLowerCase()
 

@@ -9,7 +9,38 @@
  * - For private profile data, use UserProfile model instead
  */
 
+export interface PublicProfileData {
+  id: string
+  userId: string
+  username: string | null
+  displayName: string | null
+  avatarUrl: string | null
+  bio: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PublicProfileDatabaseRecord {
+  id: string
+  user_id: string
+  username: string | null
+  display_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  created_at: string
+  updated_at: string
+}
+
 export class PublicProfile {
+  id: string
+  userId: string
+  username: string | null
+  displayName: string | null
+  avatarUrl: string | null
+  bio: string | null
+  createdAt: string
+  updatedAt: string
+
   constructor({
     id,
     userId,
@@ -19,7 +50,7 @@ export class PublicProfile {
     bio,
     createdAt,
     updatedAt,
-  }) {
+  }: PublicProfileData) {
     this.id = id
     this.userId = userId
     this.username = username
@@ -32,10 +63,8 @@ export class PublicProfile {
 
   /**
    * Convert database record to PublicProfile model
-   * @param {Object} dbRecord - Database record
-   * @returns {PublicProfile}
    */
-  static fromDatabase(dbRecord) {
+  static fromDatabase(dbRecord: PublicProfileDatabaseRecord | null): PublicProfile | null {
     if (!dbRecord) return null
 
     return new PublicProfile({
@@ -52,7 +81,6 @@ export class PublicProfile {
 
   /**
    * Convert PublicProfile model to database insert format
-   * @returns {Object}
    */
   toDatabase() {
     return {
@@ -66,10 +94,14 @@ export class PublicProfile {
 
   /**
    * Convert PublicProfile model to database update format
-   * @returns {Object}
    */
   toUpdateDatabase() {
-    const updateData = {}
+    const updateData: Partial<{
+      username: string | null
+      display_name: string | null
+      avatar_url: string | null
+      bio: string | null
+    }> = {}
 
     if (this.username !== undefined) updateData.username = this.username
     if (this.displayName !== undefined) updateData.display_name = this.displayName
@@ -81,33 +113,29 @@ export class PublicProfile {
 
   /**
    * Get display name (priority: displayName > username > 'Anonymous')
-   * @returns {string}
    */
-  getDisplayName() {
+  getDisplayName(): string {
     return this.displayName || this.username || 'Anonymous'
   }
 
   /**
    * Get avatar URL or return null if not set
-   * @returns {string|null}
    */
-  getAvatarUrl() {
+  getAvatarUrl(): string | null {
     return this.avatarUrl || null
   }
 
   /**
    * Check if profile has complete information
-   * @returns {boolean}
    */
-  isComplete() {
+  isComplete(): boolean {
     return !!(this.username && this.displayName)
   }
 
   /**
    * Get formatted creation date
-   * @returns {string}
    */
-  getFormattedDate() {
+  getFormattedDate(): string {
     if (!this.createdAt) return ''
     return new Date(this.createdAt).toLocaleDateString('ja-JP', {
       year: 'numeric',
