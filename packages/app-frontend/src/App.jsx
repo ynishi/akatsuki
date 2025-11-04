@@ -12,9 +12,6 @@ import { AdminDashboard } from './pages/AdminDashboard'
 import { ModelManagementPage } from './pages/admin/ModelManagementPage'
 import { QuotaManagementPage } from './pages/admin/QuotaManagementPage'
 import { EventMonitorPage } from './pages/admin/EventMonitorPage'
-import { CharacterPresetManagementPage } from './pages/admin/CharacterPresetManagementPage'
-import { CharacterGeneratorPage } from './pages/CharacterGeneratorPage'
-import { CharacterGalleryPage } from './pages/CharacterGalleryPage'
 import { TypeTestComponent } from './TypeTestComponent'
 
 function App() {
@@ -35,16 +32,11 @@ function App() {
 
           {/* Private Routes with PrivateLayout */}
           <Route element={<PrivateLayout />}>
-            {/* Character Generation Routes */}
-            <Route path="/character-generator" element={<CharacterGeneratorPage />} />
-            <Route path="/character-gallery" element={<CharacterGalleryPage />} />
-
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/models" element={<ModelManagementPage />} />
             <Route path="/admin/quotas" element={<QuotaManagementPage />} />
             <Route path="/admin/events" element={<EventMonitorPage />} />
-            <Route path="/admin/character-presets" element={<CharacterPresetManagementPage />} />
           </Route>
         </Routes>
       </AuthProvider>
