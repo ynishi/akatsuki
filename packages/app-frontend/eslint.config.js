@@ -2,10 +2,11 @@ import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', '**/*.{ts,tsx}']), // TypeScriptファイルを除外（パーサー未設定のため）
+  globalIgnores(['dist']),
 
   // ========================================
   // 基本ルール（全ファイル共通）
@@ -151,6 +152,34 @@ export default defineConfig([
         }
       ]
     }
+  },
+
+  // ========================================
+  // TypeScript設定
+  // ========================================
+  ...tseslint.configs.recommended.map(config => ({
+    ...config,
+    files: ['**/*.{ts,tsx}'],
+  })),
+
+  // TypeScript固有ルール
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: './tsconfig.json',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', {
+        varsIgnorePattern: '^[A-Z_]|^_',
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }],
+      // 型定義ファイルでanyは許容（payload, result, metadataなど動的な値）
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
   },
 
   // 🖼️ 画像生成後の二重Storage保存を防止
