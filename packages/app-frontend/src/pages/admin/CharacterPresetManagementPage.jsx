@@ -17,7 +17,6 @@ import {
 import { CharacterPresetRepository } from '../../repositories/CharacterPresetRepository'
 import { CharacterPreset } from '../../models/CharacterPreset'
 import { useAuth } from '../../contexts/AuthContext'
-import { TopNavigation } from '../../components/layout/TopNavigation'
 import { Plus, Edit, Trash2, Search } from 'lucide-react'
 
 const CATEGORIES = [
@@ -187,55 +186,137 @@ export function CharacterPresetManagementPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-        <TopNavigation />
-        <div className="max-w-6xl mx-auto px-8 pt-24">
-          <Card>
-            <CardHeader>
-              <CardTitle>Unauthorized</CardTitle>
-              <CardDescription>Please login to access this page.</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Unauthorized</CardTitle>
+          <CardDescription>Please login to access this page.</CardDescription>
+        </CardHeader>
+      </Card>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-      <TopNavigation />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-800 mb-2">Character Preset Management</h1>
+        <p className="text-gray-600">Create, edit, and manage character generation presets</p>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-8 pt-24 pb-16">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Character Preset Management</h1>
-          <p className="text-gray-600">Create, edit, and manage character generation presets</p>
-        </div>
-
-        {/* Controls */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search presets..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+      {/* Controls */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search presets..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
+            </div>
 
-              {/* Category Filter */}
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[200px]">
+            {/* Category Filter */}
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Create Button */}
+            <Button onClick={handleCreate} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Preset
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Presets List */}
+      {loading ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-gray-500">Loading presets...</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredPresets.map((preset) => (
+            <Card key={preset.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold">{preset.nameEn}</h3>
+                      <Badge variant="outline">{preset.category}</Badge>
+                      {preset.isSpecial() && <Badge variant="secondary">Special</Badge>}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">{preset.nameJa}</p>
+                    <p className="text-sm text-gray-500 font-mono">{preset.promptEn}</p>
+                    <p className="text-xs text-gray-400 mt-2">Display Order: {preset.displayOrder}</p>
+                  </div>
+
+                  <div className="flex gap-2 ml-4">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(preset)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => confirmDelete(preset)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {filteredPresets.length === 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-gray-500">No presets found</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Edit/Create Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{isCreating ? 'Create Preset' : 'Edit Preset'}</DialogTitle>
+            <DialogDescription>
+              {isCreating
+                ? 'Create a new character preset'
+                : 'Update preset details and prompt'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Category */}
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
+                <SelectTrigger id="category">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
                   {CATEGORIES.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
                       {cat.label}
@@ -243,179 +324,88 @@ export function CharacterPresetManagementPage() {
                   ))}
                 </SelectContent>
               </Select>
-
-              {/* Create Button */}
-              <Button onClick={handleCreate} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Create Preset
-              </Button>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Presets List */}
-        {loading ? (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-gray-500">Loading presets...</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredPresets.map((preset) => (
-              <Card key={preset.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold">{preset.nameEn}</h3>
-                        <Badge variant="outline">{preset.category}</Badge>
-                        {preset.isSpecial() && <Badge variant="secondary">Special</Badge>}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">{preset.nameJa}</p>
-                      <p className="text-sm text-gray-500 font-mono">{preset.promptEn}</p>
-                      <p className="text-xs text-gray-400 mt-2">Display Order: {preset.displayOrder}</p>
-                    </div>
+            {/* Name (English) */}
+            <div className="space-y-2">
+              <Label htmlFor="nameEn">Name (English)</Label>
+              <Input
+                id="nameEn"
+                value={form.nameEn}
+                onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
+                placeholder="e.g., Long Hair"
+              />
+            </div>
 
-                    <div className="flex gap-2 ml-4">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(preset)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => confirmDelete(preset)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {/* Name (Japanese) */}
+            <div className="space-y-2">
+              <Label htmlFor="nameJa">Name (Japanese)</Label>
+              <Input
+                id="nameJa"
+                value={form.nameJa}
+                onChange={(e) => setForm({ ...form, nameJa: e.target.value })}
+                placeholder="e.g., ロングヘア"
+              />
+            </div>
 
-            {filteredPresets.length === 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-center text-gray-500">No presets found</p>
-                </CardContent>
-              </Card>
-            )}
+            {/* Prompt (English) */}
+            <div className="space-y-2">
+              <Label htmlFor="promptEn">Prompt (English)</Label>
+              <Textarea
+                id="promptEn"
+                value={form.promptEn}
+                onChange={(e) => setForm({ ...form, promptEn: e.target.value })}
+                placeholder="e.g., long hair, flowing hair"
+                rows={3}
+              />
+              <p className="text-xs text-gray-500">
+                This will be added to the image generation prompt
+              </p>
+            </div>
+
+            {/* Display Order */}
+            <div className="space-y-2">
+              <Label htmlFor="displayOrder">Display Order</Label>
+              <Input
+                id="displayOrder"
+                type="number"
+                value={form.displayOrder}
+                onChange={(e) => setForm({ ...form, displayOrder: e.target.value })}
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500">Lower numbers appear first</p>
+            </div>
           </div>
-        )}
 
-        {/* Edit/Create Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{isCreating ? 'Create Preset' : 'Edit Preset'}</DialogTitle>
-              <DialogDescription>
-                {isCreating
-                  ? 'Create a new character preset'
-                  : 'Update preset details and prompt'}
-              </DialogDescription>
-            </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>{isCreating ? 'Create' : 'Save Changes'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <div className="space-y-4">
-              {/* Category */}
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
-                  <SelectTrigger id="category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Name (English) */}
-              <div className="space-y-2">
-                <Label htmlFor="nameEn">Name (English)</Label>
-                <Input
-                  id="nameEn"
-                  value={form.nameEn}
-                  onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
-                  placeholder="e.g., Long Hair"
-                />
-              </div>
-
-              {/* Name (Japanese) */}
-              <div className="space-y-2">
-                <Label htmlFor="nameJa">Name (Japanese)</Label>
-                <Input
-                  id="nameJa"
-                  value={form.nameJa}
-                  onChange={(e) => setForm({ ...form, nameJa: e.target.value })}
-                  placeholder="e.g., ロングヘア"
-                />
-              </div>
-
-              {/* Prompt (English) */}
-              <div className="space-y-2">
-                <Label htmlFor="promptEn">Prompt (English)</Label>
-                <Textarea
-                  id="promptEn"
-                  value={form.promptEn}
-                  onChange={(e) => setForm({ ...form, promptEn: e.target.value })}
-                  placeholder="e.g., long hair, flowing hair"
-                  rows={3}
-                />
-                <p className="text-xs text-gray-500">
-                  This will be added to the image generation prompt
-                </p>
-              </div>
-
-              {/* Display Order */}
-              <div className="space-y-2">
-                <Label htmlFor="displayOrder">Display Order</Label>
-                <Input
-                  id="displayOrder"
-                  type="number"
-                  value={form.displayOrder}
-                  onChange={(e) => setForm({ ...form, displayOrder: e.target.value })}
-                  placeholder="0"
-                />
-                <p className="text-xs text-gray-500">Lower numbers appear first</p>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave}>{isCreating ? 'Create' : 'Save Changes'}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Preset</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete "{selectedPreset?.nameEn}"? This action cannot be
-                undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Preset</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{selectedPreset?.nameEn}"? This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Badge } from '../components/ui/badge'
 import { UserProfileRepository } from '../repositories'
 import { FileUpload } from '../components/storage/FileUpload'
-import { TopNavigation } from '../components/layout/TopNavigation'
 
 export function AdminDashboard() {
   const { user, signOut } = useAuth()
@@ -53,11 +52,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-      <TopNavigation />
-
-      {/* メインコンテンツ */}
-      <main className="max-w-7xl mx-auto px-8 pt-24 pb-8 space-y-8">
+    <div className="space-y-8">
         {/* ウェルカムカード */}
         <Card>
           <CardHeader>
@@ -260,7 +255,6 @@ export function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
-      </main>
     </div>
   )
 }

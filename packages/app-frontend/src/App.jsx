@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
-import { AuthGuard } from './components/auth/AuthGuard'
+import { Layout } from './components/layout/Layout'
+import { PrivateLayout } from './components/layout/PrivateLayout'
 import { HomePage } from './pages/HomePage'
 import { ExamplesPage } from './pages/ExamplesPage'
 import { LoginPage } from './pages/LoginPage'
@@ -21,74 +22,30 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/examples" element={<ExamplesPage />} />
-          <Route path="/type-test" element={<TypeTestComponent />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* Public Routes with Layout */}
+          <Route element={<Layout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/examples" element={<ExamplesPage />} />
+            <Route path="/type-test" element={<TypeTestComponent />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+          </Route>
 
-          {/* Character Generation Routes (Private) */}
-          <Route
-            path="/character-generator"
-            element={
-              <AuthGuard>
-                <CharacterGeneratorPage />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/character-gallery"
-            element={
-              <AuthGuard>
-                <CharacterGalleryPage />
-              </AuthGuard>
-            }
-          />
+          {/* Private Routes with PrivateLayout */}
+          <Route element={<PrivateLayout />}>
+            {/* Character Generation Routes */}
+            <Route path="/character-generator" element={<CharacterGeneratorPage />} />
+            <Route path="/character-gallery" element={<CharacterGalleryPage />} />
 
-          {/* Private Routes */}
-          <Route
-            path="/admin"
-            element={
-              <AuthGuard>
-                <AdminDashboard />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/admin/models"
-            element={
-              <AuthGuard>
-                <ModelManagementPage />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/admin/quotas"
-            element={
-              <AuthGuard>
-                <QuotaManagementPage />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/admin/events"
-            element={
-              <AuthGuard>
-                <EventMonitorPage />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/admin/character-presets"
-            element={
-              <AuthGuard>
-                <CharacterPresetManagementPage />
-              </AuthGuard>
-            }
-          />
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/models" element={<ModelManagementPage />} />
+            <Route path="/admin/quotas" element={<QuotaManagementPage />} />
+            <Route path="/admin/events" element={<EventMonitorPage />} />
+            <Route path="/admin/character-presets" element={<CharacterPresetManagementPage />} />
+          </Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>

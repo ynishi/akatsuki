@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ComfyUIModelRepository } from '../../repositories'
 import { ComfyUIModel } from '../../models'
 import { useAuth } from '../../contexts/AuthContext'
-import { TopNavigation } from '../../components/layout/TopNavigation'
 import { EdgeFunctionService } from '../../services'
 
 export function ModelManagementPage() {
@@ -143,26 +142,19 @@ export function ModelManagementPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-        <TopNavigation />
-        <div className="max-w-6xl mx-auto px-8 pt-24">
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Denied</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Please log in to access the admin panel.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Access Denied</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Please log in to access the admin panel.</p>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-      <TopNavigation />
-      <div className="max-w-7xl mx-auto px-8 pt-24 pb-8 space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -197,7 +189,7 @@ export function ModelManagementPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{models.filter(m => m.isPopular()).length}</div>
-              <p className="text-xs text-gray-600">Popular (>10 uses)</p>
+              <p className="text-xs text-gray-600">Popular (&gt;10 uses)</p>
             </CardContent>
           </Card>
           <Card>
@@ -381,7 +373,6 @@ export function ModelManagementPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   )
 }

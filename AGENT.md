@@ -46,7 +46,9 @@ Step 6: 振り返り（docs/に整理）
 
 **実装済みコンポーネント（すぐ使える）:**
 - 認証: `AuthGuard`, `LoginForm`, `SignupForm`
-- レイアウト: `TopNavigation`
+- レイアウト: `Layout`, `PrivateLayout`, `NarrowLayout`, `FullWidthLayout`, `TopNavigation`
+  - `Layout` - デフォルトレイアウト（メニュー・背景・パディング自動提供）
+  - `PrivateLayout` - 認証必須ページ用（AuthGuard + Layout）
 - ストレージ: `FileUpload`
 - AI: `useAIGen`, `useImageGeneration`, `AIService`, `ImageGenerationService`
 - Hooks: `usePublicProfile` (React Query)
@@ -98,7 +100,8 @@ cd workspace && node generate-dummy-data.js
 6. ビルドエラー → `npm run build:frontend` で詳細確認
 
 **🎯 よくあるシチュエーション別クイックジャンプ:**
-- 「新しい画面を作りたい」 → L2018 Template 1: CRUD画面
+- 「新しい画面を作りたい」 → L693「ルーティングパターン」（Layout使用） + L2018 Template 1: CRUD画面
+- 「レイアウト・メニューを変更したい」 → L186「components/layout/」Layout.tsx, TopNavigation
 - 「画像生成機能を追加したい」 → L783「5.1 AIGen統合」+ L2018 Template 3
 - 「ファイルアップロードしたい」 → L783「5.1 AIGen統合」のStorage例
 - 「ユーザー認証を実装したい」 → L574「4.2 認証アーキテクチャ」
@@ -183,15 +186,17 @@ Akatsuki では、保守性と拡張性を重視したレイヤードアーキ�
 src/
 ├── components/      # UIコンポーネント
 │   ├── ui/          # 汎用UIコンポーネント（shadcn/ui）
-│   ├── layout/      # レイアウトコンポーネント（TopNavigation等）
-│   ├── features/    # 【NEW】ドメイン固有のFeatureコンポーネント
+│   ├── layout/      # 【NEW】レイアウトコンポーネント（Layout.tsx, TopNavigation等）
+│   │                # Layout.tsx: 全ページ共通のレイアウト構造（メニュー、背景、パディング）
+│   │                # PrivateLayout.tsx: 認証が必要なページ用Layout
+│   ├── features/    # ドメイン固有のFeatureコンポーネント
 │   │   ├── auth/    # 認証関連（AuthGuard, LoginForm等）
 │   │   ├── ai/      # AI関連（ModelSelector等）
 │   │   ├── storage/ # ストレージ関連（FileUpload等）
 │   │   └── llm/     # LLM Chat関連
 │   └── common/      # その他の共通コンポーネント
-├── pages/          # ページコンポーネント（Container）
-├── hooks/          # 【NEW】Custom Hooks（ビジネスロジック抽出）
+├── pages/          # ページコンポーネント（コンテンツのみ、Layoutは不要）
+├── hooks/          # Custom Hooks（ビジネスロジック抽出）
 ├── contexts/       # Context API（グローバルState）
 ├── models/         # ドメインモデル層
 ├── repositories/   # データアクセス層（DB CRUD）
@@ -274,9 +279,36 @@ src/
    - **例:** `Button.jsx`, `Card.jsx`, `UserCard.jsx`
 
 7. **pages/** - ページコンポーネント
-   - 画面全体の構成
+   - **コンテンツのみ**を返す（Layout, TopNavigation, 背景等は不要）
+   - React Router の `<Outlet />` 経由で Layout.tsx 内にレンダリングされる
    - Containerコンポーネント（Hooksで状態管理）
    - **例:** `HomePage.jsx`, `ProfilePage.jsx`
+   - **パターン:**
+     ```javascript
+     // ✅ 正しい: コンテンツのみを返す
+     export function HomePage() {
+       return (
+         <div className="space-y-8">
+           <h1>Welcome</h1>
+           {/* コンテンツ */}
+         </div>
+       )
+     }
+
+     // ❌ 間違い: Layout要素を含める（Layout.tsxで自動提供される）
+     export function HomePage() {
+       return (
+         <>
+           <TopNavigation />  {/* 不要 */}
+           <div className="min-h-screen bg-gradient...">  {/* 不要 */}
+             <main className="max-w-7xl mx-auto px-8 pt-24">  {/* 不要 */}
+               {/* コンテンツ */}
+             </main>
+           </div>
+         </>
+       )
+     }
+     ```
 
 #### 実装例
 
@@ -663,23 +695,63 @@ src/
 
 #### ルーティングパターン
 
-**Public Routes（ログイン不要）:**
+**Layout.tsx を使った階層化ルーティング:**
+
+Akatsukiでは、`Layout.tsx` により全ページ共通のレイアウト（TopNavigation、背景、パディング）を自動提供します。
+
 ```javascript
-<Route path="/" element={<HomePage />} />
-<Route path="/login" element={<LoginPage />} />
-<Route path="/signup" element={<SignupPage />} />
+// App.jsx
+import { Layout } from './components/layout/Layout'
+import { PrivateLayout } from './components/layout/PrivateLayout'
+
+<BrowserRouter>
+  <AuthProvider>
+    <Routes>
+      {/* Public Routes - Layout で自動的にメニュー・背景が提供される */}
+      <Route element={<Layout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+      </Route>
+
+      {/* Private Routes - PrivateLayout で認証チェック + Layout */}
+      <Route element={<PrivateLayout />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/character-generator" element={<CharacterGeneratorPage />} />
+      </Route>
+    </Routes>
+  </AuthProvider>
+</BrowserRouter>
 ```
 
-**Private Routes（ログイン必須）:**
+**Layoutバリエーション:**
 ```javascript
-<Route
-  path="/admin"
-  element={
-    <AuthGuard>
-      <AdminDashboard />
+// Layout.tsx - デフォルト（max-w-7xl）
+<Route element={<Layout />}>
+  <Route path="/dashboard" element={<DashboardPage />} />
+</Route>
+
+// NarrowLayout - 狭いコンテンツ用（max-w-4xl）
+<Route element={<NarrowLayout />}>
+  <Route path="/article" element={<ArticlePage />} />
+</Route>
+
+// FullWidthLayout - 全幅（w-full）
+<Route element={<FullWidthLayout />}>
+  <Route path="/canvas" element={<CanvasPage />} />
+</Route>
+```
+
+**PrivateLayout の仕組み:**
+```javascript
+// PrivateLayout.tsx
+export function PrivateLayout() {
+  return (
+    <AuthGuard>  {/* 認証チェック */}
+      <Layout />   {/* 認証OKなら通常Layout */}
     </AuthGuard>
-  }
-/>
+  )
+}
 ```
 
 #### 認証機能

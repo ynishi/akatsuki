@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { EventRepository } from '../../repositories'
 import { useAllEvents } from '../../hooks/useEventListener'
 import { useAuth } from '../../contexts/AuthContext'
-import { TopNavigation } from '../../components/layout/TopNavigation'
 
 export function EventMonitorPage() {
   const { user } = useAuth()
@@ -107,26 +106,19 @@ export function EventMonitorPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-        <TopNavigation />
-        <div className="max-w-6xl mx-auto px-8 pt-24">
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Denied</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Please log in to access the admin panel.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Access Denied</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Please log in to access the admin panel.</p>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-      <TopNavigation />
-      <div className="max-w-7xl mx-auto px-8 pt-24 pb-8 space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -282,7 +274,6 @@ export function EventMonitorPage() {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   )
 }
