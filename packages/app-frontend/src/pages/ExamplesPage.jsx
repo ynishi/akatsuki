@@ -18,10 +18,11 @@ import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
 import { TopNavigation } from '../components/layout/TopNavigation'
-import { useImageGeneration, useEventListener } from '../hooks'
+import { useImageGeneration, useEventListener, useJob } from '../hooks'
 import { PublicProfile } from '../models/PublicProfile'
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
+import { JobProgress } from '../components/common/JobProgress'
 
 export function ExamplesPage() {
   const { user } = useAuth()
@@ -127,6 +128,13 @@ export function ExamplesPage() {
   const [eventResult, setEventResult] = useState(null)
   const [eventEmitting, setEventEmitting] = useState(false)
   const [receivedEvents, setReceivedEvents] = useState([])
+
+  // Async Job System states
+  const [jobId, setJobId] = useState(null)
+  const [jobStarting, setJobStarting] = useState(false)
+  const [reportType, setReportType] = useState('sales')
+  const [startDate, setStartDate] = useState('2025-01-01')
+  const [endDate, setEndDate] = useState('2025-01-31')
 
   // Real-time event listener
   useEventListener(['test.demo', 'image.generated', 'quota.warning'], (event) => {
@@ -555,6 +563,32 @@ export function ExamplesPage() {
       setEventResult({ error: error.message })
     } finally {
       setEventEmitting(false)
+    }
+  }
+
+  // Async Job: Start job
+  const handleStartJob = async () => {
+    if (!user) {
+      alert('ログインが必要です')
+      return
+    }
+
+    try {
+      setJobStarting(true)
+
+      // Emit job event
+      const event = await EventService.emit('job:generate-report', {
+        reportType,
+        startDate,
+        endDate,
+      })
+
+      setJobId(event.id)
+    } catch (error) {
+      console.error('Job start error:', error)
+      alert(`Error: ${error.message}`)
+    } finally {
+      setJobStarting(false)
     }
   }
 
@@ -2027,6 +2061,153 @@ useEventListener(['test.demo'], (event) => {
             {!user && (
               <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
                 <strong>Note:</strong> イベント発行には
+                <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                  ログイン
+                </Link>
+                が必要です
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Async Job System Demo */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Async Job System (CRON-based)</CardTitle>
+            <CardDescription>
+              非同期ジョブ実行システム + 進捗トラッキングのデモ（CRON処理、最大1分待機）
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { EventService } from './services/EventService'
+import { useJob } from './hooks/useJob'
+import { JobProgress } from './components/common/JobProgress'
+
+// ジョブ起動（system_events にレコード作成）
+const event = await EventService.emit('job:generate-report', {
+  reportType: 'sales',
+  startDate: '2025-01-01',
+  endDate: '2025-01-31'
+})
+
+// 進捗監視（Realtimeで自動更新）
+const { progress, isCompleted, result } = useJob(event.id, {
+  onComplete: (result) => {
+    console.log('Job completed!', result)
+  }
+})
+
+// UI表示
+<JobProgress jobId={event.id} title="Sales Report" />`}</code>
+            </pre>
+
+            <div className="bg-blue-50 p-3 rounded-lg text-sm space-y-2">
+              <p className="font-semibold">システム概要:</p>
+              <ul className="text-xs text-gray-700 space-y-1 ml-4 list-disc">
+                <li>ジョブは <code>system_events</code> テーブルに保存（event_type: job:*）</li>
+                <li>CRON（毎分実行）が自動的にジョブを検出して処理</li>
+                <li>最大1分の待機時間で処理開始（Edge Function タイムアウトなし）</li>
+                <li>進捗はRealtime経由でフロントエンドに自動配信（0-100%）</li>
+                <li>完了時は結果をJSONで保存、Realtime通知</li>
+              </ul>
+            </div>
+
+            {/* Job Creation Form */}
+            <div className="space-y-3 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-700">📤 Start Job</h3>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">Report Type</label>
+                <Select value={reportType} onValueChange={setReportType}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sales">Sales Report</SelectItem>
+                    <SelectItem value="user-activity">User Activity</SelectItem>
+                    <SelectItem value="financial">Financial Summary</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Start Date</label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">End Date</label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <Button
+                variant="gradient"
+                onClick={handleStartJob}
+                disabled={jobStarting || !user}
+                className="w-full"
+              >
+                {jobStarting ? 'Starting Job...' : user ? 'Start Report Generation' : 'Login Required'}
+              </Button>
+
+              {jobId && (
+                <div className="bg-green-50 p-3 rounded-lg text-sm">
+                  <strong>✓ Job Created!</strong>
+                  <div className="mt-1 text-xs">
+                    <div><strong>Job ID:</strong> {jobId?.substring(0, 16)}...</div>
+                    <div className="text-gray-600 mt-1">
+                      💡 CRONが1分以内に処理を開始します。下記で進捗を確認できます。
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Job Progress Monitor */}
+            {jobId && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-700">📊 Job Progress Monitor</h3>
+                <JobProgress
+                  jobId={jobId}
+                  title={`${reportType.toUpperCase()} Report (${startDate} ~ ${endDate})`}
+                  onComplete={(result) => {
+                    console.log('Job completed!', result)
+                  }}
+                  renderResult={(result) => (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-white p-3 rounded">
+                          <p className="text-xs text-gray-600">Records</p>
+                          <p className="text-2xl font-bold text-blue-600">{result.records}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded">
+                          <p className="text-xs text-gray-600">Revenue</p>
+                          <p className="text-2xl font-bold text-green-600">${result.revenue}</p>
+                        </div>
+                      </div>
+                      <div className="bg-white p-3 rounded text-xs text-gray-600">
+                        <strong>Generated:</strong> {new Date(result.generatedAt).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            )}
+
+            {!user && (
+              <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                <strong>Note:</strong> ジョブ実行には
                 <Link to="/login" className="text-blue-600 hover:underline mx-1">
                   ログイン
                 </Link>
