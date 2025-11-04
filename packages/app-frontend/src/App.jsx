@@ -14,6 +14,7 @@ import { EventMonitorPage } from './pages/admin/EventMonitorPage'
 import { CharacterPresetManagementPage } from './pages/admin/CharacterPresetManagementPage'
 import { CharacterGeneratorPage } from './pages/CharacterGeneratorPage'
 import { CharacterGalleryPage } from './pages/CharacterGalleryPage'
+import { TypeTestComponent } from './TypeTestComponent'
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/examples" element={<ExamplesPage />} />
+          <Route path="/type-test" element={<TypeTestComponent />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
