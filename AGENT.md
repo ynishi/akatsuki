@@ -40,7 +40,8 @@ Step 6: 振り返り（docs/に整理）
 - 🏗️ **Component設計**: L131「4.1 フロントエンドアーキテクチャ」
 - 🗄️ **DB変更・マイグレーション**: L1204「6.1 ワークフロー」
 - 🔐 **認証・RLS**: L574「4.2 認証アーキテクチャ」+ L2890「RLS ベストプラクティス」
-- 📡 **Event System**: L2842「Event System（イベント駆動）」
+- 📡 **Event System**: L2855「Event System（イベント駆動）」
+- ⚙️ **Async Job System**: L2903「Async Job System（非同期ジョブ実行）」
 - 📦 **技術スタック全体**: L131「4. 技術スタック」
 
 **実装済みコンポーネント（すぐ使える）:**
@@ -85,8 +86,9 @@ cd workspace && node generate-dummy-data.js
 - 「ユーザー認証を実装したい」 → L574「4.2 認証アーキテクチャ」
 - 「データベーステーブル追加したい」 → L1204「6.1 マイグレーション」
 - 「React Queryのキャッシュがおかしい」 → L2359「9.2 よくあるトラブル」
-- 「RLSポリシーでエラーになる」 → L2890「RLS ベストプラクティス」
-- 「イベント駆動で通知したい」 → L2842「Event System」
+- 「RLSポリシーでエラーになる」 → L2903「RLS ベストプラクティス」
+- 「イベント駆動で通知したい」 → L2855「Event System」
+- 「長時間ジョブを実行したい」 → L2903「Async Job System」
 
 ## 3. アーキテクチャ概要 (Architecture)
 
@@ -2899,6 +2901,106 @@ useEventListener('image.generated', (event) => {
 **Admin UI:** `/admin/events` でリアルタイム監視可能
 
 詳細は `workspace/event-system-guide.md` を参照してください。
+
+### Async Job System (非同期ジョブ実行)
+
+Event Systemを拡張した、長時間実行タスク向けの非同期ジョブシステムです。
+
+**特徴:**
+- **CRON駆動**: Edge Functionタイムアウト（1分）を回避
+- **進捗トラッキング**: 0-100%の進捗をRealtime配信
+- **最大1分待機**: ジョブ起動から処理開始まで最大1分のディレイ（許容範囲）
+- **シンプルAPI**: `EventService.emit('job:*')` でジョブ起動
+
+**アーキテクチャ:**
+```
+EventService.emit('job:*') → system_events (pending)
+  ↓ (最大1分待機)
+Cron → process-events → handlers.ts
+  ↓ (進捗更新: 0% → 50% → 100%)
+Realtime → Frontend (useJob Hook)
+  ↓
+JobProgress Component (UI表示)
+```
+
+**使用例（Backend - 新しいジョブハンドラー追加）:**
+```typescript
+// supabase/functions/execute-async-job/handlers.ts
+export const jobHandlers: Record<string, JobHandler> = {
+  'generate-report': async (params, context) => {
+    const { reportType, startDate, endDate } = params
+
+    // Step 1: 初期化 (20%)
+    await context.updateProgress(20)
+    console.log(`Generating ${reportType} report`)
+
+    // Step 2: データ取得 (60%)
+    const data = await fetchReportData(startDate, endDate)
+    await context.updateProgress(60)
+
+    // Step 3: 処理 (90%)
+    const result = await processData(data)
+    await context.updateProgress(90)
+
+    // Step 4: 結果返却（100%は自動設定）
+    return {
+      records: result.length,
+      revenue: result.totalRevenue,
+      generatedAt: new Date().toISOString()
+    }
+  }
+}
+```
+
+**使用例（Frontend - ジョブ起動と監視）:**
+```javascript
+import { EventService } from './services/EventService'
+import { useJob } from './hooks/useJob'
+import { JobProgress } from './components/common/JobProgress'
+
+// ジョブ起動
+const event = await EventService.emit('job:generate-report', {
+  reportType: 'sales',
+  startDate: '2025-01-01',
+  endDate: '2025-01-31'
+})
+
+// 進捗監視（Realtime自動更新）
+const { progress, isCompleted, result } = useJob(event.id, {
+  onComplete: (result) => {
+    toast.success('レポート生成完了！')
+    console.log(result)
+  }
+})
+
+// UI表示
+<JobProgress
+  jobId={event.id}
+  title="Sales Report"
+  renderResult={(result) => (
+    <div>
+      <p>Records: {result.records}</p>
+      <p>Revenue: ${result.revenue}</p>
+    </div>
+  )}
+/>
+```
+
+**実装済みジョブタイプ:**
+- `job:generate-report` - レポート生成（サンプル実装）
+
+**データベーススキーマ拡張:**
+```sql
+-- system_events テーブルに追加されたカラム
+ALTER TABLE system_events
+  ADD COLUMN progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100);
+  ADD COLUMN result JSONB;
+  ADD COLUMN processing_started_at TIMESTAMPTZ;
+```
+
+**デモ:** `/examples` ページで動作確認可能
+
+詳細は `docs/design/async_job_system.md` を参照してください。
 
 ### RLS ベストプラクティス
 
