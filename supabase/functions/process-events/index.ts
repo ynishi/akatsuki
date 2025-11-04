@@ -3,9 +3,12 @@
  *
  * Processes pending system events by invoking registered handlers
  * Called by Cron every minute
+ *
+ * Now supports job:* events for async job processing
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { jobHandlers } from '../execute-async-job/handlers.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -56,7 +59,7 @@ Deno.serve(async (req) => {
 
     console.log(`Processing ${events.length} events`)
 
-    // Get active handlers
+    // Get active handlers (for non-job events)
     const { data: handlers, error: handlersError } = await supabase
       .from('event_handlers')
       .select('*')
@@ -75,6 +78,12 @@ Deno.serve(async (req) => {
     // Process each event
     const results = await Promise.allSettled(
       events.map(async (event: SystemEvent) => {
+        // ========== JOB PROCESSING (job:* events) ==========
+        if (event.event_type.startsWith('job:')) {
+          return await processJob(supabase, event)
+        }
+
+        // ========== REGULAR EVENT PROCESSING ==========
         const handler = handlerMap.get(event.event_type)
 
         if (!handler) {
@@ -175,3 +184,97 @@ Deno.serve(async (req) => {
     )
   }
 })
+
+// ========== JOB PROCESSING FUNCTION ==========
+async function processJob(supabase: any, event: SystemEvent) {
+  const jobType = event.event_type.replace('job:', '')
+  const handler = jobHandlers[jobType]
+
+  if (!handler) {
+    console.warn(`No handler for job type: ${jobType}`)
+    await supabase.rpc('complete_event', { event_id: event.id })
+    return {
+      eventId: event.id,
+      eventType: event.event_type,
+      status: 'completed',
+      message: 'No handler registered'
+    }
+  }
+
+  try {
+    // Mark as processing
+    await supabase
+      .from('system_events')
+      .update({
+        status: 'processing',
+        processing_started_at: new Date().toISOString()
+      })
+      .eq('id', event.id)
+
+    console.log(`▶ Processing job ${event.id} (type: ${jobType})`)
+
+    // Progress update helper
+    const updateProgress = async (progress: number) => {
+      await supabase
+        .from('system_events')
+        .update({ progress: Math.min(100, Math.max(0, progress)) })
+        .eq('id', event.id)
+    }
+
+    // Context for handler
+    const context = {
+      supabase,
+      jobId: event.id,
+      updateProgress
+    }
+
+    // Execute handler
+    const result = await handler(event.payload, context)
+
+    // Mark as completed
+    await supabase
+      .from('system_events')
+      .update({
+        status: 'completed',
+        progress: 100,
+        result,
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', event.id)
+
+    console.log(`✓ Job ${event.id} completed successfully`)
+
+    return {
+      eventId: event.id,
+      eventType: event.event_type,
+      status: 'completed',
+      result
+    }
+
+  } catch (error: any) {
+    console.error(`✗ Job ${event.id} failed:`, error)
+
+    await supabase
+      .from('system_events')
+      .update({
+        status: 'failed',
+        error_message: error.message || 'Unknown error',
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', event.id)
+
+    // Retry logic via fail_event RPC
+    await supabase.rpc('fail_event', {
+      event_id: event.id,
+      error_msg: error.message || String(error)
+    })
+
+    return {
+      eventId: event.id,
+      eventType: event.event_type,
+      status: 'failed',
+      error: error.message,
+      retryCount: event.retry_count + 1
+    }
+  }
+}
