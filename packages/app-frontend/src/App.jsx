@@ -12,6 +12,9 @@ import { AdminDashboard } from './pages/AdminDashboard'
 import { ModelManagementPage } from './pages/admin/ModelManagementPage'
 import { QuotaManagementPage } from './pages/admin/QuotaManagementPage'
 import { EventMonitorPage } from './pages/admin/EventMonitorPage'
+import { WebhookManagementPage } from './pages/admin/WebhookManagementPage'
+import { WebhookLogsPage } from './pages/admin/WebhookLogsPage'
+import { WebhookTestPage } from './pages/admin/WebhookTestPage'
 import { TypeTestComponent } from './TypeTestComponent'
 
 function App() {
@@ -37,6 +40,9 @@ function App() {
             <Route path="/admin/models" element={<ModelManagementPage />} />
             <Route path="/admin/quotas" element={<QuotaManagementPage />} />
             <Route path="/admin/events" element={<EventMonitorPage />} />
+            <Route path="/admin/webhooks" element={<WebhookManagementPage />} />
+            <Route path="/admin/webhooks/logs" element={<WebhookLogsPage />} />
+            <Route path="/admin/webhooks/test" element={<WebhookTestPage />} />
           </Route>
         </Routes>
       </AuthProvider>

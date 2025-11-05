@@ -169,6 +169,13 @@ export function AdminDashboard() {
               >
                 🔴 Event Monitor
               </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate('/admin/webhooks')}
+              >
+                🔗 Webhook管理
+              </Button>
               <Button variant="secondary" className="w-full">
                 📊 統計・レポート
               </Button>
