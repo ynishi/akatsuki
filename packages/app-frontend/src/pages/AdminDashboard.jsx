@@ -176,6 +176,20 @@ export function AdminDashboard() {
               >
                 🔗 Webhook管理
               </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate('/admin/function-definitions')}
+              >
+                🤖 Function定義管理
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate('/admin/function-calls')}
+              >
+                📝 Function Call実行ログ
+              </Button>
               <Button variant="secondary" className="w-full">
                 📊 統計・レポート
               </Button>
