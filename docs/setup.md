@@ -645,7 +645,6 @@ paplay /usr/share/sounds/freedesktop/stereo/complete.oga
 セットアップが完了したら、以下のドキュメントを参照してください：
 
 - **`AGENT.md`** - 開発憲章（設計思想、アーキテクチャ、ルール）
-- **`docs/SUPABASE_CONFIGURATION.md`** - Supabase 設定の詳細
 - **`packages/app-backend/README.md`** - Backend API の詳細
 
 ---

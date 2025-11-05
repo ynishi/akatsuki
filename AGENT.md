@@ -2977,7 +2977,6 @@ npx supabase secrets list
 - **system_events**: イベントキュー（非同期ジョブ処理）
 - **event_handlers**: イベントハンドラー設定
 
-詳細は `docs/SUPABASE_CONFIGURATION.md` を参照してください。
 
 ### Event System (イベント駆動アーキテクチャ)
 
