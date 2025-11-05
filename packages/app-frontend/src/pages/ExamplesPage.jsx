@@ -2686,6 +2686,74 @@ createAlias({
             </div>
           </CardContent>
         </Card>
+
+        {/* Function Call Admin */}
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-2xl">🤖</span>
+              Function Call System
+            </CardTitle>
+            <CardDescription>
+              LLM Function Calling実行ログの管理画面
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-white p-4 rounded-lg space-y-3">
+              <h3 className="font-semibold text-gray-700">📊 管理画面</h3>
+              <p className="text-sm text-gray-600">
+                OpenAI/Anthropic/GeminiによるFunction Call実行履歴を確認・監視できます
+              </p>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant="outline" className="bg-green-50">Sync</Badge>
+                  <span className="text-gray-600">即座に実行される関数（例: query_database）</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant="outline" className="bg-purple-50">Async</Badge>
+                  <span className="text-gray-600">Job Systemで非同期実行される関数（例: generate_image）</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Link to="/admin/function-definitions">
+                  <Button className="w-full mt-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                    Function 定義管理
+                  </Button>
+                </Link>
+                <Link to="/admin/function-calls">
+                  <Button className="w-full mt-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                    実行ログを確認
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-lg text-xs text-gray-700">
+              <p className="font-semibold mb-1">💡 Function Call機能:</p>
+              <ul className="list-disc ml-4 space-y-1">
+                <li>LLMが自律的にシステム機能を呼び出し可能</li>
+                <li>全実行ログを記録、エラー追跡・デバッグに活用</li>
+                <li>Sync/Async実行タイプの選択可能</li>
+                <li>LLM呼び出しログと紐付けて会話の文脈を追跡</li>
+                <li>Job Systemと統合、長時間処理も安全に実行</li>
+              </ul>
+            </div>
+
+            <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-3 rounded-lg">
+              <p className="text-xs font-semibold text-gray-700 mb-2">🔧 利用可能な関数（例）:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <code className="bg-white px-2 py-1 rounded">send_webhook</code>
+                <code className="bg-white px-2 py-1 rounded">query_database</code>
+                <code className="bg-white px-2 py-1 rounded">send_notification</code>
+                <code className="bg-white px-2 py-1 rounded">generate_image</code>
+                <code className="bg-white px-2 py-1 rounded">aggregate_data</code>
+                <code className="bg-white px-2 py-1 rounded">...</code>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
     </div>
   )
 }

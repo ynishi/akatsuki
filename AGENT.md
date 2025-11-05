@@ -42,6 +42,7 @@ Step 6: 振り返り（docs/に整理）
 - 🔐 **認証・RLS**: L574「4.2 認証アーキテクチャ」+ L2890「RLS ベストプラクティス」
 - 📡 **Event System**: L2855「Event System（イベント駆動）」
 - ⚙️ **Async Job System**: L2903「Async Job System（非同期ジョブ実行）」
+- 🤖 **Function Call System**: 「LLM Function Calling統合」（後述）
 - 📦 **技術スタック全体**: L131「4. 技術スタック」
 
 **実装済みコンポーネント（すぐ使える）:**
@@ -3184,6 +3185,244 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
 詳細は `docs/setup.md` の「4.6. Supabase Realtime 設定」を参照してください。
+
+---
+
+## 11. LLM Function Calling System
+
+Akatsukiは、LLMが自律的にシステム機能を呼び出せる**Function Call System**を標準搭載しています。
+
+### 11.1. アーキテクチャ概要
+
+```
+┌─────────────────────────────────────────┐
+│ Frontend Admin UI                        │
+│  /admin/function-definitions             │
+│  → Function定義のCRUD                     │
+└─────────────────────────────────────────┘
+              ↓ INSERT/UPDATE
+┌─────────────────────────────────────────┐
+│ function_call_definitions (DB)          │
+│  - name, description                    │
+│  - parameters_schema (JSON Schema)      │
+│  - target_event_type                    │
+│  - is_enabled, is_global                │
+└─────────────────────────────────────────┘
+              ↓ SELECT
+┌─────────────────────────────────────────┐
+│ ai-chat Edge Function                   │
+│  1. DBからFunction定義読み込み           │
+│  2. LLMにスキーマ注入                    │
+│  3. Function Call検出                   │
+│  4. system_events にJob登録             │
+│  5. function_call_logs 記録             │
+└─────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────┐
+│ Job System                              │
+│  ← 実行ロジックは別途実装               │
+│  （Job Handler / Webhook / 独自）       │
+└─────────────────────────────────────────┘
+```
+
+### 11.2. 設計思想
+
+**重要な分離:**
+- **Function定義 = スキーマのみ（DB管理）**
+- **実行ロジック = 別の層で実装**
+
+この設計により：
+- ✅ プロバイダー非依存（OpenAI/Anthropic/Gemini共通）
+- ✅ 実行基盤はJob Systemで統一
+- ✅ ユーザーが独自Functionを登録可能（LLM Platform型アプリも作れる）
+- ✅ VibeCodingで柔軟にカスタマイズ可能
+
+### 11.3. データベーススキーマ
+
+**function_call_definitions テーブル:**
+```sql
+CREATE TABLE function_call_definitions (
+  id UUID PRIMARY KEY,
+  user_id UUID,  -- NULL = global function
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  parameters_schema JSONB NOT NULL,  -- JSON Schema
+  target_event_type TEXT NOT NULL,   -- e.g., 'job:send_webhook'
+  is_enabled BOOLEAN DEFAULT true,
+  is_global BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+);
+```
+
+**function_call_logs テーブル:**
+```sql
+CREATE TABLE function_call_logs (
+  id UUID PRIMARY KEY,
+  llm_call_log_id UUID,  -- LLM呼び出しとの紐付け
+  user_id UUID,
+  function_name TEXT NOT NULL,
+  function_arguments JSONB NOT NULL,
+  execution_type TEXT NOT NULL,  -- 'async' (全てJob経由)
+  status TEXT NOT NULL,  -- 'pending' | 'success' | 'failed'
+  result JSONB,
+  error_message TEXT,
+  system_event_id UUID,  -- Job ID
+  execution_time_ms INTEGER,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ
+);
+```
+
+### 11.4. 使い方
+
+**1. Function定義を追加（Admin UI）**
+
+`/admin/function-definitions` にアクセス:
+- Function名: `send_webhook`
+- 説明: `Send HTTP webhook to external service`
+- Parameters Schema (JSON Schema):
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": { "type": "string", "description": "Webhook URL" },
+    "method": { "type": "string", "enum": ["GET", "POST"] },
+    "body": { "type": "object" }
+  },
+  "required": ["url"]
+}
+```
+- Target Event Type: `job:send_webhook`
+- 有効化 + グローバル設定
+
+**2. LLMがFunction Callを使用（Frontend）**
+
+```javascript
+import { AIService } from './services/ai/AIService'
+
+const { data } = await AIService.chat({
+  provider: 'openai',
+  prompt: 'Send a webhook to https://example.com with message "Hello"',
+  enableFunctionCalling: true,  // Function Calling有効化
+})
+
+// → LLMが send_webhook を呼び出し
+// → system_events に 'job:send_webhook' 登録
+// → Job Systemが処理実行（Job Handlerが必要）
+```
+
+**3. 実行ロジックを実装（Job Handler）**
+
+```typescript
+// supabase/functions/execute-async-job/handlers.ts
+export const jobHandlers: Record<string, JobHandler> = {
+  'send_webhook': async (params, context) => {
+    // Webhookを実際に送信
+    const response = await fetch(params.url, {
+      method: params.method || 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params.body),
+    })
+
+    return {
+      success: response.ok,
+      result: { status: response.status },
+    }
+  },
+}
+```
+
+**4. 実行ログを確認**
+
+`/admin/function-calls` にアクセス:
+- 成功/失敗
+- 引数・結果
+- 実行時間
+- LLM呼び出しとの紐付け
+
+### 11.5. サンプル関数（Seed済み）
+
+Akatsukiには5つのサンプルFunction定義が含まれています：
+
+| 関数名 | 説明 | Event Type |
+|--------|------|------------|
+| `send_webhook` | Webhook送信 | `job:send_webhook` |
+| `query_database` | DBクエリ実行 | `job:query_database` |
+| `send_notification` | 通知送信 | `job:send_notification` |
+| `generate_image` | AI画像生成 | `job:generate_image` |
+| `aggregate_data` | データ集計 | `job:aggregate_data` |
+
+これらは参考実装です。実際の実行ロジックは別途実装してください。
+
+### 11.6. VibeCodingでの拡張
+
+**新しいFunctionを追加する場合:**
+
+1. Admin UIで新しいFunction定義を作成
+2. Job Handlerに実行ロジックを実装
+3. デプロイ
+
+```typescript
+// supabase/functions/execute-async-job/handlers.ts に追加
+export const jobHandlers: Record<string, JobHandler> = {
+  // 既存...
+
+  'my_custom_function': async (params, context) => {
+    // 独自処理を実装
+    return { success: true, result: { ... } }
+  },
+}
+```
+
+### 11.7. ユースケース例
+
+**1. シンプルなアプリ（開発者が関数定義）**
+- Function定義: Admin UIで管理
+- 実行ロジック: Job Handlerにハードコード
+- 用途: 自社アプリのAI機能強化
+
+**2. LLM Platform（ユーザーが関数登録）**
+- Function定義: ユーザーがUI経由で登録
+- 実行ロジック: Webhook (Out) で外部連携
+- 用途: Zapier/Make.com的なプラットフォーム
+
+**3. ハイブリッド**
+- グローバル関数: 管理者が定義
+- ユーザー関数: 各ユーザーが独自に追加
+- 用途: エンタープライズAIプラットフォーム
+
+### 11.8. ベストプラクティス
+
+**Function定義:**
+- ✅ 明確な責務（1 Function = 1機能）
+- ✅ JSON Schema でパラメータを厳密に定義
+- ✅ `target_event_type` は `job:` プレフィックスを使用
+
+**実行ロジック:**
+- ✅ Job Handler でエラーハンドリング
+- ✅ 進捗更新（長時間処理の場合）
+- ✅ 監査ログを活用
+
+**セキュリティ:**
+- ✅ RLSでFunction定義へのアクセス制限
+- ✅ 危険な操作はAdmin専用にする
+- ✅ function_call_logs で全実行を記録
+
+### 11.9. 管理画面
+
+**Function定義管理:** `/admin/function-definitions`
+- Function一覧・作成・編集・削除
+- JSON Schema編集
+- 有効/無効切り替え
+- Global/User切り替え
+
+**実行ログ閲覧:** `/admin/function-calls`
+- 実行履歴一覧
+- フィルター（Function名、ステータス）
+- 詳細表示（引数、結果、エラー）
+- 統計情報
 
 ---
 

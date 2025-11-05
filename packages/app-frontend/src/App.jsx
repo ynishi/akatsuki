@@ -15,6 +15,8 @@ import { EventMonitorPage } from './pages/admin/EventMonitorPage'
 import { WebhookManagementPage } from './pages/admin/WebhookManagementPage'
 import { WebhookLogsPage } from './pages/admin/WebhookLogsPage'
 import { WebhookTestPage } from './pages/admin/WebhookTestPage'
+import { FunctionCallLogsPage } from './pages/admin/FunctionCallLogsPage'
+import { FunctionDefinitionsPage } from './pages/admin/FunctionDefinitionsPage'
 import { TypeTestComponent } from './TypeTestComponent'
 
 function App() {
@@ -43,6 +45,8 @@ function App() {
             <Route path="/admin/webhooks" element={<WebhookManagementPage />} />
             <Route path="/admin/webhooks/logs" element={<WebhookLogsPage />} />
             <Route path="/admin/webhooks/test" element={<WebhookTestPage />} />
+            <Route path="/admin/function-calls" element={<FunctionCallLogsPage />} />
+            <Route path="/admin/function-definitions" element={<FunctionDefinitionsPage />} />
           </Route>
         </Routes>
       </AuthProvider>

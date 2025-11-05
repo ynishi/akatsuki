@@ -9,12 +9,13 @@ import OpenAI from 'https://esm.sh/openai@4'
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.24.3'
 import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.12.0'
 import {
-  createFunctionRegistry,
-  executeFunctionCall,
+  loadFunctionDefinitions,
   toOpenAITools,
   toAnthropicTools,
   toGeminiFunctionDeclarations,
-} from './function_registry.ts'
+  findFunctionByName,
+  registerFunctionCallAsJob,
+} from './function_loader.ts'
 
 // IN型定義（Zodスキーマ）
 const InputSchema = z.object({
@@ -106,9 +107,10 @@ Deno.serve(async (req) => {
       let llmCallLogId: string | undefined
       const executedFunctionCalls: Array<{ name: string; arguments: Record<string, any>; result: any }> = []
 
-      // Function Registry (if enabled)
-      const functionRegistry = input.enableFunctionCalling ? createFunctionRegistry() : null
-      const availableFunctions = functionRegistry ? Array.from(functionRegistry.values()) : []
+      // Load Function Definitions from DB (if enabled)
+      const availableFunctions = input.enableFunctionCalling
+        ? await loadFunctionDefinitions(user.id, adminClient)
+        : []
 
       try {
         // 5. Provider別のLLM API呼び出し
@@ -141,17 +143,32 @@ Deno.serve(async (req) => {
                 const funcName = toolCall.function.name
                 const funcArgs = JSON.parse(toolCall.function.arguments)
 
-                const result = await executeFunctionCall(
-                  funcName,
+                // Find function definition
+                const funcDef = findFunctionByName(availableFunctions, funcName)
+                if (!funcDef) {
+                  console.error(`[ai-chat] Function not found: ${funcName}`)
+                  continue
+                }
+
+                // Register to Job System
+                const result = await registerFunctionCallAsJob(
+                  funcDef,
                   funcArgs,
-                  { userId: user.id, userClient, adminClient, llmCallLogId },
-                  functionRegistry!
+                  user.id,
+                  adminClient,
+                  llmCallLogId
                 )
 
                 executedFunctionCalls.push({
                   name: funcName,
                   arguments: funcArgs,
-                  result: result.result,
+                  result: {
+                    success: result.success,
+                    event_id: result.eventId,
+                    message: result.success
+                      ? `Function '${funcName}' scheduled for execution (Job ID: ${result.eventId})`
+                      : `Failed to schedule function: ${result.error}`,
+                  },
                 })
 
                 // Add function result to messages and re-call LLM
@@ -159,7 +176,12 @@ Deno.serve(async (req) => {
                 params.messages.push({
                   role: 'tool',
                   tool_call_id: toolCall.id,
-                  content: JSON.stringify(result.result),
+                  content: JSON.stringify({
+                    success: result.success,
+                    message: result.success
+                      ? `Function '${funcName}' has been scheduled for execution. Job ID: ${result.eventId}`
+                      : `Error: ${result.error}`,
+                  }),
                 })
               }
 
@@ -212,17 +234,32 @@ Deno.serve(async (req) => {
                 const funcName = toolUse.name
                 const funcArgs = toolUse.input
 
-                const result = await executeFunctionCall(
-                  funcName,
+                // Find function definition
+                const funcDef = findFunctionByName(availableFunctions, funcName)
+                if (!funcDef) {
+                  console.error(`[ai-chat] Function not found: ${funcName}`)
+                  continue
+                }
+
+                // Register to Job System
+                const result = await registerFunctionCallAsJob(
+                  funcDef,
                   funcArgs,
-                  { userId: user.id, userClient, adminClient, llmCallLogId },
-                  functionRegistry!
+                  user.id,
+                  adminClient,
+                  llmCallLogId
                 )
 
                 executedFunctionCalls.push({
                   name: funcName,
                   arguments: funcArgs,
-                  result: result.result,
+                  result: {
+                    success: result.success,
+                    event_id: result.eventId,
+                    message: result.success
+                      ? `Function '${funcName}' scheduled for execution (Job ID: ${result.eventId})`
+                      : `Failed to schedule function: ${result.error}`,
+                  },
                 })
 
                 // Add function result to messages and re-call
@@ -232,7 +269,12 @@ Deno.serve(async (req) => {
                   content: [{
                     type: 'tool_result',
                     tool_use_id: toolUse.id,
-                    content: JSON.stringify(result.result),
+                    content: JSON.stringify({
+                      success: result.success,
+                      message: result.success
+                        ? `Function '${funcName}' has been scheduled for execution. Job ID: ${result.eventId}`
+                        : `Error: ${result.error}`,
+                    }),
                   }],
                 })
               }
@@ -285,24 +327,44 @@ Deno.serve(async (req) => {
                 const funcName = funcCall.name
                 const funcArgs = funcCall.args
 
-                const execResult = await executeFunctionCall(
-                  funcName,
+                // Find function definition
+                const funcDef = findFunctionByName(availableFunctions, funcName)
+                if (!funcDef) {
+                  console.error(`[ai-chat] Function not found: ${funcName}`)
+                  continue
+                }
+
+                // Register to Job System
+                const execResult = await registerFunctionCallAsJob(
+                  funcDef,
                   funcArgs,
-                  { userId: user.id, userClient, adminClient, llmCallLogId },
-                  functionRegistry!
+                  user.id,
+                  adminClient,
+                  llmCallLogId
                 )
 
                 executedFunctionCalls.push({
                   name: funcName,
                   arguments: funcArgs,
-                  result: execResult.result,
+                  result: {
+                    success: execResult.success,
+                    event_id: execResult.eventId,
+                    message: execResult.success
+                      ? `Function '${funcName}' scheduled for execution (Job ID: ${execResult.eventId})`
+                      : `Failed to schedule function: ${execResult.error}`,
+                  },
                 })
 
                 // Send function result back
                 result = await chat.sendMessage([{
                   functionResponse: {
                     name: funcName,
-                    response: execResult.result,
+                    response: {
+                      success: execResult.success,
+                      message: execResult.success
+                        ? `Function '${funcName}' has been scheduled for execution. Job ID: ${execResult.eventId}`
+                        : `Error: ${execResult.error}`,
+                    },
                   },
                 }])
               }
