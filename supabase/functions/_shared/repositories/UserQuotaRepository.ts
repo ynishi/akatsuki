@@ -168,18 +168,7 @@ export class UserQuotaRepository extends BaseRepository {
    * @returns 更新されたレコード
    */
   async incrementUsage(quotaId: string): Promise<any> {
-    // RPC関数を使う場合（より安全）
-    const { data, error } = await this.supabase.rpc('increment_quota_usage', {
-      quota_id: quotaId,
-    })
-
-    if (error) {
-      console.error('[UserQuotaRepository] incrementUsage error:', error)
-      // フォールバック: 直接UPDATE
-      return await this.incrementUsageDirect(quotaId)
-    }
-
-    return data
+    return await this.incrementUsageDirect(quotaId)
   }
 
   /**

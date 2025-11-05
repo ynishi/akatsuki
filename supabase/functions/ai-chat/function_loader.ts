@@ -65,13 +65,51 @@ export function toAnthropicTools(functions: DbFunctionDefinition[]) {
 }
 
 /**
+ * Clean JSON Schema for Gemini API
+ * Gemini only supports a limited subset of OpenAPI 3.0 schema
+ * Removes unsupported fields: additionalProperties, default, optional, maximum, oneOf
+ */
+function cleanSchemaForGemini(schema: Record<string, any>): Record<string, any> {
+  if (!schema || typeof schema !== 'object') return schema
+
+  const cleaned: Record<string, any> = {}
+
+  for (const [key, value] of Object.entries(schema)) {
+    // Skip unsupported fields
+    if (['additionalProperties', 'default', 'optional', 'maximum', 'oneOf'].includes(key)) {
+      continue
+    }
+
+    // Recursively clean nested objects
+    if (key === 'properties' && typeof value === 'object') {
+      cleaned[key] = {}
+      for (const [propKey, propValue] of Object.entries(value as Record<string, any>)) {
+        cleaned[key][propKey] = cleanSchemaForGemini(propValue)
+      }
+    } else if (key === 'items' && typeof value === 'object') {
+      cleaned[key] = cleanSchemaForGemini(value)
+    } else if (Array.isArray(value)) {
+      cleaned[key] = value.map(item =>
+        typeof item === 'object' ? cleanSchemaForGemini(item) : item
+      )
+    } else if (typeof value === 'object' && value !== null) {
+      cleaned[key] = cleanSchemaForGemini(value)
+    } else {
+      cleaned[key] = value
+    }
+  }
+
+  return cleaned
+}
+
+/**
  * Convert DB functions to Gemini Function Declarations
  */
 export function toGeminiFunctionDeclarations(functions: DbFunctionDefinition[]) {
   return functions.map(fn => ({
     name: fn.name,
     description: fn.description,
-    parameters: fn.parameters_schema,
+    parameters: cleanSchemaForGemini(fn.parameters_schema),
   }))
 }
 
