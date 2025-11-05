@@ -148,6 +148,13 @@ export function ExamplesPage() {
   const [cdnShortCode, setCdnShortCode] = useState('')
   const [cdnSlug, setCdnSlug] = useState('')
 
+  // Function Call Test states
+  const [funcCallPrompt, setFuncCallPrompt] = useState('Say hello to Akatsuki')
+  const [funcCallProvider, setFuncCallProvider] = useState('openai')
+  const [funcCallLoading, setFuncCallLoading] = useState(false)
+  const [funcCallResult, setFuncCallResult] = useState(null)
+  const [funcCallError, setFuncCallError] = useState(null)
+
   // Real-time event listener
   useEventListener(['test.demo', 'image.generated', 'quota.warning'], (event) => {
     setReceivedEvents(prev => [event, ...prev].slice(0, 10))
@@ -688,6 +695,35 @@ export function ExamplesPage() {
       ogTitle: 'CDN Gateway Test',
       ogDescription: 'Testing CDN URL alias functionality',
     })
+  }
+
+  // Function Call: Execute with enableFunctionCalling
+  const handleFunctionCallTest = async () => {
+    if (!user) {
+      alert('ログインが必要です')
+      return
+    }
+
+    setFuncCallLoading(true)
+    setFuncCallError(null)
+    setFuncCallResult(null)
+
+    try {
+      const { data, error } = await EdgeFunctionService.invoke('ai-chat', {
+        provider: funcCallProvider,
+        prompt: funcCallPrompt,
+        enableFunctionCalling: true,
+      })
+
+      if (error) throw error
+
+      setFuncCallResult(data)
+    } catch (error) {
+      console.error('[Function Call Test] Error:', error)
+      setFuncCallError(error.message || 'Unknown error')
+    } finally {
+      setFuncCallLoading(false)
+    }
   }
 
   return (
@@ -2740,6 +2776,92 @@ createAlias({
                     実行ログを確認
                   </Button>
                 </Link>
+              </div>
+            </div>
+
+            {/* Function Call Test UI */}
+            <div className="bg-white p-4 rounded-lg space-y-3">
+              <h3 className="font-semibold text-gray-700">🧪 Function Call テスト</h3>
+              <p className="text-sm text-gray-600">
+                enableFunctionCalling=true でAI Chatを実行し、LLMが関数を呼び出します
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Provider</label>
+                  <select
+                    value={funcCallProvider}
+                    onChange={(e) => setFuncCallProvider(e.target.value)}
+                    className="w-full mt-1 p-2 border rounded"
+                  >
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="gemini">Gemini</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Prompt</label>
+                  <Input
+                    placeholder="Say hello to Akatsuki"
+                    value={funcCallPrompt}
+                    onChange={(e) => setFuncCallPrompt(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    例: &quot;Say hello to Akatsuki&quot; → hello_world関数が呼ばれます
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleFunctionCallTest}
+                  disabled={funcCallLoading || !user}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                >
+                  {funcCallLoading ? 'Executing...' : '🚀 Execute with Function Calling'}
+                </Button>
+
+                {!user && (
+                  <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                    <strong>Note:</strong> Function Callには
+                    <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                      ログイン
+                    </Link>
+                    が必要です
+                  </div>
+                )}
+
+                {funcCallError && (
+                  <div className="bg-red-50 p-3 rounded-lg text-sm text-red-700">
+                    <strong>Error:</strong> {funcCallError}
+                  </div>
+                )}
+
+                {funcCallResult && (
+                  <div className="bg-green-50 p-4 rounded-lg space-y-2">
+                    <p className="font-bold text-green-700">✓ Success!</p>
+                    <div className="text-xs space-y-2">
+                      <div>
+                        <strong>Response:</strong>
+                        <pre className="bg-white p-2 rounded mt-1 overflow-auto max-h-40">
+                          {JSON.stringify(funcCallResult.response, null, 2)}
+                        </pre>
+                      </div>
+                      {funcCallResult.functionCalls && funcCallResult.functionCalls.length > 0 && (
+                        <div>
+                          <strong>Function Calls:</strong>
+                          {funcCallResult.functionCalls.map((fc, i) => (
+                            <div key={i} className="bg-purple-50 p-2 rounded mt-1">
+                              <div><strong>Function:</strong> {fc.name}</div>
+                              <div><strong>Arguments:</strong> {JSON.stringify(fc.arguments)}</div>
+                              <div><strong>Result:</strong> {JSON.stringify(fc.result)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
