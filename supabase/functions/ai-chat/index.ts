@@ -8,6 +8,13 @@ import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
 import OpenAI from 'https://esm.sh/openai@4'
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.24.3'
 import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.12.0'
+import {
+  createFunctionRegistry,
+  executeFunctionCall,
+  toOpenAITools,
+  toAnthropicTools,
+  toGeminiFunctionDeclarations,
+} from './function_registry.ts'
 
 // IN型定義（Zodスキーマ）
 const InputSchema = z.object({
@@ -20,6 +27,7 @@ const InputSchema = z.object({
   temperature: z.number().min(0).max(2).optional().default(0.7),
   maxTokens: z.number().positive().optional().default(1000),
   responseJson: z.boolean().optional().default(false),
+  enableFunctionCalling: z.boolean().optional().default(false),
 }).refine(data => data.prompt || data.messages, {
   message: 'Either prompt or messages is required',
 })
@@ -40,6 +48,11 @@ interface Output {
     output?: number
     total?: number
   }
+  functionCalls?: Array<{
+    name: string
+    arguments: Record<string, any>
+    result: any
+  }>
 }
 
 Deno.serve(async (req) => {
@@ -90,6 +103,12 @@ Deno.serve(async (req) => {
       let totalTokens: number | undefined
       let callSuccess = true
       let errorMsg: string | undefined
+      let llmCallLogId: string | undefined
+      const executedFunctionCalls: Array<{ name: string; arguments: Record<string, any>; result: any }> = []
+
+      // Function Registry (if enabled)
+      const functionRegistry = input.enableFunctionCalling ? createFunctionRegistry() : null
+      const availableFunctions = functionRegistry ? Array.from(functionRegistry.values()) : []
 
       try {
         // 5. Provider別のLLM API呼び出し
@@ -109,10 +128,46 @@ Deno.serve(async (req) => {
             if (input.responseJson) {
               params.response_format = { type: 'json_object' }
             }
+            if (input.enableFunctionCalling && availableFunctions.length > 0) {
+              params.tools = toOpenAITools(availableFunctions)
+            }
 
-            const completion = await openai.chat.completions.create(params)
-            responseText = completion.choices[0].message.content || ''
+            let completion = await openai.chat.completions.create(params)
             usedModel = selectedModel
+
+            // Handle function calling (OpenAI)
+            if (completion.choices[0].message.tool_calls) {
+              for (const toolCall of completion.choices[0].message.tool_calls) {
+                const funcName = toolCall.function.name
+                const funcArgs = JSON.parse(toolCall.function.arguments)
+
+                const result = await executeFunctionCall(
+                  funcName,
+                  funcArgs,
+                  { userId: user.id, userClient, adminClient, llmCallLogId },
+                  functionRegistry!
+                )
+
+                executedFunctionCalls.push({
+                  name: funcName,
+                  arguments: funcArgs,
+                  result: result.result,
+                })
+
+                // Add function result to messages and re-call LLM
+                params.messages.push(completion.choices[0].message)
+                params.messages.push({
+                  role: 'tool',
+                  tool_call_id: toolCall.id,
+                  content: JSON.stringify(result.result),
+                })
+              }
+
+              // Re-call with function results
+              completion = await openai.chat.completions.create(params)
+            }
+
+            responseText = completion.choices[0].message.content || ''
 
             if (completion.usage) {
               inputTokens = completion.usage.prompt_tokens
@@ -134,16 +189,58 @@ Deno.serve(async (req) => {
               systemPrompt += ' Your response must be in valid JSON format.'
             }
 
-            const message = await anthropic.messages.create({
+            const messageParams: any = {
               model: selectedModel,
               max_tokens: input.maxTokens,
               temperature: input.temperature,
               system: systemPrompt,
               messages: input.messages || [{ role: 'user', content: input.prompt! }],
-            })
+            }
 
-            responseText = message.content[0].text
+            if (input.enableFunctionCalling && availableFunctions.length > 0) {
+              messageParams.tools = toAnthropicTools(availableFunctions)
+            }
+
+            let message = await anthropic.messages.create(messageParams)
             usedModel = selectedModel
+
+            // Handle function calling (Anthropic)
+            while (message.stop_reason === 'tool_use') {
+              const toolUseBlocks = message.content.filter((block: any) => block.type === 'tool_use')
+
+              for (const toolUse of toolUseBlocks) {
+                const funcName = toolUse.name
+                const funcArgs = toolUse.input
+
+                const result = await executeFunctionCall(
+                  funcName,
+                  funcArgs,
+                  { userId: user.id, userClient, adminClient, llmCallLogId },
+                  functionRegistry!
+                )
+
+                executedFunctionCalls.push({
+                  name: funcName,
+                  arguments: funcArgs,
+                  result: result.result,
+                })
+
+                // Add function result to messages and re-call
+                messageParams.messages.push({ role: 'assistant', content: message.content })
+                messageParams.messages.push({
+                  role: 'user',
+                  content: [{
+                    type: 'tool_result',
+                    tool_use_id: toolUse.id,
+                    content: JSON.stringify(result.result),
+                  }],
+                })
+              }
+
+              message = await anthropic.messages.create(messageParams)
+            }
+
+            responseText = message.content.find((block: any) => block.type === 'text')?.text || ''
 
             if (message.usage) {
               inputTokens = message.usage.input_tokens
@@ -159,16 +256,57 @@ Deno.serve(async (req) => {
 
             const genAI = new GoogleGenerativeAI(apiKey)
             const selectedModel = input.model || 'gemini-2.5-flash'
-            const geminiModel = genAI.getGenerativeModel({ model: selectedModel })
+
+            const modelConfig: any = { model: selectedModel }
+            if (input.enableFunctionCalling && availableFunctions.length > 0) {
+              modelConfig.tools = [{ functionDeclarations: toGeminiFunctionDeclarations(availableFunctions) }]
+            }
+
+            const geminiModel = genAI.getGenerativeModel(modelConfig)
 
             const generationConfig = input.responseJson
               ? { responseMimeType: 'application/json', temperature: input.temperature, maxOutputTokens: input.maxTokens }
               : { temperature: input.temperature, maxOutputTokens: input.maxTokens }
 
-            const result = await geminiModel.generateContent({
-              contents: input.messages || [{ role: 'user', parts: [{ text: input.prompt! }] }],
+            const chat = geminiModel.startChat({
               generationConfig,
+              history: [],
             })
+
+            let result = await chat.sendMessage(
+              input.messages?.[0]?.parts?.[0]?.text || input.prompt!
+            )
+
+            // Handle function calling (Gemini)
+            while (result.response.functionCalls()) {
+              const functionCalls = result.response.functionCalls()
+
+              for (const funcCall of functionCalls) {
+                const funcName = funcCall.name
+                const funcArgs = funcCall.args
+
+                const execResult = await executeFunctionCall(
+                  funcName,
+                  funcArgs,
+                  { userId: user.id, userClient, adminClient, llmCallLogId },
+                  functionRegistry!
+                )
+
+                executedFunctionCalls.push({
+                  name: funcName,
+                  arguments: funcArgs,
+                  result: execResult.result,
+                })
+
+                // Send function result back
+                result = await chat.sendMessage([{
+                  functionResponse: {
+                    name: funcName,
+                    response: execResult.result,
+                  },
+                }])
+              }
+            }
 
             responseText = result.response.text()
             usedModel = selectedModel
@@ -192,17 +330,21 @@ Deno.serve(async (req) => {
         throw error // Re-throw to outer handler
       } finally {
         // 6. ログ記録（adminClient経由、成功・失敗問わず）
-        await repos.llmCallLog.create({
+        const logEntry = await repos.llmCallLog.create({
           user_id: user.id,
           provider: input.provider,
           model_id: usedModel || input.model || 'unknown',
           input_tokens: inputTokens,
           output_tokens: outputTokens,
           total_tokens: totalTokens,
-          request_type: 'chat',
+          request_type: input.enableFunctionCalling ? 'chat_with_functions' : 'chat',
           success: callSuccess,
           error_message: errorMsg,
         })
+
+        if (logEntry) {
+          llmCallLogId = logEntry.id
+        }
       }
 
       // 7. レスポンス整形
@@ -225,6 +367,7 @@ Deno.serve(async (req) => {
               total: totalTokens,
             }
           : undefined,
+        functionCalls: executedFunctionCalls.length > 0 ? executedFunctionCalls : undefined,
       }
     },
   })
