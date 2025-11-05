@@ -17,8 +17,9 @@ import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
-import { useImageGeneration, useEventListener } from '../hooks'
+import { useImageGeneration, useEventListener, usePublicStorage, useUrlAlias } from '../hooks'
 import { PublicProfile } from '../models/PublicProfile'
+import { uuidToBase62, base62ToUuid } from '../utils/base62'
 // eslint-disable-next-line no-restricted-imports
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
@@ -135,6 +136,17 @@ export function ExamplesPage() {
   const [reportType, setReportType] = useState('sales')
   const [startDate, setStartDate] = useState('2025-01-01')
   const [endDate, setEndDate] = useState('2025-01-31')
+
+  // CDN Gateway Test states
+  const [cdnUuidInput, setCdnUuidInput] = useState('550e8400-e29b-41d4-a716-446655440000')
+  const [cdnBase62Input, setCdnBase62Input] = useState('')
+  const [cdnConvertResult, setCdnConvertResult] = useState(null)
+
+  // CDN Upload & Alias with Hooks
+  const { upload: cdnUpload, isPending: cdnUploading, data: cdnUploadData, error: cdnUploadError } = usePublicStorage({ folder: 'cdn-test' })
+  const { createAlias, isPending: aliasCreating, data: aliasData, error: aliasError } = useUrlAlias()
+  const [cdnShortCode, setCdnShortCode] = useState('')
+  const [cdnSlug, setCdnSlug] = useState('')
 
   // Real-time event listener
   useEventListener(['test.demo', 'image.generated', 'quota.warning'], (event) => {
@@ -590,6 +602,79 @@ export function ExamplesPage() {
     } finally {
       setJobStarting(false)
     }
+  }
+
+  // CDN Gateway: Base62 Encode
+  const handleBase62Encode = () => {
+    try {
+      const base62 = uuidToBase62(cdnUuidInput)
+      setCdnBase62Input(base62)
+      setCdnConvertResult({
+        success: true,
+        type: 'encode',
+        input: cdnUuidInput,
+        output: base62,
+        compression: Math.round((1 - base62.length / cdnUuidInput.length) * 100),
+      })
+    } catch (error) {
+      setCdnConvertResult({
+        success: false,
+        error: error.message,
+      })
+    }
+  }
+
+  // CDN Gateway: Base62 Decode
+  const handleBase62Decode = () => {
+    try {
+      const uuid = base62ToUuid(cdnBase62Input)
+      setCdnUuidInput(uuid)
+      setCdnConvertResult({
+        success: true,
+        type: 'decode',
+        input: cdnBase62Input,
+        output: uuid,
+      })
+    } catch (error) {
+      setCdnConvertResult({
+        success: false,
+        error: error.message,
+      })
+    }
+  }
+
+  // CDN Gateway: File Upload with Hooks
+  const handleCdnUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!user) {
+      alert('ログインが必要です')
+      return
+    }
+
+    cdnUpload({ file })
+  }
+
+  // CDN Gateway: Create URL Alias
+  const handleCreateAlias = () => {
+    if (!cdnUploadData?.id) {
+      alert('先にファイルをアップロードしてください')
+      return
+    }
+
+    if (!cdnShortCode && !cdnSlug) {
+      alert('Short Code または Slug を入力してください')
+      return
+    }
+
+    createAlias({
+      fileId: cdnUploadData.id,
+      shortCode: cdnShortCode || undefined,
+      slug: cdnSlug || undefined,
+      ogTitle: 'CDN Gateway Test',
+      ogDescription: 'Testing CDN URL alias functionality',
+    })
   }
 
   return (
@@ -2321,6 +2406,283 @@ const { progress, isCompleted, result } = useJob(event.id, {
               <div className="bg-yellow-50 p-3 rounded-lg text-xs text-gray-700">
                 <strong>Note:</strong> RESEND_API_KEY と EMAIL_FROM の設定が必要です
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* CDN Gateway Test */}
+        <Card>
+          <CardHeader>
+            <CardTitle>CDN Gateway Test (Phase 1-3)</CardTitle>
+            <CardDescription>
+              Base62 URL短縮 + CDN経由配信 + URL Alias機能のE2Eテスト
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+              <code>{`import { usePublicStorage, useUrlAlias } from '@/hooks'
+import { uuidToBase62, base62ToUuid } from '@/utils/base62'
+
+// ファイルアップロード + CDN URL自動生成
+const { upload, data } = usePublicStorage({ folder: 'cdn-test' })
+upload({ file })
+// → data.cdnUrl = '/cdn/2qjb5Xk9lMz7w8PqRaE' (Base62圧縮)
+
+// URL Alias作成（短縮URL or SEO slug）
+const { createAlias, data: aliasData } = useUrlAlias()
+createAlias({
+  fileId: data.id,
+  shortCode: 'cat123', // → /cdn/i/cat123
+  slug: 'my-cat-2025'  // → /cdn/s/my-cat-2025
+})`}</code>
+            </pre>
+
+            {/* Base62 Encode/Decode */}
+            <div className="space-y-3 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-700">📦 Base62 Encode/Decode Test</h3>
+              <p className="text-xs text-gray-600">
+                UUID (36文字) ↔ Base62 (22文字) の相互変換テスト
+              </p>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">UUID</label>
+                <Input
+                  placeholder="550e8400-e29b-41d4-a716-446655440000"
+                  value={cdnUuidInput}
+                  onChange={(e) => setCdnUuidInput(e.target.value)}
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleBase62Encode}
+                  className="w-full"
+                >
+                  UUID → Base62 にエンコード
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Base62</label>
+                <Input
+                  placeholder="Base62文字列"
+                  value={cdnBase62Input}
+                  onChange={(e) => setCdnBase62Input(e.target.value)}
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleBase62Decode}
+                  className="w-full"
+                >
+                  Base62 → UUID にデコード
+                </Button>
+              </div>
+
+              {cdnConvertResult && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  cdnConvertResult.success
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
+                }`}>
+                  {cdnConvertResult.success ? (
+                    <>
+                      <strong>✓ {cdnConvertResult.type === 'encode' ? 'エンコード' : 'デコード'}成功:</strong>
+                      <div className="mt-2 text-xs space-y-1 font-mono">
+                        <div><strong>Input:</strong> {cdnConvertResult.input}</div>
+                        <div><strong>Output:</strong> {cdnConvertResult.output}</div>
+                        {cdnConvertResult.compression && (
+                          <div><strong>圧縮率:</strong> {cdnConvertResult.compression}% ({cdnConvertResult.input.length}文字 → {cdnConvertResult.output.length}文字)</div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <strong>✗ Error:</strong> {cdnConvertResult.error}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* File Upload + CDN URL */}
+            <div className="space-y-3 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-700">📤 Upload + CDN URL Generation</h3>
+              <p className="text-xs text-gray-600">
+                usePublicStorage フックでアップロード → 自動的にCDN URLを生成
+              </p>
+
+              <div className="space-y-2">
+                <label className="block">
+                  <span className="text-sm font-medium text-gray-700">画像ファイルを選択</span>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCdnUpload}
+                    disabled={cdnUploading || !user}
+                    className="mt-1"
+                  />
+                </label>
+
+                {cdnUploading && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-purple-600 rounded-full" />
+                    <span>Uploading...</span>
+                  </div>
+                )}
+
+                {cdnUploadError && (
+                  <div className="bg-red-50 p-3 rounded-lg text-sm text-red-700">
+                    <strong>✗ Upload Error:</strong> {cdnUploadError.message}
+                  </div>
+                )}
+
+                {cdnUploadData && (
+                  <div className="bg-white p-4 rounded-lg space-y-3">
+                    <p className="font-bold text-green-600">✓ Upload Success!</p>
+
+                    {/* Image Preview */}
+                    <img
+                      src={cdnUploadData.cdnUrl}
+                      alt="Uploaded"
+                      className="w-full rounded-lg shadow max-h-64 object-cover"
+                    />
+
+                    {/* CDN URLs */}
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-blue-50 p-2 rounded">
+                        <strong>CDN URL (相対):</strong>
+                        <div className="font-mono mt-1 break-all">{cdnUploadData.cdnUrl}</div>
+                        <a
+                          href={cdnUploadData.cdnUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline block mt-1"
+                        >
+                          🔗 Open in new tab
+                        </a>
+                      </div>
+
+                      <div className="bg-green-50 p-2 rounded">
+                        <strong>CDN URL (フル):</strong>
+                        <div className="font-mono mt-1 break-all">{cdnUploadData.cdnUrlFull}</div>
+                      </div>
+
+                      <div className="bg-gray-50 p-2 rounded">
+                        <strong>File ID:</strong>
+                        <div className="font-mono mt-1">{cdnUploadData.id}</div>
+                      </div>
+
+                      <div className="bg-yellow-50 p-2 rounded">
+                        <strong>Original Public URL:</strong>
+                        <div className="font-mono mt-1 text-xs break-all">{cdnUploadData.publicUrl}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!user && (
+                <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+                  <strong>Note:</strong> アップロードには
+                  <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                    ログイン
+                  </Link>
+                  が必要です
+                </div>
+              )}
+            </div>
+
+            {/* URL Alias Creation */}
+            {cdnUploadData && (
+              <div className="space-y-3 bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-700">🔗 Create URL Alias</h3>
+                <p className="text-xs text-gray-600">
+                  アップロードした画像に短縮URLやSEO slugを追加
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Short Code</label>
+                    <Input
+                      placeholder="cat123"
+                      value={cdnShortCode}
+                      onChange={(e) => setCdnShortCode(e.target.value)}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">→ /cdn/i/cat123</p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">SEO Slug</label>
+                    <Input
+                      placeholder="my-cat-2025"
+                      value={cdnSlug}
+                      onChange={(e) => setCdnSlug(e.target.value)}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">→ /cdn/s/my-cat-2025</p>
+                  </div>
+                </div>
+
+                <Button
+                  variant="gradient"
+                  onClick={handleCreateAlias}
+                  disabled={aliasCreating || (!cdnShortCode && !cdnSlug)}
+                  className="w-full"
+                >
+                  {aliasCreating ? 'Creating Alias...' : 'Create URL Alias'}
+                </Button>
+
+                {aliasError && (
+                  <div className="bg-red-50 p-3 rounded-lg text-sm text-red-700">
+                    <strong>✗ Alias Error:</strong> {aliasError.message}
+                  </div>
+                )}
+
+                {aliasData && (
+                  <div className="bg-white p-4 rounded-lg space-y-2">
+                    <p className="font-bold text-green-600">✓ URL Alias Created!</p>
+
+                    {aliasData.cdnUrls?.short && (
+                      <div className="bg-blue-50 p-2 rounded text-xs">
+                        <strong>Short URL:</strong>
+                        <div className="font-mono mt-1">{aliasData.cdnUrls.short}</div>
+                        <a
+                          href={aliasData.cdnUrls.short}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline block mt-1"
+                        >
+                          🔗 Open Short URL
+                        </a>
+                      </div>
+                    )}
+
+                    {aliasData.cdnUrls?.seo && (
+                      <div className="bg-green-50 p-2 rounded text-xs">
+                        <strong>SEO URL:</strong>
+                        <div className="font-mono mt-1">{aliasData.cdnUrls.seo}</div>
+                        <a
+                          href={aliasData.cdnUrls.seo}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline block mt-1"
+                        >
+                          🔗 Open SEO URL
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-blue-50 p-3 rounded-lg text-xs text-gray-700">
+              <p className="font-semibold mb-1">💡 CDN Gateway機能:</p>
+              <ul className="list-disc ml-4 space-y-1">
+                <li>UUID → Base62変換で36文字→22文字に圧縮 (約39%短縮)</li>
+                <li>CDN URL: <code>/cdn/{'<base62>'}</code> 形式で短く覚えやすい</li>
+                <li>URL Alias: 短縮URL (<code>/cdn/i/cat123</code>) やSEO slug (<code>/cdn/s/my-cat-2025</code>) を追加可能</li>
+                <li>OGP対応、有効期限設定も可能（今後実装予定）</li>
+              </ul>
             </div>
           </CardContent>
         </Card>
