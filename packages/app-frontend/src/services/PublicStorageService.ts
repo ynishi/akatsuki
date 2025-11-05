@@ -52,7 +52,7 @@ export interface DeleteResult {
 export class PublicStorageService {
   static BUCKET_NAME = 'public_assets'
   static DEFAULT_MAX_SIZE_MB = 10
-  static CDN_BASE_PATH = '/cdn'
+  static CDN_BASE_PATH = '/functions/v1/cdn-gateway'
 
   /**
    * Public ファイルをアップロード
@@ -274,7 +274,7 @@ export class PublicStorageService {
    *
    * @example
    * const cdnUrl = PublicStorageService.getCdnUrl('550e8400-e29b-41d4-a716-446655440000')
-   * // → '/cdn/2qjb5Xk9lMz7w8PqRaE'
+   * // → '/functions/v1/cdn-gateway/2qjb5Xk9lMz7w8PqRaE'
    */
   static getCdnUrl(fileId: string): string {
     if (!fileId) {
@@ -293,18 +293,22 @@ export class PublicStorageService {
    *
    * @example
    * const cdnUrl = PublicStorageService.getFullCdnUrl('550e8400-e29b-41d4-a716-446655440000')
-   * // → 'https://akatsuki.app/cdn/2qjb5Xk9lMz7w8PqRaE'
+   * // → 'https://rogkshcsqnirozjakelo.supabase.co/functions/v1/cdn-gateway/2qjb5Xk9lMz7w8PqRaE'
    */
   static getFullCdnUrl(fileId: string): string {
     const cdnPath = this.getCdnUrl(fileId)
 
-    // ブラウザ環境でのみwindow.location使用
-    if (typeof window !== 'undefined' && window.location) {
-      return `${window.location.origin}${cdnPath}`
+    // Supabase URLを環境変数から取得
+    // @ts-ignore - Vite environment variable
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+
+    if (!supabaseUrl) {
+      console.warn('VITE_SUPABASE_URL is not defined, returning relative path')
+      return cdnPath
     }
 
-    // SSR環境などではパスのみ返す
-    return cdnPath
+    // Supabase URLベースで完全なURLを生成
+    return `${supabaseUrl}${cdnPath}`
   }
 
   /**

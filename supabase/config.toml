@@ -25,3 +25,8 @@ entrypoint = "./functions/execute-async-job/index.ts"
 enabled = true
 verify_jwt = false
 # Note: Cron scheduling is handled via pg_cron in migration 20251102110035_add_event_processing_cron.sql
+
+[functions.cdn-gateway]
+enabled = true
+verify_jwt = false
+# Public CDN Gateway - No authentication required for public file access

@@ -2439,14 +2439,14 @@ import { uuidToBase62, base62ToUuid } from '@/utils/base62'
 // ファイルアップロード + CDN URL自動生成
 const { upload, data } = usePublicStorage({ folder: 'cdn-test' })
 upload({ file })
-// → data.cdnUrl = '/cdn/2qjb5Xk9lMz7w8PqRaE' (Base62圧縮)
+// → data.cdnUrl = '/functions/v1/cdn-gateway/2qjb5Xk9lMz7w8PqRaE' (Base62圧縮)
 
 // URL Alias作成（短縮URL or SEO slug）
 const { createAlias, data: aliasData } = useUrlAlias()
 createAlias({
   fileId: data.id,
-  shortCode: 'cat123', // → /cdn/i/cat123
-  slug: 'my-cat-2025'  // → /cdn/s/my-cat-2025
+  shortCode: 'cat123', // → /functions/v1/cdn-gateway/i/cat123
+  slug: 'my-cat-2025'  // → /functions/v1/cdn-gateway/s/my-cat-2025
 })`}</code>
             </pre>
 
@@ -2553,7 +2553,7 @@ createAlias({
 
                     {/* Image Preview */}
                     <img
-                      src={cdnUploadData.cdnUrl}
+                      src={cdnUploadData.cdnUrlFull}
                       alt="Uploaded"
                       className="w-full rounded-lg shadow max-h-64 object-cover"
                     />
@@ -2620,7 +2620,7 @@ createAlias({
                       onChange={(e) => setCdnShortCode(e.target.value)}
                       className="mt-1"
                     />
-                    <p className="text-xs text-gray-500 mt-1">→ /cdn/i/cat123</p>
+                    <p className="text-xs text-gray-500 mt-1">→ /functions/v1/cdn-gateway/i/cat123</p>
                   </div>
 
                   <div>
@@ -2631,7 +2631,7 @@ createAlias({
                       onChange={(e) => setCdnSlug(e.target.value)}
                       className="mt-1"
                     />
-                    <p className="text-xs text-gray-500 mt-1">→ /cdn/s/my-cat-2025</p>
+                    <p className="text-xs text-gray-500 mt-1">→ /functions/v1/cdn-gateway/s/my-cat-2025</p>
                   </div>
                 </div>
 
@@ -2692,8 +2692,8 @@ createAlias({
               <p className="font-semibold mb-1">💡 CDN Gateway機能:</p>
               <ul className="list-disc ml-4 space-y-1">
                 <li>UUID → Base62変換で36文字→22文字に圧縮 (約39%短縮)</li>
-                <li>CDN URL: <code>/cdn/{'<base62>'}</code> 形式で短く覚えやすい</li>
-                <li>URL Alias: 短縮URL (<code>/cdn/i/cat123</code>) やSEO slug (<code>/cdn/s/my-cat-2025</code>) を追加可能</li>
+                <li>CDN URL: <code>/functions/v1/cdn-gateway/{'<base62>'}</code> 形式でアクセス</li>
+                <li>URL Alias: 短縮URL (<code>/functions/v1/cdn-gateway/i/cat123</code>) やSEO slug (<code>/functions/v1/cdn-gateway/s/my-cat-2025</code>) を追加可能</li>
                 <li>OGP対応、有効期限設定も可能（今後実装予定）</li>
               </ul>
             </div>
