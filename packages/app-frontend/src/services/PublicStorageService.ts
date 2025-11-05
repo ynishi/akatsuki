@@ -78,32 +78,28 @@ export class PublicStorageService {
 
     try {
       // Edge Function 呼び出し: Storage アップロード + DB INSERT
-      const result = await EdgeFunctionService.invoke('upload-file', formData, {
+      const { data, error } = await EdgeFunctionService.invoke('upload-file', formData, {
         isFormData: true,
       })
 
-      console.log('[PublicStorageService] Raw result from Edge Function:', result)
-      console.log('[PublicStorageService] Result type:', typeof result)
-      console.log('[PublicStorageService] Result keys:', result ? Object.keys(result) : 'null/undefined')
-      console.log('[PublicStorageService] result.data:', result?.data)
+      if (error) {
+        throw error
+      }
 
-      // Edge Functionの結果は {data: {...}, error: null} 形式
-      const responseData = result?.data || result
-
-      console.log('[PublicStorageService] file_id:', responseData?.file_id)
-      console.log('[PublicStorageService] public_url:', responseData?.public_url)
-      console.log('[PublicStorageService] bucket:', responseData?.bucket)
+      if (!data || typeof data !== 'object') {
+        throw new Error('Edge Function が無効なレスポンスを返しました')
+      }
 
       const mappedResult = {
-        id: responseData.file_id, // files テーブルの ID
-        publicUrl: responseData.public_url, // 恒久的な公開 URL
-        storagePath: responseData.storage_path, // Storage 内のパス
-        metadata: responseData.metadata, // DB に保存されたメタデータ
-        bucket: responseData.bucket || this.BUCKET_NAME,
-        success: responseData.success !== undefined ? responseData.success : true,
+        id: data.file_id, // files テーブルの ID
+        publicUrl: data.public_url, // 恒久的な公開 URL
+        storagePath: data.storage_path, // Storage 内のパス
+        metadata: data.metadata, // DB に保存されたメタデータ
+        bucket: data.bucket || this.BUCKET_NAME,
+        success: data.success !== undefined ? data.success : true,
         // CDN URL追加（Base62圧縮版）
-        cdnUrl: this.getCdnUrl(responseData.file_id),
-        cdnUrlFull: this.getFullCdnUrl(responseData.file_id),
+        cdnUrl: this.getCdnUrl(data.file_id),
+        cdnUrlFull: this.getFullCdnUrl(data.file_id),
       }
 
       console.log('[PublicStorageService] Mapped result:', mappedResult)
@@ -160,13 +156,21 @@ export class PublicStorageService {
    */
   static async delete(fileId: string): Promise<DeleteResult> {
     try {
-      const result = await EdgeFunctionService.invoke('delete-file', {
+      const { data, error } = await EdgeFunctionService.invoke('delete-file', {
         fileId,
       })
 
+      if (error) {
+        throw error
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Edge Function が無効なレスポンスを返しました')
+      }
+
       return {
         success: true,
-        deletedAt: result.deleted_at,
+        deletedAt: data.deleted_at,
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

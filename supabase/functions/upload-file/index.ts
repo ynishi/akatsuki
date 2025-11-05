@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { contentType } from 'https://deno.land/std/media_types/mod.ts'
+
+import { fileTypeFromBuffer } from 'npm:file-type@18'
 
 /**
  * Upload File Edge Function
@@ -64,11 +67,14 @@ Deno.serve(async (req) => {
       ? `${user.id}/${folder}/${timestamp}-${sanitizedFilename}`
       : `${user.id}/${timestamp}-${sanitizedFilename}`
 
+    // Content-Type を Sniff して正確な MIME を付与
+    const resolvedContentType = await resolveUploadContentType(file)
+
     // === ステップ1: Storage にファイルをアップロード（Storage先行） ===
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(bucket)
       .upload(storagePath, file, {
-        contentType: file.type,
+        contentType: resolvedContentType,
         upsert: false,
       })
 
@@ -87,7 +93,7 @@ Deno.serve(async (req) => {
           bucket_name: bucket,
           file_name: file.name,
           file_size: file.size,
-          mime_type: file.type,
+          mime_type: resolvedContentType,
           is_public: isPublic,
           status: 'uploading', // 最初は uploading 状態
           metadata: customMetadata,
@@ -186,3 +192,43 @@ Deno.serve(async (req) => {
     })
   }
 })
+
+/**
+ * text/* MIMEの場合にUTF-8 charsetを付与する
+ */
+async function resolveUploadContentType(file: File) {
+  try {
+    const buffer = await file.arrayBuffer()
+    const snippet = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 4100))
+    const typeResult = await fileTypeFromBuffer(snippet)
+
+    if (typeResult?.mime) {
+      return normalizeContentType(typeResult.mime)
+    }
+
+    const fallback = contentType(file.name)
+    if (fallback) {
+      return normalizeContentType(fallback)
+    }
+  } catch (error) {
+    console.warn('[upload-file] MIME sniff failed, falling back:', error)
+  }
+
+  return normalizeContentType(file.type)
+}
+
+function normalizeContentType(contentType: string | null | undefined) {
+  if (!contentType || typeof contentType !== 'string' || contentType.trim() === '') {
+    return 'application/octet-stream'
+  }
+
+  if (contentType.startsWith('text/') && !/charset=/i.test(contentType)) {
+    return `${contentType}; charset=utf-8`
+  }
+
+  if (contentType === 'application/json' && !/charset=/i.test(contentType)) {
+    return `${contentType}; charset=utf-8`
+  }
+
+  return contentType
+}

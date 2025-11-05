@@ -87,16 +87,24 @@ export class PrivateStorageService {
 
     try {
       // Edge Function 呼び出し: Storage アップロード + DB INSERT
-      const result = await EdgeFunctionService.invoke('upload-file', formData, {
+      const { data, error } = await EdgeFunctionService.invoke('upload-file', formData, {
         isFormData: true,
       })
 
+      if (error) {
+        throw error
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Edge Function が無効なレスポンスを返しました')
+      }
+
       return {
-        id: result.file_id, // files テーブルの ID
-        storagePath: result.storage_path, // Storage 内のパス
-        metadata: result.metadata, // DB に保存されたメタデータ
-        bucket: result.bucket || this.BUCKET_NAME,
-        success: result.success !== undefined ? result.success : true,
+        id: data.file_id, // files テーブルの ID
+        storagePath: data.storage_path, // Storage 内のパス
+        metadata: data.metadata, // DB に保存されたメタデータ
+        bucket: data.bucket || this.BUCKET_NAME,
+        success: data.success !== undefined ? data.success : true,
       }
     } catch (error) {
       throw new Error(`Private ファイルのアップロードに失敗: ${error.message}`)
@@ -133,14 +141,22 @@ export class PrivateStorageService {
       // Edge Function:
       // 1. files テーブルから fileId で検索（RLS で権限チェック）
       // 2. 権限があれば署名付き URL を生成
-      const result = await EdgeFunctionService.invoke('get-signed-url', {
+      const { data, error } = await EdgeFunctionService.invoke('get-signed-url', {
         fileId,
         expiresIn,
       })
 
+      if (error) {
+        throw error
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Edge Function が無効なレスポンスを返しました')
+      }
+
       return {
-        signedUrl: result.signed_url,
-        expiresAt: result.expires_at,
+        signedUrl: data.signed_url,
+        expiresAt: data.expires_at,
         success: true,
       }
     } catch (error) {
@@ -195,13 +211,21 @@ export class PrivateStorageService {
    */
   static async delete(fileId) {
     try {
-      const result = await EdgeFunctionService.invoke('delete-file', {
+      const { data, error } = await EdgeFunctionService.invoke('delete-file', {
         fileId,
       })
 
+      if (error) {
+        throw error
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Edge Function が無効なレスポンスを返しました')
+      }
+
       return {
         success: true,
-        deletedAt: result.deleted_at,
+        deletedAt: data.deleted_at,
       }
     } catch (error) {
       if (error.message.includes('not found')) {

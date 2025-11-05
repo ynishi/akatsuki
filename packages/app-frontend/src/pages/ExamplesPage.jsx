@@ -61,7 +61,7 @@ export function ExamplesPage() {
   // Image Generation - useImageGeneration Hook
   const [imagePrompt, setImagePrompt] = useState('')
   const {
-    generate: generateImage,
+    generateAsync: generateImage,
     loading: imageGenerating,
     result: generatedImage,
     error: imageError,
@@ -205,8 +205,20 @@ export function ExamplesPage() {
   const handleCallHelloFunction = async () => {
     try {
       setHelloLoading(true)
-      const result = await callHelloFunction('Akatsuki')
-      setHelloResult(result)
+      setHelloResult(null)
+      const { data, error } = await callHelloFunction('Akatsuki')
+
+      if (error) {
+        setHelloResult({ error: error.message || 'Edge Function invocation failed' })
+        return
+      }
+
+      if (!data || typeof data !== 'object') {
+        setHelloResult({ error: 'Edge Function did not return a valid response' })
+        return
+      }
+
+      setHelloResult(data)
     } catch (error) {
       console.error('Edge Function呼び出しエラー:', error)
       setHelloResult({ error: error.message })
@@ -570,6 +582,7 @@ export function ExamplesPage() {
 
       const result = await EventService.emit(eventType, payload)
       setEventResult({ success: true, event: result })
+      setReceivedEvents(prev => [result, ...prev].slice(0, 10))
     } catch (error) {
       console.error('Event emit error:', error)
       setEventResult({ error: error.message })

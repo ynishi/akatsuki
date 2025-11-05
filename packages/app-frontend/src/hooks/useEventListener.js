@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 /**
@@ -30,18 +30,31 @@ export function useEventListener(eventTypes, onEvent, options = {}) {
   const { enabled = true, userId, status } = options
 
   const types = Array.isArray(eventTypes) ? eventTypes : [eventTypes]
+  const onEventRef = useRef(onEvent)
+
+  useEffect(() => {
+    onEventRef.current = onEvent
+  }, [onEvent])
 
   useEffect(() => {
     if (!enabled) return
 
+    const typesKey = types.join(',') || '*'
+    const channelName = `system_events_listener_${typesKey}_${userId || 'all'}_${status || 'any'}`
+
+    const filter = (types.length === 0 || types[0] === '*')
+      ? undefined
+      : `event_type=in.(${types.map((type) => `"${type}"`).join(',')})`
+
     const channel = supabase
-      .channel('system_events_listener')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'system_events',
+          ...(filter ? { filter } : {}),
         },
         (payload) => {
           const event = payload.new
@@ -65,7 +78,7 @@ export function useEventListener(eventTypes, onEvent, options = {}) {
           setEvents((prev) => [event, ...prev])
 
           // Call callback
-          onEvent?.(event)
+          onEventRef.current?.(event)
         }
       )
       .subscribe()
@@ -74,7 +87,7 @@ export function useEventListener(eventTypes, onEvent, options = {}) {
       supabase.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, types.join(','), userId, status, onEvent])
+  }, [enabled, types.join(','), userId, status])
 
   return events
 }
