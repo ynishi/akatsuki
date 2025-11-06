@@ -10,6 +10,7 @@
     "dev:frontend": "npm run dev --workspace=app-frontend",
     "build:frontend": "npm run build --workspace=app-frontend",
     "preview:frontend": "npm run preview --workspace=app-frontend",
+    "vibe:check": "npm run lint:vibe --workspace=app-frontend && npm run build:frontend",
     "dev:backend": "cd packages/app-backend && cargo shuttle run",
     "build:backend": "cd packages/app-backend && cargo build --release",
     "check:backend": "cd packages/app-backend && cargo check",
@@ -24,7 +25,8 @@
     "supabase:secrets:set": "supabase secrets set",
     "supabase:status": "supabase status",
     "setup": "node scripts/setup.js",
-    "setup:check": "node scripts/check-setup.js"
+    "setup:check": "node scripts/check-setup.js",
+    "workspace:publish": "node scripts/workspace-publish.js"
   },
   "engines": {
     "node": ">=20.0.0",

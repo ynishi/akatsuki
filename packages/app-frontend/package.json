@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "lint:vibe": "eslint --no-error-on-unmatched-pattern src/pages/character-images src/components/features/character-image",
     "preview": "vite preview"
   },
   "dependencies": {
