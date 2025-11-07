@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, FormEvent, ChangeEvent } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
@@ -10,12 +10,12 @@ export function SignupForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [message, setMessage] = useState(null)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
   const { signUp } = useAuth()
   const navigate = useNavigate()
 
-  const handleSignup = async (e) => {
+  const handleSignup = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
     setMessage(null)
@@ -43,7 +43,7 @@ export function SignupForm() {
         navigate('/login')
       }, 3000)
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     } finally {
       setLoading(false)
     }
@@ -66,7 +66,7 @@ export function SignupForm() {
               type="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -80,7 +80,7 @@ export function SignupForm() {
               type="password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               required
             />
             <p className="text-xs text-gray-500">6文字以上で入力してください</p>
@@ -95,7 +95,7 @@ export function SignupForm() {
               type="password"
               placeholder="••••••••"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
               required
             />
           </div>

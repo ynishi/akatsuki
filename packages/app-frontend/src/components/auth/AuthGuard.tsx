@@ -1,11 +1,16 @@
 import { useAuth } from '../../contexts/AuthContext'
 import { Navigate } from 'react-router-dom'
+import { ReactNode } from 'react'
+
+interface AuthGuardProps {
+  children: ReactNode
+}
 
 /**
  * 認証が必要なルートを保護するガードコンポーネント
  * 未ログインユーザーをログインページにリダイレクト
  */
-export function AuthGuard({ children }) {
+export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth()
 
   // ローディング中は何も表示しない（フラッシュ防止）

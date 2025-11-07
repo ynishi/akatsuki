@@ -1,20 +1,22 @@
-import { useState } from 'react'
+import { useState, FormEvent, ChangeEvent } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 
+type OAuthProvider = 'google' | 'github'
+
 export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [message, setMessage] = useState(null)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
   const { signIn, signInWithMagicLink, signInWithOAuth } = useAuth()
   const navigate = useNavigate()
 
-  const handleEmailLogin = async (e) => {
+  const handleEmailLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
@@ -30,13 +32,13 @@ export function LoginForm() {
       }, 100)
     } catch (err) {
       console.error('[LoginForm] Sign in error:', err)
-      setError(err.message)
+      setError((err as Error).message)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleMagicLink = async (e) => {
+  const handleMagicLink = async (e: FormEvent<HTMLButtonElement>) => {
     e.preventDefault()
     setError(null)
     setMessage(null)
@@ -47,20 +49,20 @@ export function LoginForm() {
       if (error) throw error
       setMessage('マジックリンクをメールで送信しました。メールをご確認ください。')
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleOAuthLogin = async (provider) => {
+  const handleOAuthLogin = async (provider: OAuthProvider) => {
     setError(null)
     try {
       const { error } = await signInWithOAuth(provider)
       if (error) throw error
       // OAuth リダイレクト後、自動的に /admin にアクセス
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     }
   }
 
@@ -81,7 +83,7 @@ export function LoginForm() {
               type="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -95,7 +97,7 @@ export function LoginForm() {
               type="password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               required
             />
           </div>
