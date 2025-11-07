@@ -1,5 +1,8 @@
 export { BaseProvider } from './BaseProvider'
 export type { ProviderConfig, ChatOptions, ChatResponse, ImageGenerationOptions, ImageResponse } from './BaseProvider'
 export { OpenAIProvider } from './OpenAIProvider'
+export type { OpenAIProviderConfig } from './OpenAIProvider'
 export { AnthropicProvider } from './AnthropicProvider'
+export type { AnthropicProviderConfig } from './AnthropicProvider'
 export { GeminiProvider } from './GeminiProvider'
+export type { GeminiProviderConfig, GeminiChatOptions } from './GeminiProvider'
