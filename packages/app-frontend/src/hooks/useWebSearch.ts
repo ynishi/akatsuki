@@ -1,11 +1,37 @@
-import { useMutation } from '@tanstack/react-query'
-import { WebSearchService } from '../services/WebSearchService'
+import { useMutation, UseMutationResult } from '@tanstack/react-query'
+import { WebSearchService, SearchProvider, SearchResult } from '../services/WebSearchService'
+
+/**
+ * Web search parameters
+ */
+export interface WebSearchParams {
+  query: string
+  numResults?: number
+  provider?: SearchProvider
+}
+
+/**
+ * useWebSearch hook return type
+ */
+export interface UseWebSearchReturn {
+  search: (params: WebSearchParams) => void
+  searchAsync: (params: WebSearchParams) => Promise<SearchResult>
+  isPending: boolean
+  isError: boolean
+  isSuccess: boolean
+  error: Error | null
+  data: SearchResult | undefined
+  reset: () => void
+  // 互換性のため
+  loading: boolean
+  result: SearchResult | undefined
+}
 
 /**
  * Web検索専用カスタムフック (React Query版)
  * WebSearchService をラップし、Tavily APIでのWeb検索を実行
  *
- * @returns {Object} { search, searchAsync, isPending, isError, error, data, reset }
+ * @returns Hook return object
  *
  * @example
  * // ✅ 方法1: Fire-and-forget（結果は data で取得）
@@ -52,24 +78,14 @@ import { WebSearchService } from '../services/WebSearchService'
  *     }
  *   }
  * }
- *
- * @example
- * // ❌ 間違い: mutate() の結果を await しようとする
- * function MyComponent() {
- *   const { search } = useWebSearch()
- *
- *   const handleSearch = async () => {
- *     const result = await search({ query: 'AI' })  // undefined
- *     console.log(result.answer)  // エラー！
- *   }
- * }
  */
-export function useWebSearch() {
-  const mutation = useMutation({
-    mutationFn: async ({ query, numResults = 10, provider = 'gemini' }) => {
+export function useWebSearch(): UseWebSearchReturn {
+  const mutation: UseMutationResult<SearchResult, Error, WebSearchParams> = useMutation({
+    mutationFn: async ({ query, numResults = 10, provider = 'gemini' }: WebSearchParams) => {
       const { data, error } = await WebSearchService.search(query, { numResults, provider })
 
       if (error) throw error
+      if (!data) throw new Error('No data returned from web search')
       return data
     },
   })

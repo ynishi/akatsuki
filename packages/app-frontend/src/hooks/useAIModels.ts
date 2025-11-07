@@ -1,23 +1,48 @@
 import { useState, useEffect } from 'react'
 import { AIModelRepository } from '@/repositories/AIModelRepository'
+import type { AIModel } from '@/models/AIModel'
+
+/**
+ * AI model filters
+ */
+export interface AIModelFilters {
+  provider?: string
+  isBasic?: boolean
+  activeOnly?: boolean
+}
+
+/**
+ * useAIModels hook return type
+ */
+export interface UseAIModelsReturn {
+  models: AIModel[]
+  loading: boolean
+  error: Error | null
+}
+
+/**
+ * useAIProviders hook return type
+ */
+export interface UseAIProvidersReturn {
+  providers: string[]
+  loading: boolean
+  error: Error | null
+}
 
 /**
  * AIモデル取得カスタムフック
  * ComponentsがRepositoryを直接使わないためのラッパー
  *
- * @param {Object} filters - フィルター条件
- * @param {string} filters.provider - プロバイダー名
- * @param {boolean} filters.isBasic - Basic/Advanced
- * @param {boolean} filters.activeOnly - アクティブのみ
- * @returns {Object} { models, loading, error, providers }
+ * @param filters - フィルター条件
+ * @returns Hook return object
  *
  * @example
  * const { models, loading, error } = useAIModels({ provider: 'openai', activeOnly: true })
  */
-export function useAIModels(filters = {}) {
-  const [models, setModels] = useState([])
+export function useAIModels(filters: AIModelFilters = {}): UseAIModelsReturn {
+  const [models, setModels] = useState<AIModel[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -27,7 +52,8 @@ export function useAIModels(filters = {}) {
         setModels(data)
         setError(null)
       } catch (err) {
-        setError(err)
+        const error = err instanceof Error ? err : new Error(String(err))
+        setError(error)
         console.error('Failed to fetch AI models:', err)
       } finally {
         setLoading(false)
@@ -43,15 +69,15 @@ export function useAIModels(filters = {}) {
 /**
  * AIプロバイダー一覧取得フック
  *
- * @returns {Object} { providers, loading, error }
+ * @returns Hook return object
  *
  * @example
  * const { providers } = useAIProviders()
  */
-export function useAIProviders() {
-  const [providers, setProviders] = useState([])
+export function useAIProviders(): UseAIProvidersReturn {
+  const [providers, setProviders] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -61,7 +87,8 @@ export function useAIProviders() {
         setProviders(data)
         setError(null)
       } catch (err) {
-        setError(err)
+        const error = err instanceof Error ? err : new Error(String(err))
+        setError(error)
         console.error('Failed to fetch AI providers:', err)
       } finally {
         setLoading(false)
