@@ -36,15 +36,15 @@ export function TopNavigation() {
 
           {/* Navigation Links */}
           <div className="flex items-center gap-2">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Home className="w-4 h-4" />
+            <Link to="/" className="group">
+              <Button variant="ghost" size="sm" className="gap-2 group-hover:shadow-md">
+                <Home className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span className="hidden sm:inline">Home</span>
               </Button>
             </Link>
-            <Link to="/examples">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <BookOpen className="w-4 h-4" />
+            <Link to="/examples" className="group">
+              <Button variant="ghost" size="sm" className="gap-2 group-hover:shadow-md">
+                <BookOpen className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span className="hidden sm:inline">Examples</span>
               </Button>
             </Link>
@@ -52,9 +52,9 @@ export function TopNavigation() {
             {/* Auth-dependent Buttons */}
             {user ? (
               <>
-                <Link to="/admin">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <LayoutDashboard className="w-4 h-4" />
+                <Link to="/admin" className="group">
+                  <Button variant="ghost" size="sm" className="gap-2 group-hover:shadow-md">
+                    <LayoutDashboard className="w-4 h-4 group-hover:scale-110 transition-transform" />
                     <span className="hidden sm:inline">Dashboard</span>
                   </Button>
                 </Link>
@@ -62,7 +62,7 @@ export function TopNavigation() {
                   variant="outline"
                   size="sm"
                   onClick={handleSignOut}
-                  className="gap-2"
+                  className="gap-2 hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all"
                 >
                   <LogOut className="w-4 h-4" />
                   <span className="hidden sm:inline">Logout</span>
@@ -70,9 +70,9 @@ export function TopNavigation() {
               </>
             ) : (
               <>
-                <Link to="/login">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <LogIn className="w-4 h-4" />
+                <Link to="/login" className="group">
+                  <Button variant="ghost" size="sm" className="gap-2 group-hover:shadow-md">
+                    <LogIn className="w-4 h-4 group-hover:scale-110 transition-transform" />
                     <span className="hidden sm:inline">Login</span>
                   </Button>
                 </Link>
