@@ -1,12 +1,37 @@
-import { BaseProvider } from './BaseProvider'
+import { BaseProvider, ProviderConfig, ChatOptions, ChatResponse, ImageGenerationOptions, ImageResponse } from './BaseProvider'
 import { EdgeFunctionService } from '../../EdgeFunctionService'
+
+/**
+ * OpenAI Provider Configuration
+ */
+export interface OpenAIProviderConfig extends ProviderConfig {
+  model?: string
+  imageModel?: string
+}
+
+/**
+ * OpenAI-specific chat response
+ */
+interface OpenAIChatResponse {
+  response: string
+  model: string
+  usage?: {
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
+  }
+  tokens?: number
+}
 
 /**
  * OpenAI Provider
  * Edge Function経由でOpenAI APIを呼び出し
  */
 export class OpenAIProvider extends BaseProvider {
-  constructor(config = {}) {
+  private defaultModel: string
+  private defaultImageModel: string
+
+  constructor(config: OpenAIProviderConfig = {}) {
     super(config)
     this.defaultModel = config.model || 'gpt-4o-mini'
     this.defaultImageModel = config.imageModel || 'dall-e-3'
@@ -15,7 +40,7 @@ export class OpenAIProvider extends BaseProvider {
   /**
    * チャット補完
    */
-  async chat(prompt, options = {}) {
+  async chat(prompt: string, options: ChatOptions = {}): Promise<ChatResponse> {
     const payload = {
       provider: 'openai',
       prompt,
@@ -27,24 +52,27 @@ export class OpenAIProvider extends BaseProvider {
 
     // EdgeFunctionServiceは { data, error } 形式を返す
     // ai-chatのレスポンス: { response, model, usage, tokens }
-    const { data, error } = await EdgeFunctionService.invoke('ai-chat', payload)
+    const { data, error } = await EdgeFunctionService.invoke<OpenAIChatResponse>('ai-chat', payload)
 
     if (error) {
       throw new Error(`OpenAI chat failed: ${error.message}`)
+    }
+
+    if (!data) {
+      throw new Error('OpenAI chat failed: No data returned')
     }
 
     return {
       text: data.response,
       usage: data.usage,
       model: data.model,
-      tokens: data.tokens,
     }
   }
 
   /**
    * ストリーミングチャット補完
    */
-  async chatStream(prompt, onChunk, options = {}) {
+  async chatStream(prompt: string, onChunk: (chunk: string) => void, options: ChatOptions = {}): Promise<void> {
     const payload = {
       provider: 'openai',
       prompt,
@@ -57,34 +85,41 @@ export class OpenAIProvider extends BaseProvider {
 
     // TODO: SSE (Server-Sent Events) 実装
     // Edge Function 'ai-stream' を呼び出してストリーミング受信
-    const { data, error } = await EdgeFunctionService.invoke('ai-stream', payload)
+    const { data, error } = await EdgeFunctionService.invoke<{ text: string }>('ai-stream', payload)
 
     if (error) {
       throw new Error(`OpenAI stream failed: ${error.message}`)
     }
 
+    if (!data) {
+      throw new Error('OpenAI stream failed: No data returned')
+    }
+
     // 暫定: 非ストリーミングで全体を返す
-    onChunk({ text: data.text, done: false })
-    onChunk({ text: '', done: true })
+    onChunk(data.text)
   }
 
   /**
    * 画像生成（DALL-E）
    */
-  async generateImage(prompt, options = {}) {
+  async generateImage(prompt: string, options: ImageGenerationOptions = {}): Promise<ImageResponse> {
     const payload = {
       provider: 'openai',
       prompt,
       model: options.model || this.defaultImageModel,
       size: options.size || '1024x1024',
       quality: options.quality || 'standard',
-      n: options.n || 1,
+      n: 1,
     }
 
-    const { data, error } = await EdgeFunctionService.invoke('ai-image', payload)
+    const { data, error } = await EdgeFunctionService.invoke<ImageResponse>('ai-image', payload)
 
     if (error) {
       throw new Error(`OpenAI image generation failed: ${error.message}`)
+    }
+
+    if (!data) {
+      throw new Error('OpenAI image generation failed: No data returned')
     }
 
     return {
@@ -96,7 +131,7 @@ export class OpenAIProvider extends BaseProvider {
   /**
    * 画像編集（DALL-E Edit）
    */
-  async editImage(imageUrl, prompt, options = {}) {
+  async editImage(imageUrl: string, prompt: string, options: ImageGenerationOptions = {}): Promise<ImageResponse> {
     const payload = {
       provider: 'openai',
       imageUrl,
@@ -105,10 +140,14 @@ export class OpenAIProvider extends BaseProvider {
       size: options.size || '1024x1024',
     }
 
-    const { data, error } = await EdgeFunctionService.invoke('ai-image-edit', payload)
+    const { data, error } = await EdgeFunctionService.invoke<ImageResponse>('ai-image-edit', payload)
 
     if (error) {
       throw new Error(`OpenAI image edit failed: ${error.message}`)
+    }
+
+    if (!data) {
+      throw new Error('OpenAI image edit failed: No data returned')
     }
 
     return {
@@ -120,17 +159,21 @@ export class OpenAIProvider extends BaseProvider {
   /**
    * 埋め込み生成
    */
-  async embed(text, options = {}) {
+  async embed(text: string, options: Record<string, unknown> = {}): Promise<number[]> {
     const payload = {
       provider: 'openai',
       text,
-      model: options.model || 'text-embedding-3-small',
+      model: (options.model as string) || 'text-embedding-3-small',
     }
 
-    const { data, error } = await EdgeFunctionService.invoke('ai-embed', payload)
+    const { data, error } = await EdgeFunctionService.invoke<{ embedding: number[] }>('ai-embed', payload)
 
     if (error) {
       throw new Error(`OpenAI embedding failed: ${error.message}`)
+    }
+
+    if (!data) {
+      throw new Error('OpenAI embedding failed: No data returned')
     }
 
     return data.embedding
