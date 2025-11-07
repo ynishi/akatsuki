@@ -1,4 +1,42 @@
 /**
+ * File information
+ */
+export interface FileInfo {
+  name: string
+  size: number
+  type: string
+  lastModified: number
+  lastModifiedDate: Date
+  sizeFormatted: string
+  extension: string
+}
+
+/**
+ * Image dimensions
+ */
+export interface ImageDimensions {
+  width: number
+  height: number
+}
+
+/**
+ * File validation options
+ */
+export interface FileValidationOptions {
+  maxSizeMB?: number
+  allowedTypes?: string[]
+  maxCount?: number
+}
+
+/**
+ * File validation result
+ */
+export interface FileValidationResult {
+  valid: boolean
+  errors: string[]
+}
+
+/**
  * File Utilities
  * ファイル操作に関する汎用ユーティリティ関数
  *
@@ -10,16 +48,16 @@ export class FileUtils {
   /**
    * ファイルサイズをバリデーション
    *
-   * @param {File} file - ファイル
-   * @param {number} maxSizeMB - 最大サイズ（MB）
-   * @returns {boolean} サイズが許容範囲内なら true
+   * @param file - ファイル
+   * @param maxSizeMB - 最大サイズ（MB）
+   * @returns サイズが許容範囲内なら true
    *
    * @example
    * if (!FileUtils.validateFileSize(file, 10)) {
    *   throw new Error('ファイルサイズは10MB以下にしてください')
    * }
    */
-  static validateFileSize(file, maxSizeMB = 10) {
+  static validateFileSize(file: File, maxSizeMB: number = 10): boolean {
     const maxSizeBytes = maxSizeMB * 1024 * 1024
     return file.size <= maxSizeBytes
   }
@@ -27,9 +65,9 @@ export class FileUtils {
   /**
    * ファイルタイプをバリデーション
    *
-   * @param {File} file - ファイル
-   * @param {string[]} allowedTypes - 許可するMIMEタイプ
-   * @returns {boolean} タイプが許可されていれば true
+   * @param file - ファイル
+   * @param allowedTypes - 許可するMIMEタイプ
+   * @returns タイプが許可されていれば true
    *
    * @example
    * const allowedTypes = ['image/jpeg', 'image/png']
@@ -37,7 +75,7 @@ export class FileUtils {
    *   throw new Error('JPEGまたはPNG画像のみ許可されています')
    * }
    */
-  static validateFileType(file, allowedTypes = []) {
+  static validateFileType(file: File, allowedTypes: string[] = []): boolean {
     if (allowedTypes.length === 0) return true
     return allowedTypes.includes(file.type)
   }
@@ -45,49 +83,49 @@ export class FileUtils {
   /**
    * 画像ファイルかチェック
    *
-   * @param {File} file - ファイル
-   * @returns {boolean} 画像ファイルなら true
+   * @param file - ファイル
+   * @returns 画像ファイルなら true
    *
    * @example
    * if (FileUtils.isImage(file)) {
    *   // プレビュー表示処理
    * }
    */
-  static isImage(file) {
+  static isImage(file: File): boolean {
     return file.type.startsWith('image/')
   }
 
   /**
    * 動画ファイルかチェック
    *
-   * @param {File} file - ファイル
-   * @returns {boolean} 動画ファイルなら true
+   * @param file - ファイル
+   * @returns 動画ファイルなら true
    */
-  static isVideo(file) {
+  static isVideo(file: File): boolean {
     return file.type.startsWith('video/')
   }
 
   /**
    * PDFファイルかチェック
    *
-   * @param {File} file - ファイル
-   * @returns {boolean} PDFファイルなら true
+   * @param file - ファイル
+   * @returns PDFファイルなら true
    */
-  static isPDF(file) {
+  static isPDF(file: File): boolean {
     return file.type === 'application/pdf'
   }
 
   /**
    * ファイル情報を取得
    *
-   * @param {File} file - ファイル
-   * @returns {Object} ファイル情報オブジェクト
+   * @param file - ファイル
+   * @returns ファイル情報オブジェクト
    *
    * @example
    * const info = FileUtils.getFileInfo(file)
    * console.log(info.sizeFormatted) // "2.5 MB"
    */
-  static getFileInfo(file) {
+  static getFileInfo(file: File): FileInfo {
     return {
       name: file.name,
       size: file.size,
@@ -102,14 +140,14 @@ export class FileUtils {
   /**
    * ファイルサイズをフォーマット
    *
-   * @param {number} bytes - バイト数
-   * @returns {string} フォーマットされたサイズ文字列
+   * @param bytes - バイト数
+   * @returns フォーマットされたサイズ文字列
    *
    * @example
    * FileUtils.formatFileSize(1024) // "1 KB"
    * FileUtils.formatFileSize(1048576) // "1 MB"
    */
-  static formatFileSize(bytes) {
+  static formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes'
 
     const k = 1024
@@ -122,29 +160,29 @@ export class FileUtils {
   /**
    * ファイル拡張子を取得
    *
-   * @param {string} filename - ファイル名
-   * @returns {string} 拡張子（ドットなし、小文字）
+   * @param filename - ファイル名
+   * @returns 拡張子（ドットなし、小文字）
    *
    * @example
    * FileUtils.getFileExtension('photo.JPG') // "jpg"
    * FileUtils.getFileExtension('document.pdf') // "pdf"
    */
-  static getFileExtension(filename) {
+  static getFileExtension(filename: string): string {
     const parts = filename.split('.')
     if (parts.length === 1) return ''
-    return parts.pop().toLowerCase()
+    return parts.pop()!.toLowerCase()
   }
 
   /**
    * ファイル名から拡張子を除いた部分を取得
    *
-   * @param {string} filename - ファイル名
-   * @returns {string} 拡張子を除いたファイル名
+   * @param filename - ファイル名
+   * @returns 拡張子を除いたファイル名
    *
    * @example
    * FileUtils.getFileNameWithoutExtension('photo.jpg') // "photo"
    */
-  static getFileNameWithoutExtension(filename) {
+  static getFileNameWithoutExtension(filename: string): string {
     const parts = filename.split('.')
     if (parts.length === 1) return filename
     parts.pop()
@@ -154,17 +192,17 @@ export class FileUtils {
   /**
    * File オブジェクトから Data URL を生成（プレビュー用）
    *
-   * @param {File} file - ファイル
-   * @returns {Promise<string>} Data URL
+   * @param file - ファイル
+   * @returns Data URL
    *
    * @example
    * const dataUrl = await FileUtils.getFileDataUrl(file)
    * imgElement.src = dataUrl
    */
-  static getFileDataUrl(file) {
+  static getFileDataUrl(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      reader.onload = (e) => resolve(e.target.result)
+      reader.onload = (e) => resolve(e.target?.result as string)
       reader.onerror = reject
       reader.readAsDataURL(file)
     })
@@ -173,13 +211,13 @@ export class FileUtils {
   /**
    * 画像の寸法を取得
    *
-   * @param {File} file - 画像ファイル
-   * @returns {Promise<{width: number, height: number}>} 画像の幅と高さ
+   * @param file - 画像ファイル
+   * @returns 画像の幅と高さ
    *
    * @example
    * const { width, height } = await FileUtils.getImageDimensions(file)
    */
-  static async getImageDimensions(file) {
+  static async getImageDimensions(file: File): Promise<ImageDimensions> {
     if (!this.isImage(file)) {
       throw new Error('画像ファイルではありません')
     }
@@ -199,12 +237,9 @@ export class FileUtils {
   /**
    * 複数ファイルのバリデーション
    *
-   * @param {File[]} files - ファイル配列
-   * @param {Object} options - オプション
-   * @param {number} options.maxSizeMB - 最大サイズ（MB）
-   * @param {string[]} options.allowedTypes - 許可するMIMEタイプ
-   * @param {number} options.maxCount - 最大ファイル数
-   * @returns {{valid: boolean, errors: string[]}}
+   * @param files - ファイル配列
+   * @param options - オプション
+   * @returns Validation result
    *
    * @example
    * const result = FileUtils.validateFiles(files, {
@@ -216,9 +251,9 @@ export class FileUtils {
    *   alert(result.errors.join('\n'))
    * }
    */
-  static validateFiles(files, options = {}) {
+  static validateFiles(files: File[], options: FileValidationOptions = {}): FileValidationResult {
     const { maxSizeMB = 10, allowedTypes = [], maxCount } = options
-    const errors = []
+    const errors: string[] = []
 
     // ファイル数チェック
     if (maxCount && files.length > maxCount) {
@@ -230,9 +265,7 @@ export class FileUtils {
       const fileNum = index + 1
 
       if (!this.validateFileSize(file, maxSizeMB)) {
-        errors.push(
-          `ファイル${fileNum} (${file.name}): サイズが大きすぎます（最大: ${maxSizeMB}MB）`
-        )
+        errors.push(`ファイル${fileNum} (${file.name}): サイズが大きすぎます（最大: ${maxSizeMB}MB）`)
       }
 
       if (allowedTypes.length > 0 && !this.validateFileType(file, allowedTypes)) {
@@ -251,21 +284,21 @@ export class FileUtils {
   /**
    * 一般的な画像MIMEタイプ
    */
-  static get IMAGE_TYPES() {
+  static get IMAGE_TYPES(): string[] {
     return ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
   }
 
   /**
    * 一般的な動画MIMEタイプ
    */
-  static get VIDEO_TYPES() {
+  static get VIDEO_TYPES(): string[] {
     return ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
   }
 
   /**
    * 一般的なドキュメントMIMEタイプ
    */
-  static get DOCUMENT_TYPES() {
+  static get DOCUMENT_TYPES(): string[] {
     return [
       'application/pdf',
       'application/msword',
