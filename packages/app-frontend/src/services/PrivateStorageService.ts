@@ -2,6 +2,92 @@ import { EdgeFunctionService } from './EdgeFunctionService'
 import { FileUtils } from '../utils/FileUtils'
 
 /**
+ * Upload options
+ */
+export interface UploadOptions {
+  folder?: string
+  metadata?: Record<string, unknown>
+  allowedTypes?: string[]
+  maxSizeMB?: number
+}
+
+/**
+ * Upload result
+ */
+export interface UploadResult {
+  id: string
+  storagePath: string
+  metadata: Record<string, unknown>
+  bucket: string
+  success: boolean
+}
+
+/**
+ * Upload error result
+ */
+export interface UploadErrorResult {
+  success: false
+  error: string
+  fileName: string
+}
+
+/**
+ * Signed URL options
+ */
+export interface SignedUrlOptions {
+  expiresIn?: number
+}
+
+/**
+ * Signed URL result
+ */
+export interface SignedUrlResult {
+  signedUrl: string
+  expiresAt: string
+  success: boolean
+}
+
+/**
+ * Signed URL with file ID
+ */
+export interface SignedUrlWithId extends SignedUrlResult {
+  fileId: string
+}
+
+/**
+ * Signed URL error result
+ */
+export interface SignedUrlErrorResult {
+  fileId: string
+  success: false
+  error: string
+}
+
+/**
+ * Delete result
+ */
+export interface DeleteResult {
+  success: boolean
+  deletedAt: string
+}
+
+/**
+ * Delete error result
+ */
+export interface DeleteErrorResult {
+  success: false
+  error: string
+  fileId: string
+}
+
+/**
+ * Download options
+ */
+export interface DownloadOptions {
+  downloadFileName?: string
+}
+
+/**
  * Private Storage Service
  * 非公開ファイル（個人ドキュメント、機密情報など）のアップロード・削除を管理
  *
@@ -31,9 +117,9 @@ import { FileUtils } from '../utils/FileUtils'
  * window.open(signedUrl) // 1時間有効な一時URL
  */
 export class PrivateStorageService {
-  static BUCKET_NAME = 'private_uploads'
-  static DEFAULT_MAX_SIZE_MB = 10
-  static DEFAULT_SIGNED_URL_EXPIRES_IN = 3600 // 1時間
+  static readonly BUCKET_NAME = 'private_uploads'
+  static readonly DEFAULT_MAX_SIZE_MB = 10
+  static readonly DEFAULT_SIGNED_URL_EXPIRES_IN = 3600 // 1時間
 
   /**
    * Private ファイルをアップロード
@@ -43,14 +129,10 @@ export class PrivateStorageService {
    * 2. files テーブルに metadata を INSERT (status: 'uploading' → 'active')
    * 3. 失敗時は Storage のファイルをロールバック削除
    *
-   * @param {File} file - アップロードするファイル
-   * @param {Object} options - オプション
-   * @param {string} options.folder - フォルダ名（例: 'documents', 'invoices'）
-   * @param {Object} options.metadata - DB に保存する追加メタデータ
-   * @param {string[]} options.allowedTypes - 許可する MIME タイプ
-   * @param {number} options.maxSizeMB - 最大サイズ（MB）
-   * @returns {Promise<Object>} { id, storagePath, metadata }
-   * @throws {Error} バリデーションエラー、アップロードエラー
+   * @param file - アップロードするファイル
+   * @param options - オプション
+   * @returns { id, storagePath, metadata }
+   * @throws バリデーションエラー、アップロードエラー
    *
    * @example
    * // 基本的な使用
@@ -66,7 +148,7 @@ export class PrivateStorageService {
    *   metadata: { invoiceId: '123', year: 2024 }
    * })
    */
-  static async upload(file, options = {}) {
+  static async upload(file: File, options: UploadOptions = {}): Promise<UploadResult> {
     const {
       folder = '',
       metadata = {},
@@ -87,7 +169,13 @@ export class PrivateStorageService {
 
     try {
       // Edge Function 呼び出し: Storage アップロード + DB INSERT
-      const { data, error } = await EdgeFunctionService.invoke('upload-file', formData, {
+      const { data, error } = await EdgeFunctionService.invoke<{
+        file_id: string
+        storage_path: string
+        metadata: Record<string, unknown>
+        bucket?: string
+        success?: boolean
+      }>('upload-file', formData, {
         isFormData: true,
       })
 
@@ -107,7 +195,8 @@ export class PrivateStorageService {
         success: data.success !== undefined ? data.success : true,
       }
     } catch (error) {
-      throw new Error(`Private ファイルのアップロードに失敗: ${error.message}`)
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Private ファイルのアップロードに失敗: ${message}`)
     }
   }
 
@@ -118,11 +207,10 @@ export class PrivateStorageService {
    * 1. files テーブルから fileId で検索（RLS で権限チェック）
    * 2. 権限があれば署名付き URL を生成
    *
-   * @param {string} fileId - files テーブルの ID
-   * @param {Object} options - オプション
-   * @param {number} options.expiresIn - 有効期限（秒、デフォルト: 1時間）
-   * @returns {Promise<Object>} { signedUrl, expiresAt }
-   * @throws {Error} 権限エラー、ファイルが存在しない
+   * @param fileId - files テーブルの ID
+   * @param options - オプション
+   * @returns { signedUrl, expiresAt }
+   * @throws 権限エラー、ファイルが存在しない
    *
    * @example
    * // 1時間有効な署名付きURLを取得
@@ -134,14 +222,17 @@ export class PrivateStorageService {
    *   expiresIn: 600
    * })
    */
-  static async getSignedUrl(fileId, options = {}) {
+  static async getSignedUrl(fileId: string, options: SignedUrlOptions = {}): Promise<SignedUrlResult> {
     const { expiresIn = this.DEFAULT_SIGNED_URL_EXPIRES_IN } = options
 
     try {
       // Edge Function:
       // 1. files テーブルから fileId で検索（RLS で権限チェック）
       // 2. 権限があれば署名付き URL を生成
-      const { data, error } = await EdgeFunctionService.invoke('get-signed-url', {
+      const { data, error } = await EdgeFunctionService.invoke<{
+        signed_url: string
+        expires_at: string
+      }>('get-signed-url', {
         fileId,
         expiresIn,
       })
@@ -160,19 +251,20 @@ export class PrivateStorageService {
         success: true,
       }
     } catch (error) {
-      if (error.message.includes('not found')) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.includes('not found')) {
         throw new Error('ファイルが存在しないか、アクセス権限がありません')
       }
-      throw new Error(`署名付き URL の取得に失敗: ${error.message}`)
+      throw new Error(`署名付き URL の取得に失敗: ${message}`)
     }
   }
 
   /**
    * 複数ファイルの署名付き URL を一括取得
    *
-   * @param {string[]} fileIds - ファイルID配列
-   * @param {Object} options - オプション
-   * @returns {Promise<Object[]>} 署名付きURL配列
+   * @param fileIds - ファイルID配列
+   * @param options - オプション
+   * @returns 署名付きURL配列
    *
    * @example
    * const urls = await PrivateStorageService.getSignedUrls(['id1', 'id2'])
@@ -180,16 +272,21 @@ export class PrivateStorageService {
    *   console.log(fileId, signedUrl)
    * })
    */
-  static async getSignedUrls(fileIds, options = {}) {
+  static async getSignedUrls(
+    fileIds: string[],
+    options: SignedUrlOptions = {}
+  ): Promise<(SignedUrlWithId | SignedUrlErrorResult)[]> {
     const urlPromises = fileIds.map((fileId) =>
-      this.getSignedUrl(fileId, options).then((result) => ({
-        fileId,
-        ...result,
-      })).catch((error) => ({
-        fileId,
-        success: false,
-        error: error.message,
-      }))
+      this.getSignedUrl(fileId, options)
+        .then((result): SignedUrlWithId => ({
+          fileId,
+          ...result,
+        }))
+        .catch((error): SignedUrlErrorResult => ({
+          fileId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        }))
     )
 
     return await Promise.all(urlPromises)
@@ -202,16 +299,18 @@ export class PrivateStorageService {
    * 1. files テーブルから DELETE (RLS で権限チェック)
    * 2. Storage Hooks が自動的に Storage のファイルも削除
    *
-   * @param {string} fileId - files テーブルの ID
-   * @returns {Promise<Object>} { success, deletedAt }
-   * @throws {Error} 権限エラー、ファイルが存在しない
+   * @param fileId - files テーブルの ID
+   * @returns { success, deletedAt }
+   * @throws 権限エラー、ファイルが存在しない
    *
    * @example
    * await PrivateStorageService.delete(fileId)
    */
-  static async delete(fileId) {
+  static async delete(fileId: string): Promise<DeleteResult> {
     try {
-      const { data, error } = await EdgeFunctionService.invoke('delete-file', {
+      const { data, error } = await EdgeFunctionService.invoke<{
+        deleted_at: string
+      }>('delete-file', {
         fileId,
       })
 
@@ -228,28 +327,29 @@ export class PrivateStorageService {
         deletedAt: data.deleted_at,
       }
     } catch (error) {
-      if (error.message.includes('not found')) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.includes('not found')) {
         throw new Error('ファイルが存在しないか、削除権限がありません')
       }
-      throw new Error(`Private ファイルの削除に失敗: ${error.message}`)
+      throw new Error(`Private ファイルの削除に失敗: ${message}`)
     }
   }
 
   /**
    * 複数の Private ファイルを一括削除
    *
-   * @param {string[]} fileIds - ファイルID配列
-   * @returns {Promise<Object[]>} 削除結果の配列
+   * @param fileIds - ファイルID配列
+   * @returns 削除結果の配列
    *
    * @example
    * const results = await PrivateStorageService.deleteMultiple(fileIds)
    * const successful = results.filter(r => r.success)
    */
-  static async deleteMultiple(fileIds) {
+  static async deleteMultiple(fileIds: string[]): Promise<(DeleteResult | DeleteErrorResult)[]> {
     const deletePromises = fileIds.map((fileId) =>
-      this.delete(fileId).catch((error) => ({
+      this.delete(fileId).catch((error): DeleteErrorResult => ({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         fileId,
       }))
     )
@@ -260,9 +360,9 @@ export class PrivateStorageService {
   /**
    * 複数の Private ファイルを一括アップロード
    *
-   * @param {File[]} files - ファイル配列
-   * @param {Object} options - オプション
-   * @returns {Promise<Object[]>} アップロード結果の配列
+   * @param files - ファイル配列
+   * @param options - オプション
+   * @returns アップロード結果の配列
    *
    * @example
    * const results = await PrivateStorageService.uploadMultiple(files, {
@@ -273,11 +373,14 @@ export class PrivateStorageService {
    * const successful = results.filter(r => r.success)
    * const failed = results.filter(r => !r.success)
    */
-  static async uploadMultiple(files, options = {}) {
+  static async uploadMultiple(
+    files: File[],
+    options: UploadOptions = {}
+  ): Promise<(UploadResult | UploadErrorResult)[]> {
     const uploadPromises = files.map((file) =>
-      this.upload(file, options).catch((error) => ({
+      this.upload(file, options).catch((error): UploadErrorResult => ({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         fileName: file.name,
       }))
     )
@@ -288,9 +391,9 @@ export class PrivateStorageService {
   /**
    * PDF をアップロード（PDF専用の便利メソッド）
    *
-   * @param {File} pdfFile - PDFファイル
-   * @param {Object} options - オプション
-   * @returns {Promise<Object>}
+   * @param pdfFile - PDFファイル
+   * @param options - オプション
+   * @returns Upload result
    *
    * @example
    * const result = await PrivateStorageService.uploadPDF(pdfFile, {
@@ -298,7 +401,7 @@ export class PrivateStorageService {
    *   metadata: { invoiceId: '123' }
    * })
    */
-  static async uploadPDF(pdfFile, options = {}) {
+  static async uploadPDF(pdfFile: File, options: UploadOptions = {}): Promise<UploadResult> {
     return this.upload(pdfFile, {
       ...options,
       allowedTypes: ['application/pdf'],
@@ -308,9 +411,9 @@ export class PrivateStorageService {
   /**
    * ドキュメントをアップロード（ドキュメント専用の便利メソッド）
    *
-   * @param {File} documentFile - ドキュメントファイル
-   * @param {Object} options - オプション
-   * @returns {Promise<Object>}
+   * @param documentFile - ドキュメントファイル
+   * @param options - オプション
+   * @returns Upload result
    *
    * @example
    * const result = await PrivateStorageService.uploadDocument(file, {
@@ -318,7 +421,7 @@ export class PrivateStorageService {
    *   maxSizeMB: 50
    * })
    */
-  static async uploadDocument(documentFile, options = {}) {
+  static async uploadDocument(documentFile: File, options: UploadOptions = {}): Promise<UploadResult> {
     return this.upload(documentFile, {
       ...options,
       allowedTypes: FileUtils.DOCUMENT_TYPES,
@@ -328,10 +431,8 @@ export class PrivateStorageService {
   /**
    * 署名付きURLから直接ダウンロードを開始
    *
-   * @param {string} fileId - ファイルID
-   * @param {Object} options - オプション
-   * @param {string} options.downloadFileName - ダウンロード時のファイル名
-   * @returns {Promise<void>}
+   * @param fileId - ファイルID
+   * @param options - オプション
    *
    * @example
    * // ブラウザでダウンロードを開始
@@ -339,7 +440,7 @@ export class PrivateStorageService {
    *   downloadFileName: 'invoice_2024.pdf'
    * })
    */
-  static async download(fileId, options = {}) {
+  static async download(fileId: string, options: DownloadOptions = {}): Promise<void> {
     const { downloadFileName } = options
 
     try {
@@ -356,7 +457,8 @@ export class PrivateStorageService {
       link.click()
       document.body.removeChild(link)
     } catch (error) {
-      throw new Error(`ファイルのダウンロードに失敗: ${error.message}`)
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`ファイルのダウンロードに失敗: ${message}`)
     }
   }
 
@@ -366,7 +468,10 @@ export class PrivateStorageService {
    * ファイルバリデーション
    * @private
    */
-  static _validateFile(file, options = {}) {
+  private static _validateFile(
+    file: File,
+    options: { allowedTypes?: string[]; maxSizeMB?: number } = {}
+  ): void {
     const { allowedTypes = [], maxSizeMB = this.DEFAULT_MAX_SIZE_MB } = options
 
     // ファイル存在チェック

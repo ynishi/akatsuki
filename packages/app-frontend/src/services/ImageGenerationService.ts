@@ -3,6 +3,131 @@ import { PublicStorageService } from './PublicStorageService'
 import { PrivateStorageService } from './PrivateStorageService'
 
 /**
+ * Image generation mode
+ */
+export type ImageGenerationMode = 'text-to-image' | 'variation' | 'edit'
+
+/**
+ * Image generation provider
+ */
+export type ImageGenerationProvider = 'dalle' | 'gemini' | 'comfyui'
+
+/**
+ * Image quality
+ */
+export type ImageQuality = 'standard' | 'hd'
+
+/**
+ * Image style
+ */
+export type ImageStyle = 'vivid' | 'natural'
+
+/**
+ * Image size
+ */
+export type ImageSize = '1024x1024' | '1792x1024' | '1024x1792'
+
+/**
+ * Storage type
+ */
+export type StorageType = 'public' | 'private'
+
+/**
+ * ComfyUI configuration
+ */
+export interface ComfyUIConfig {
+  [key: string]: unknown
+}
+
+/**
+ * Image generation options
+ */
+export interface ImageGenerationOptions {
+  prompt?: string
+  provider?: ImageGenerationProvider
+  size?: ImageSize
+  quality?: ImageQuality
+  style?: ImageStyle
+  model?: string
+  mode?: ImageGenerationMode
+  sourceImage?: string
+  storage?: StorageType
+  metadata?: Record<string, unknown>
+  comfyui_config?: ComfyUIConfig
+}
+
+/**
+ * Generation result from Edge Function
+ */
+interface GenerationResult {
+  image_data: string
+  mime_type?: string
+  revised_prompt?: string
+  provider: string
+  model: string
+  size: string
+}
+
+/**
+ * Image generation result
+ */
+export interface ImageGenerationResult {
+  id: string
+  publicUrl?: string
+  storagePath: string
+  revisedPrompt?: string
+  provider: string
+  model: string
+  size: string
+  metadata: Record<string, unknown>
+}
+
+/**
+ * Service response
+ */
+export interface ImageGenerationResponse {
+  data: ImageGenerationResult | null
+  error: Error | null
+}
+
+/**
+ * Size option
+ */
+export interface SizeOption {
+  value: ImageSize
+  label: string
+  description: string
+}
+
+/**
+ * Quality option
+ */
+export interface QualityOption {
+  value: ImageQuality
+  label: string
+  description: string
+}
+
+/**
+ * Style option
+ */
+export interface StyleOption {
+  value: ImageStyle
+  label: string
+  description: string
+}
+
+/**
+ * Provider option
+ */
+export interface ProviderOption {
+  value: ImageGenerationProvider
+  label: string
+  description: string
+  available: boolean
+}
+
+/**
  * Image Generation Service
  * AI画像生成とStorage保存を統合管理
  *
@@ -23,25 +148,16 @@ import { PrivateStorageService } from './PrivateStorageService'
  *   style: 'vivid'
  * })
  *
- * console.log(result.publicUrl) // 恒久的な公開URL
- * console.log(result.revisedPrompt) // DALL-Eが修正したプロンプト
+ * console.log(result.data?.publicUrl) // 恒久的な公開URL
+ * console.log(result.data?.revisedPrompt) // DALL-Eが修正したプロンプト
  */
 export class ImageGenerationService {
   /**
    * AI画像を生成してStorageに保存
    *
-   * @param {Object} options - 生成オプション
-   * @param {string} options.prompt - 画像生成プロンプト（必須）
-   * @param {string} options.provider - プロバイダー ('dalle' | 'gemini' | 'comfyui', デフォルト: 'dalle')
-   * @param {string} options.size - 画像サイズ ('1024x1024' | '1792x1024' | '1024x1792', デフォルト: '1024x1024')
-   * @param {string} options.quality - 品質 ('standard' | 'hd', デフォルト: 'standard')
-   * @param {string} options.style - スタイル ('vivid' | 'natural', デフォルト: 'vivid')
-   * @param {string} options.model - モデル名（オプション）
-   * @param {string} options.sourceImage - 元画像URL（Variation/Edit時のみ）
-   * @param {string} options.storage - ストレージタイプ ('public' | 'private', デフォルト: 'public')
-   * @param {Object} options.metadata - 追加メタデータ（オプション）
-   * @returns {Promise<{data: Object|null, error: Error|null}>} { data: { id, publicUrl, ... }, error }
-   * @throws {Error} プロンプト未指定、生成失敗、保存失敗
+   * @param options - 生成オプション
+   * @returns { data: { id, publicUrl, ... }, error }
+   * @throws プロンプト未指定、生成失敗、保存失敗
    *
    * @example
    * // 基本的な使用
@@ -57,7 +173,7 @@ export class ImageGenerationService {
    *   style: 'natural'
    * })
    */
-  static async generate(options) {
+  static async generate(options: ImageGenerationOptions): Promise<ImageGenerationResponse> {
     const {
       prompt,
       provider = 'dalle',
@@ -65,15 +181,15 @@ export class ImageGenerationService {
       quality = 'standard',
       style = 'vivid',
       model,
-      mode, // 明示的に mode を受け取る
+      mode,
       sourceImage,
       storage = 'public',
       metadata: additionalMetadata = {},
-      comfyui_config, // ComfyUI専用設定
+      comfyui_config,
     } = options
 
     // Mode を決定（明示的に指定されていない場合は推論）
-    const imageMode = mode || (sourceImage ? 'variation' : 'text-to-image')
+    const imageMode: ImageGenerationMode = mode || (sourceImage ? 'variation' : 'text-to-image')
 
     // Mode別バリデーション
     if (imageMode !== 'variation' && !prompt) {
@@ -82,11 +198,18 @@ export class ImageGenerationService {
 
     try {
       console.log('[ImageGenerationService] Generating image with:', {
-        mode: imageMode, prompt, provider, size, quality, style, sourceImage, storage
+        mode: imageMode,
+        prompt,
+        provider,
+        size,
+        quality,
+        style,
+        sourceImage,
+        storage,
       })
 
       // === Step 1: Edge Function で画像生成 ===
-      const edgeFunctionPayload = {
+      const edgeFunctionPayload: Record<string, unknown> = {
         mode: imageMode,
         prompt,
         provider,
@@ -106,7 +229,10 @@ export class ImageGenerationService {
         edgeFunctionPayload.comfyui_config = comfyui_config
       }
 
-      const { data: generationResult, error: genError } = await EdgeFunctionService.invoke('generate-image', edgeFunctionPayload)
+      const { data: generationResult, error: genError } = await EdgeFunctionService.invoke<GenerationResult>(
+        'generate-image',
+        edgeFunctionPayload
+      )
 
       console.log('[ImageGenerationService] Generation result:', generationResult, genError)
 
@@ -132,11 +258,7 @@ export class ImageGenerationService {
       }
       const imageBlob = new Blob([bytes], { type: mimeType })
 
-      const imageFile = new File(
-        [imageBlob],
-        `generated-${Date.now()}.png`,
-        { type: mimeType }
-      )
+      const imageFile = new File([imageBlob], `generated-${Date.now()}.png`, { type: mimeType })
 
       console.log('[ImageGenerationService] Image converted to file:', {
         size: imageFile.size,
@@ -146,7 +268,7 @@ export class ImageGenerationService {
       // === Step 3: Storage で永続化 (public or private) ===
       const uploadMetadata = {
         type: 'generated_image',
-        mode: imageMode, // text-to-image | variation | edit
+        mode: imageMode,
         prompt: prompt,
         revised_prompt: generationResult.revised_prompt,
         provider: generationResult.provider,
@@ -178,7 +300,7 @@ export class ImageGenerationService {
       return {
         data: {
           id: uploadResult.id, // files テーブルの ID
-          publicUrl: uploadResult.publicUrl, // 恒久的な公開URL
+          publicUrl: 'publicUrl' in uploadResult ? uploadResult.publicUrl : undefined, // 恒久的な公開URL
           storagePath: uploadResult.storagePath,
           revisedPrompt: generationResult.revised_prompt, // DALL-Eが修正したプロンプト
           provider: generationResult.provider,
@@ -190,16 +312,17 @@ export class ImageGenerationService {
       }
     } catch (error) {
       console.error('[ImageGenerationService] Error:', error)
-      return { data: null, error: new Error(`画像生成に失敗しました: ${error.message}`) }
+      const message = error instanceof Error ? error.message : String(error)
+      return { data: null, error: new Error(`画像生成に失敗しました: ${message}`) }
     }
   }
 
   /**
    * DALL-E で画像を生成
    *
-   * @param {string} prompt - プロンプト
-   * @param {Object} options - オプション
-   * @returns {Promise<Object>}
+   * @param prompt - プロンプト
+   * @param options - オプション
+   * @returns Generation result
    *
    * @example
    * const result = await ImageGenerationService.generateWithDallE(
@@ -207,7 +330,7 @@ export class ImageGenerationService {
    *   { quality: 'hd', style: 'natural' }
    * )
    */
-  static async generateWithDallE(prompt, options = {}) {
+  static async generateWithDallE(prompt: string, options: Omit<ImageGenerationOptions, 'prompt' | 'provider'> = {}): Promise<ImageGenerationResponse> {
     return this.generate({
       prompt,
       provider: 'dalle',
@@ -218,16 +341,16 @@ export class ImageGenerationService {
   /**
    * Gemini で画像を生成
    *
-   * @param {string} prompt - プロンプト
-   * @param {Object} options - オプション
-   * @returns {Promise<Object>}
+   * @param prompt - プロンプト
+   * @param options - オプション
+   * @returns Generation result
    *
    * @example
    * const result = await ImageGenerationService.generateWithGemini(
    *   'A futuristic robot'
    * )
    */
-  static async generateWithGemini(prompt, options = {}) {
+  static async generateWithGemini(prompt: string, options: Omit<ImageGenerationOptions, 'prompt' | 'provider'> = {}): Promise<ImageGenerationResponse> {
     return this.generate({
       prompt,
       provider: 'gemini',
@@ -238,16 +361,16 @@ export class ImageGenerationService {
   /**
    * ComfyUI で画像を生成（準備中）
    *
-   * @param {string} prompt - プロンプト
-   * @param {Object} options - オプション
-   * @returns {Promise<Object>}
+   * @param prompt - プロンプト
+   * @param options - オプション
+   * @returns Generation result
    *
    * @example
    * const result = await ImageGenerationService.generateWithComfyUI(
    *   'A fantasy landscape'
    * )
    */
-  static async generateWithComfyUI(prompt, options = {}) {
+  static async generateWithComfyUI(prompt: string, options: Omit<ImageGenerationOptions, 'prompt' | 'provider'> = {}): Promise<ImageGenerationResponse> {
     return this.generate({
       prompt,
       provider: 'comfyui',
@@ -257,9 +380,9 @@ export class ImageGenerationService {
 
   /**
    * サイズオプション一覧を取得
-   * @returns {Array<Object>}
+   * @returns Size options
    */
-  static getSizeOptions() {
+  static getSizeOptions(): SizeOption[] {
     return [
       { value: '1024x1024', label: 'Square (1024x1024)', description: '正方形' },
       { value: '1792x1024', label: 'Landscape (1792x1024)', description: '横長' },
@@ -269,9 +392,9 @@ export class ImageGenerationService {
 
   /**
    * 品質オプション一覧を取得
-   * @returns {Array<Object>}
+   * @returns Quality options
    */
-  static getQualityOptions() {
+  static getQualityOptions(): QualityOption[] {
     return [
       { value: 'standard', label: 'Standard', description: '標準品質（速い）' },
       { value: 'hd', label: 'HD', description: '高品質（遅い）' },
@@ -280,9 +403,9 @@ export class ImageGenerationService {
 
   /**
    * スタイルオプション一覧を取得
-   * @returns {Array<Object>}
+   * @returns Style options
    */
-  static getStyleOptions() {
+  static getStyleOptions(): StyleOption[] {
     return [
       { value: 'vivid', label: 'Vivid', description: '鮮やか・ドラマチック' },
       { value: 'natural', label: 'Natural', description: '自然・リアル' },
@@ -291,9 +414,9 @@ export class ImageGenerationService {
 
   /**
    * プロバイダーオプション一覧を取得
-   * @returns {Array<Object>}
+   * @returns Provider options
    */
-  static getProviderOptions() {
+  static getProviderOptions(): ProviderOption[] {
     return [
       { value: 'dalle', label: 'DALL-E 3', description: 'OpenAI DALL-E 3', available: true },
       { value: 'gemini', label: 'Gemini 2.0 Flash', description: 'Google Gemini Image Generation', available: true },
