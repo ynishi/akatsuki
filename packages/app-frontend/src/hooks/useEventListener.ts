@@ -1,6 +1,21 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
+interface SystemEvent {
+  id: string
+  event_type: string
+  payload: Record<string, any>
+  status: string
+  user_id?: string
+  [key: string]: any
+}
+
+interface UseEventListenerOptions {
+  enabled?: boolean
+  userId?: string
+  status?: string
+}
+
 /**
  * Listen to system events in real-time via Supabase Realtime
  *
@@ -25,8 +40,12 @@ import { supabase } from '../lib/supabase'
  *   }
  * }, { enabled: isSubscribed })
  */
-export function useEventListener(eventTypes, onEvent, options = {}) {
-  const [events, setEvents] = useState([])
+export function useEventListener(
+  eventTypes: string | string[],
+  onEvent: (event: SystemEvent) => void,
+  options: UseEventListenerOptions = {}
+): SystemEvent[] {
+  const [events, setEvents] = useState<SystemEvent[]>([])
   const { enabled = true, userId, status } = options
 
   const types = Array.isArray(eventTypes) ? eventTypes : [eventTypes]
@@ -56,8 +75,8 @@ export function useEventListener(eventTypes, onEvent, options = {}) {
           table: 'system_events',
           ...(filter ? { filter } : {}),
         },
-        (payload) => {
-          const event = payload.new
+        (payload: any) => {
+          const event = payload.new as SystemEvent
 
           // Filter by event type
           if (types.length > 0 && types[0] !== '*' && !types.includes(event.event_type)) {
@@ -92,6 +111,11 @@ export function useEventListener(eventTypes, onEvent, options = {}) {
   return events
 }
 
+interface UseImageGenerationEventsOptions {
+  enabled?: boolean
+  onlyMine?: boolean
+}
+
 /**
  * Listen to image generation events
  *
@@ -106,13 +130,16 @@ export function useEventListener(eventTypes, onEvent, options = {}) {
  *   refetchImages()
  * })
  */
-export function useImageGenerationEvents(onComplete, options = {}) {
+export function useImageGenerationEvents(
+  onComplete: (payload: Record<string, any>) => void,
+  options: UseImageGenerationEventsOptions = {}
+): SystemEvent[] {
   const { enabled = true, onlyMine = true } = options
-  const [currentUser, setCurrentUser] = useState(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
     if (onlyMine) {
-      supabase.auth.getUser().then(({ data }) => {
+      supabase.auth.getUser().then(({ data }: any) => {
         setCurrentUser(data.user)
       })
     }
@@ -133,6 +160,10 @@ export function useImageGenerationEvents(onComplete, options = {}) {
   )
 }
 
+interface UseQuotaEventsOptions {
+  enabled?: boolean
+}
+
 /**
  * Listen to quota-related events
  *
@@ -149,12 +180,15 @@ export function useImageGenerationEvents(onComplete, options = {}) {
  *   }
  * })
  */
-export function useQuotaEvents(onUpdate, options = {}) {
+export function useQuotaEvents(
+  onUpdate: (event: SystemEvent) => void,
+  options: UseQuotaEventsOptions = {}
+): SystemEvent[] {
   const { enabled = true } = options
-  const [currentUser, setCurrentUser] = useState(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: any) => {
       setCurrentUser(data.user)
     })
   }, [])
@@ -174,6 +208,11 @@ export function useQuotaEvents(onUpdate, options = {}) {
   )
 }
 
+interface UseAllEventsOptions {
+  enabled?: boolean
+  maxEvents?: number
+}
+
 /**
  * Listen to all events (Admin only)
  *
@@ -187,9 +226,12 @@ export function useQuotaEvents(onUpdate, options = {}) {
  *   console.log('Event:', event.event_type, event.payload)
  * }, { maxEvents: 100 })
  */
-export function useAllEvents(onEvent, options = {}) {
+export function useAllEvents(
+  onEvent: (event: SystemEvent) => void,
+  options: UseAllEventsOptions = {}
+): SystemEvent[] {
   const { enabled = true, maxEvents = 50 } = options
-  const [events, setEvents] = useState([])
+  const [events, setEvents] = useState<SystemEvent[]>([])
 
   useEffect(() => {
     if (!enabled) return
@@ -203,8 +245,8 @@ export function useAllEvents(onEvent, options = {}) {
           schema: 'public',
           table: 'system_events',
         },
-        (payload) => {
-          const event = payload.new
+        (payload: any) => {
+          const event = payload.new as SystemEvent
 
           setEvents((prev) => {
             const updated = [event, ...prev]

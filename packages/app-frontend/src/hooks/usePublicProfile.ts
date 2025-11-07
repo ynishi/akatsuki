@@ -12,7 +12,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 import { PublicProfile } from '../models/PublicProfile'
 
-export function usePublicProfile(userId, { autoLoad = true } = {}) {
+interface UsePublicProfileOptions {
+  autoLoad?: boolean
+}
+
+interface UsePublicProfileReturn {
+  profile: PublicProfile | null | undefined
+  isLoading: boolean
+  isError: boolean
+  error: Error | null
+  refetch: () => void
+  updateProfile: (updates: Partial<PublicProfile>) => void
+  updateProfileAsync: (updates: Partial<PublicProfile>) => Promise<PublicProfile | null>
+  isUpdating: boolean
+  createProfile: (profileData: Partial<PublicProfile>) => void
+  createProfileAsync: (profileData: Partial<PublicProfile>) => Promise<PublicProfile | null>
+  isCreating: boolean
+  deleteProfile: () => void
+  deleteProfileAsync: () => Promise<void>
+  isDeleting: boolean
+  loading: boolean
+  refresh: () => void
+}
+
+export function usePublicProfile(userId: string, { autoLoad = true }: UsePublicProfileOptions = {}): UsePublicProfileReturn {
   const queryClient = useQueryClient()
 
   /**
@@ -32,7 +55,7 @@ export function usePublicProfile(userId, { autoLoad = true } = {}) {
    * Mutation: プロフィール更新
    */
   const updateMutation = useMutation({
-    mutationFn: async (updates) => {
+    mutationFn: async (updates: Partial<PublicProfile>) => {
       const { data, error } = await PublicProfileRepository.update(userId, updates)
       if (error) throw error
       return PublicProfile.fromDatabase(data)
@@ -46,7 +69,7 @@ export function usePublicProfile(userId, { autoLoad = true } = {}) {
    * Mutation: プロフィール作成
    */
   const createMutation = useMutation({
-    mutationFn: async (profileData) => {
+    mutationFn: async (profileData: Partial<PublicProfile>) => {
       const { data, error } = await PublicProfileRepository.create(profileData)
       if (error) throw error
       return PublicProfile.fromDatabase(data)
@@ -96,11 +119,21 @@ export function usePublicProfile(userId, { autoLoad = true } = {}) {
   }
 }
 
+interface UsePublicProfileByUsernameReturn {
+  profile: PublicProfile | null | undefined
+  isLoading: boolean
+  isError: boolean
+  error: Error | null
+  refetch: () => void
+  loading: boolean
+  refresh: () => void
+}
+
 /**
  * usePublicProfileByUsername Hook (React Query版)
  * Load public profile by username
  */
-export function usePublicProfileByUsername(username, { autoLoad = true } = {}) {
+export function usePublicProfileByUsername(username: string, { autoLoad = true }: UsePublicProfileOptions = {}): UsePublicProfileByUsernameReturn {
   const query = useQuery({
     queryKey: ['publicProfile', 'username', username],
     queryFn: async () => {

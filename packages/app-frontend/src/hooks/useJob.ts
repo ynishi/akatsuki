@@ -2,6 +2,36 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { EventService } from '../services/EventService'
 
+interface JobData {
+  id: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  progress?: number
+  result?: any
+  error_message?: string
+  [key: string]: any
+}
+
+interface UseJobOptions {
+  enabled?: boolean
+  refetchOnMount?: boolean
+  onComplete?: (result: any) => void
+  onError?: (error: string) => void
+  onProgress?: (progress: number) => void
+}
+
+interface UseJobReturn {
+  job: JobData | null
+  progress: number
+  result: any
+  error: string | null
+  isLoading: boolean
+  isPending: boolean
+  isProcessing: boolean
+  isCompleted: boolean
+  isFailed: boolean
+  refetch: () => Promise<void>
+}
+
 /**
  * Monitor a job's progress in real-time
  *
@@ -56,7 +86,7 @@ import { EventService } from '../services/EventService'
  *   }
  * })
  */
-export function useJob(jobId, options = {}) {
+export function useJob(jobId: string, options: UseJobOptions = {}): UseJobReturn {
   const {
     enabled = true,
     refetchOnMount = true,
@@ -65,7 +95,7 @@ export function useJob(jobId, options = {}) {
     onProgress,
   } = options
 
-  const [job, setJob] = useState(null)
+  const [job, setJob] = useState<JobData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Fetch job state
@@ -75,7 +105,7 @@ export function useJob(jobId, options = {}) {
     try {
       setIsLoading(true)
       const data = await EventService.get(jobId)
-      setJob(data)
+      setJob(data as JobData)
     } catch (error) {
       console.error('Failed to fetch job:', error)
     } finally {
@@ -104,13 +134,13 @@ export function useJob(jobId, options = {}) {
           table: 'system_events',
           filter: `id=eq.${jobId}`,
         },
-        (payload) => {
-          const updatedJob = payload.new
+        (payload: any) => {
+          const updatedJob = payload.new as JobData
           setJob(updatedJob)
 
           // Trigger progress callback
           if (onProgress && updatedJob.progress !== job?.progress) {
-            onProgress(updatedJob.progress)
+            onProgress(updatedJob.progress ?? 0)
           }
 
           // Trigger completion callback
@@ -120,7 +150,7 @@ export function useJob(jobId, options = {}) {
 
           // Trigger error callback
           if (onError && updatedJob.status === 'failed' && job?.status !== 'failed') {
-            onError(updatedJob.error_message)
+            onError(updatedJob.error_message ?? 'Unknown error')
           }
         }
       )
@@ -154,6 +184,12 @@ export function useJob(jobId, options = {}) {
   }
 }
 
+interface UseJobsOptions {
+  onComplete?: (result: any, jobId: string) => void
+  onError?: (error: string, jobId: string) => void
+  onProgress?: (progress: number, jobId: string) => void
+}
+
 /**
  * Monitor multiple jobs at once
  *
@@ -171,8 +207,8 @@ export function useJob(jobId, options = {}) {
  * console.log(jobs[jobId1].progress) // 75
  * console.log(jobs[jobId2].isCompleted) // true
  */
-export function useJobs(jobIds, options = {}) {
-  const [jobs, setJobs] = useState({})
+export function useJobs(jobIds: string[], options: UseJobsOptions = {}): Record<string, JobData | null> {
+  const [jobs, setJobs] = useState<Record<string, JobData | null>>({})
 
   useEffect(() => {
     if (!jobIds || jobIds.length === 0) return
@@ -183,10 +219,10 @@ export function useJobs(jobIds, options = {}) {
         jobIds.map(async (jobId) => {
           try {
             const data = await EventService.get(jobId)
-            return [jobId, data]
+            return [jobId, data as JobData] as const
           } catch (error) {
             console.error(`Failed to fetch job ${jobId}:`, error)
-            return [jobId, null]
+            return [jobId, null] as const
           }
         })
       )
@@ -207,8 +243,8 @@ export function useJobs(jobIds, options = {}) {
           table: 'system_events',
           filter: `id=in.(${jobIds.join(',')})`,
         },
-        (payload) => {
-          const updatedJob = payload.new
+        (payload: any) => {
+          const updatedJob = payload.new as JobData
           setJobs((prev) => ({
             ...prev,
             [updatedJob.id]: updatedJob,
@@ -217,13 +253,13 @@ export function useJobs(jobIds, options = {}) {
           // Trigger callbacks
           const previousJob = jobs[updatedJob.id]
           if (options.onProgress && updatedJob.progress !== previousJob?.progress) {
-            options.onProgress(updatedJob.progress, updatedJob.id)
+            options.onProgress(updatedJob.progress ?? 0, updatedJob.id)
           }
           if (options.onComplete && updatedJob.status === 'completed' && previousJob?.status !== 'completed') {
             options.onComplete(updatedJob.result, updatedJob.id)
           }
           if (options.onError && updatedJob.status === 'failed' && previousJob?.status !== 'failed') {
-            options.onError(updatedJob.error_message, updatedJob.id)
+            options.onError(updatedJob.error_message ?? 'Unknown error', updatedJob.id)
           }
         }
       )

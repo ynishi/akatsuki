@@ -1,5 +1,34 @@
 import { useMutation } from '@tanstack/react-query'
-import { ImageGenerationService } from '../services/ImageGenerationService'
+import {
+  ImageGenerationService,
+  ImageGenerationOptions,
+  ImageGenerationResult,
+  SizeOption,
+  QualityOption,
+  StyleOption,
+  ProviderOption
+} from '../services/ImageGenerationService'
+
+interface UseImageGenerationReturn {
+  generate: (options: ImageGenerationOptions) => void
+  generateAsync: (options: ImageGenerationOptions) => Promise<ImageGenerationResult | null>
+  generateWithDallE: (prompt: string, options?: Partial<ImageGenerationOptions>) => Promise<ImageGenerationResult | null>
+  generateWithGemini: (prompt: string, options?: Partial<ImageGenerationOptions>) => Promise<ImageGenerationResult | null>
+  generateVariation: (sourceImageUrl: string, options?: Partial<ImageGenerationOptions>) => Promise<ImageGenerationResult | null>
+  generateEdit: (sourceImageUrl: string, prompt: string, options?: Partial<ImageGenerationOptions>) => Promise<ImageGenerationResult | null>
+  isPending: boolean
+  isError: boolean
+  isSuccess: boolean
+  error: Error | null
+  data: ImageGenerationResult | null | undefined
+  reset: () => void
+  loading: boolean
+  result: ImageGenerationResult | null | undefined
+  sizeOptions: SizeOption[]
+  qualityOptions: QualityOption[]
+  styleOptions: StyleOption[]
+  providerOptions: ProviderOption[]
+}
 
 /**
  * 画像生成専用カスタムフック (React Query版)
@@ -63,10 +92,10 @@ import { ImageGenerationService } from '../services/ImageGenerationService'
  *   }
  * }
  */
-export function useImageGeneration(defaultOptions = {}) {
+export function useImageGeneration(defaultOptions: Partial<ImageGenerationOptions> = {}): UseImageGenerationReturn {
   // React Query Mutation
   const mutation = useMutation({
-    mutationFn: async (options) => {
+    mutationFn: async (options: ImageGenerationOptions) => {
       const { data, error } = await ImageGenerationService.generate({
         ...defaultOptions,
         ...options,
@@ -83,28 +112,28 @@ export function useImageGeneration(defaultOptions = {}) {
     generateAsync: mutation.mutateAsync,
 
     // ショートカット
-    generateWithDallE: (prompt, options = {}) => {
+    generateWithDallE: (prompt: string, options: Partial<ImageGenerationOptions> = {}) => {
       return mutation.mutateAsync({ prompt, provider: 'dalle', ...options })
     },
-    generateWithGemini: (prompt, options = {}) => {
+    generateWithGemini: (prompt: string, options: Partial<ImageGenerationOptions> = {}) => {
       return mutation.mutateAsync({ prompt, provider: 'gemini', ...options })
     },
-    generateVariation: (sourceImageUrl, options = {}) => {
+    generateVariation: (sourceImageUrl: string, options: Partial<ImageGenerationOptions> = {}) => {
       const provider = options.provider || defaultOptions.provider || 'dalle'
       const defaultPrompt = provider === 'gemini' ? 'Create a variation of this image' : ''
       return mutation.mutateAsync({
-        mode: 'variation',
+        mode: 'variation' as const,
         prompt: options.prompt || defaultPrompt,
         sourceImage: sourceImageUrl,
         ...options,
       })
     },
-    generateEdit: (sourceImageUrl, prompt, options = {}) => {
+    generateEdit: (sourceImageUrl: string, prompt: string, options: Partial<ImageGenerationOptions> = {}) => {
       return mutation.mutateAsync({
-        mode: 'edit',
+        mode: 'edit' as const,
         prompt,
         sourceImage: sourceImageUrl,
-        provider: 'gemini',
+        provider: 'gemini' as const,
         ...options,
       })
     },
