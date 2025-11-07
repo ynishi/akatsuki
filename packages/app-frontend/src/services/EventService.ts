@@ -1,6 +1,50 @@
 import { supabase } from '../lib/supabase'
 
 /**
+ * Event emission options
+ */
+export interface EventEmitOptions {
+  priority?: number
+  scheduledAt?: Date | string
+  userId?: string
+  maxRetries?: number
+}
+
+/**
+ * Event filter options
+ */
+export interface EventFilters {
+  eventType?: string
+  status?: string
+  limit?: number
+}
+
+/**
+ * Batch event
+ */
+export interface BatchEvent {
+  eventType: string
+  payload?: Record<string, unknown>
+  options?: EventEmitOptions
+}
+
+/**
+ * System event record
+ */
+export interface SystemEvent {
+  id: string
+  event_type: string
+  payload: Record<string, unknown>
+  priority: number
+  scheduled_at: string
+  user_id: string | null
+  max_retries: number
+  status: string
+  created_at: string
+  [key: string]: unknown
+}
+
+/**
  * Event Service
  * Lightweight event emission for async job processing
  *
@@ -25,16 +69,16 @@ import { supabase } from '../lib/supabase'
 export class EventService {
   /**
    * Emit system event
-   * @param {string} eventType - Event type (e.g., 'image.generated', 'quota.exceeded')
-   * @param {Object} payload - Event data
-   * @param {Object} options - Additional options
-   * @param {number} options.priority - Event priority (higher = processed first)
-   * @param {Date|string} options.scheduledAt - When to process (default: now)
-   * @param {string} options.userId - User ID (auto-detected if not provided)
-   * @param {number} options.maxRetries - Max retry attempts (default: 3)
-   * @returns {Promise<Object>} Created event
+   * @param eventType - Event type (e.g., 'image.generated', 'quota.exceeded')
+   * @param payload - Event data
+   * @param options - Additional options
+   * @returns Created event
    */
-  static async emit(eventType, payload = {}, options = {}) {
+  static async emit(
+    eventType: string,
+    payload: Record<string, unknown> = {},
+    options: EventEmitOptions = {}
+  ): Promise<SystemEvent> {
     try {
       // Get current user if not provided
       const userId = options.userId || (await supabase.auth.getUser()).data.user?.id || null
@@ -59,7 +103,7 @@ export class EventService {
         throw error
       }
 
-      return data
+      return data as SystemEvent
     } catch (error) {
       console.error('EventService.emit error:', error)
       throw error
@@ -68,10 +112,10 @@ export class EventService {
 
   /**
    * Emit multiple events at once
-   * @param {Array<{eventType: string, payload: Object, options?: Object}>} events
-   * @returns {Promise<Array<Object>>}
+   * @param events - Array of events to emit
+   * @returns Created events
    */
-  static async emitBatch(events) {
+  static async emitBatch(events: BatchEvent[]): Promise<SystemEvent[]> {
     try {
       const user = (await supabase.auth.getUser()).data.user
       const userId = user?.id || null
@@ -87,17 +131,14 @@ export class EventService {
         max_retries: options.maxRetries !== undefined ? options.maxRetries : 3,
       }))
 
-      const { data, error } = await supabase
-        .from('system_events')
-        .insert(records)
-        .select()
+      const { data, error } = await supabase.from('system_events').insert(records).select()
 
       if (error) {
         console.error('Failed to emit batch events:', error)
         throw error
       }
 
-      return data
+      return data as SystemEvent[]
     } catch (error) {
       console.error('EventService.emitBatch error:', error)
       throw error
@@ -106,10 +147,9 @@ export class EventService {
 
   /**
    * Cancel a pending event
-   * @param {string} eventId - Event ID
-   * @returns {Promise<void>}
+   * @param eventId - Event ID
    */
-  static async cancel(eventId) {
+  static async cancel(eventId: string): Promise<void> {
     const { error } = await supabase
       .from('system_events')
       .update({ status: 'cancelled' })
@@ -124,15 +164,11 @@ export class EventService {
 
   /**
    * Get event by ID
-   * @param {string} eventId
-   * @returns {Promise<Object|null>}
+   * @param eventId - Event ID
+   * @returns Event or null if not found
    */
-  static async get(eventId) {
-    const { data, error } = await supabase
-      .from('system_events')
-      .select('*')
-      .eq('id', eventId)
-      .single()
+  static async get(eventId: string): Promise<SystemEvent | null> {
+    const { data, error } = await supabase.from('system_events').select('*').eq('id', eventId).single()
 
     if (error) {
       if (error.code === 'PGRST116') return null
@@ -140,18 +176,15 @@ export class EventService {
       throw error
     }
 
-    return data
+    return data as SystemEvent
   }
 
   /**
    * Get events for current user
-   * @param {Object} filters
-   * @param {string} filters.eventType - Filter by event type
-   * @param {string} filters.status - Filter by status
-   * @param {number} filters.limit - Max results (default: 50)
-   * @returns {Promise<Array<Object>>}
+   * @param filters - Filter options
+   * @returns Array of events
    */
-  static async getMyEvents(filters = {}) {
+  static async getMyEvents(filters: EventFilters = {}): Promise<SystemEvent[]> {
     let query = supabase
       .from('system_events')
       .select('*')
@@ -173,6 +206,6 @@ export class EventService {
       throw error
     }
 
-    return data || []
+    return (data as SystemEvent[]) || []
   }
 }

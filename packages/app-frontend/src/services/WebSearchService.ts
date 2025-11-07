@@ -1,16 +1,42 @@
 import { EdgeFunctionService } from './EdgeFunctionService'
 
 /**
+ * Search provider type
+ */
+export type SearchProvider = 'tavily' | 'gemini'
+
+/**
+ * Search options
+ */
+export interface SearchOptions {
+  numResults?: number
+  provider?: SearchProvider
+}
+
+/**
+ * Search result
+ */
+export interface SearchResult {
+  [key: string]: unknown
+}
+
+/**
+ * Search response
+ */
+export interface SearchResponse {
+  data: SearchResult | null
+  error: Error | null
+}
+
+/**
  * Web検索サービス（Tavily API / Gemini Google検索）
  */
 export class WebSearchService {
   /**
    * Web検索を実行
-   * @param {string} query - 検索クエリ
-   * @param {Object} options - オプション
-   * @param {number} options.numResults - 取得する結果数（1-20、デフォルト: 10）
-   * @param {'tavily'|'gemini'} options.provider - 検索プロバイダー（デフォルト: 'gemini'）
-   * @returns {Promise<{data: Object|null, error: Error|null}>}
+   * @param query - 検索クエリ
+   * @param options - オプション
+   * @returns Search response
    *
    * @example
    * // Gemini Google検索（デフォルト）
@@ -28,10 +54,10 @@ export class WebSearchService {
    * console.log(data.answer)   // Tavilyの要約
    * console.log(data.results)  // 検索結果配列
    */
-  static async search(query, options = {}) {
+  static async search(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
     const { numResults = 10, provider = 'gemini' } = options
 
-    const { data, error } = await EdgeFunctionService.invoke('web-search', {
+    const { data, error } = await EdgeFunctionService.invoke<SearchResult>('web-search', {
       query,
       num_results: numResults,
       provider,
