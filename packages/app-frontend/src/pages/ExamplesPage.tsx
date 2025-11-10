@@ -29,33 +29,33 @@ export function ExamplesPage() {
   const { user } = useAuth()
   const [count, setCount] = useState(0)
   const [sliderValue, setSliderValue] = useState([50])
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState<UserProfile | { error: string } | null>(null)
   const [loading, setLoading] = useState(false)
-  const [helloResult, setHelloResult] = useState(null)
+  const [helloResult, setHelloResult] = useState<any>(null)
   const [helloLoading, setHelloLoading] = useState(false)
 
   // Public Profile - 動作確認用
   const [profileCount, setProfileCount] = useState(0)
-  const [randomProfile, setRandomProfile] = useState(null)
+  const [randomProfile, setRandomProfile] = useState<PublicProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
-  const [profileError, setProfileError] = useState(null)
+  const [profileError, setProfileError] = useState<string | null>(null)
 
   // LLM Chat states
   const [llmPrompt, setLlmPrompt] = useState('')
-  const [llmResult, setLlmResult] = useState(null)
+  const [llmResult, setLlmResult] = useState<any>(null)
   const [llmLoading, setLlmLoading] = useState(false)
-  const [quota, setQuota] = useState(null)
+  const [quota, setQuota] = useState<any>(null)
 
   // Public Storage states
-  const [publicFile, setPublicFile] = useState(null)
-  const [publicUploadResult, setPublicUploadResult] = useState(null)
+  const [publicFile, setPublicFile] = useState<File | null>(null)
+  const [publicUploadResult, setPublicUploadResult] = useState<any>(null)
   const [publicUploading, setPublicUploading] = useState(false)
 
   // Private Storage states
-  const [privateFile, setPrivateFile] = useState(null)
-  const [privateUploadResult, setPrivateUploadResult] = useState(null)
+  const [privateFile, setPrivateFile] = useState<File | null>(null)
+  const [privateUploadResult, setPrivateUploadResult] = useState<any>(null)
   const [privateUploading, setPrivateUploading] = useState(false)
-  const [privateFileUrl, setPrivateFileUrl] = useState(null)
+  const [privateFileUrl, setPrivateFileUrl] = useState<string | null>(null)
   const [urlLoading, setUrlLoading] = useState(false)
 
   // Image Generation - useImageGeneration Hook
@@ -98,8 +98,8 @@ export function ExamplesPage() {
     error: comfyUIError,
   } = useImageGeneration()
   const [comfyUIPrompt, setComfyUIPrompt] = useState('A serene Japanese garden with cherry blossoms in full bloom')
-  const [workflows, setWorkflows] = useState([])
-  const [selectedWorkflow, setSelectedWorkflow] = useState(null)
+  const [workflows, setWorkflows] = useState<any[]>([])
+  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null)
   const [workflowsLoading, setWorkflowsLoading] = useState(false)
   const [workflowFormOpen, setWorkflowFormOpen] = useState(false)
   const [newWorkflowName, setNewWorkflowName] = useState('')
@@ -110,28 +110,28 @@ export function ExamplesPage() {
   const [comfyUICfg, setComfyUICfg] = useState([7.0])
   const [comfyUISize, setComfyUISize] = useState('1024x1024')
   const [comfyUIModel, setComfyUIModel] = useState('bismuthIllustrious_v30.safetensors')
-  const [availableModels, setAvailableModels] = useState([])
+  const [availableModels, setAvailableModels] = useState<any[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
 
   // External Integration states
   const [slackMessage, setSlackMessage] = useState('Hello from Akatsuki!')
-  const [slackResult, setSlackResult] = useState(null)
+  const [slackResult, setSlackResult] = useState<any>(null)
   const [slackSending, setSlackSending] = useState(false)
   const [emailTo, setEmailTo] = useState('test@example.com')
   const [emailSubject, setEmailSubject] = useState('Test Email from Akatsuki')
   const [emailBody, setEmailBody] = useState('This is a test email.')
-  const [emailResult, setEmailResult] = useState(null)
+  const [emailResult, setEmailResult] = useState<any>(null)
   const [emailSending, setEmailSending] = useState(false)
 
   // Event System states
   const [eventType, setEventType] = useState('test.demo')
   const [eventPayload, setEventPayload] = useState('{"message": "Hello Event System!"}')
-  const [eventResult, setEventResult] = useState(null)
+  const [eventResult, setEventResult] = useState<any>(null)
   const [eventEmitting, setEventEmitting] = useState(false)
-  const [receivedEvents, setReceivedEvents] = useState([])
+  const [receivedEvents, setReceivedEvents] = useState<any[]>([])
 
   // Async Job System states
-  const [jobId, setJobId] = useState(null)
+  const [jobId, setJobId] = useState<string | null>(null)
   const [jobStarting, setJobStarting] = useState(false)
   const [reportType, setReportType] = useState('sales')
   const [startDate, setStartDate] = useState('2025-01-01')
@@ -140,7 +140,7 @@ export function ExamplesPage() {
   // CDN Gateway Test states
   const [cdnUuidInput, setCdnUuidInput] = useState('550e8400-e29b-41d4-a716-446655440000')
   const [cdnBase62Input, setCdnBase62Input] = useState('')
-  const [cdnConvertResult, setCdnConvertResult] = useState(null)
+  const [cdnConvertResult, setCdnConvertResult] = useState<any>(null)
 
   // CDN Upload & Alias with Hooks
   const { upload: cdnUpload, isPending: cdnUploading, data: cdnUploadData, error: cdnUploadError } = usePublicStorage({ folder: 'cdn-test' })
@@ -152,8 +152,8 @@ export function ExamplesPage() {
   const [funcCallPrompt, setFuncCallPrompt] = useState('Say hello to Akatsuki')
   const [funcCallProvider, setFuncCallProvider] = useState('openai')
   const [funcCallLoading, setFuncCallLoading] = useState(false)
-  const [funcCallResult, setFuncCallResult] = useState(null)
-  const [funcCallError, setFuncCallError] = useState(null)
+  const [funcCallResult, setFuncCallResult] = useState<any>(null)
+  const [funcCallError, setFuncCallError] = useState<string | null>(null)
 
   // Real-time event listener
   useEventListener(['test.demo', 'image.generated', 'quota.warning'], (event) => {
@@ -177,9 +177,9 @@ export function ExamplesPage() {
 
       const profile = data ? PublicProfile.fromDatabase(data) : null
       setRandomProfile(profile)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Load public profiles error:', error)
-      setProfileError(error.message || 'Failed to load profiles')
+      setProfileError((error as Error).message || 'Failed to load profiles')
     } finally {
       setProfileLoading(false)
     }
@@ -200,7 +200,7 @@ export function ExamplesPage() {
       const savedData = await UserProfileRepository.create(newProfile.toDatabase())
       const userProfile = UserProfile.fromDatabase(savedData)
       setProfile(userProfile)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('プロフィール作成エラー:', error)
       setProfile({ error: 'RLS有効のため認証が必要です' })
     } finally {
@@ -216,7 +216,7 @@ export function ExamplesPage() {
       const { data, error } = await callHelloFunction('Akatsuki')
 
       if (error) {
-        setHelloResult({ error: error.message || 'Edge Function invocation failed' })
+        setHelloResult({ error: (error as Error).message || 'Edge Function invocation failed' })
         return
       }
 
@@ -226,9 +226,9 @@ export function ExamplesPage() {
       }
 
       setHelloResult(data)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Edge Function呼び出しエラー:', error)
-      setHelloResult({ error: error.message })
+      setHelloResult({ error: (error as Error).message })
     } finally {
       setHelloLoading(false)
     }
@@ -255,16 +255,16 @@ export function ExamplesPage() {
       // Quota情報も取得
       const quotaInfo = await UserQuotaRepository.checkQuotaAvailability(user.id)
       setQuota(quotaInfo)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('LLM Chat エラー:', error)
-      setLlmResult({ error: error.message })
+      setLlmResult({ error: (error as Error).message })
     } finally {
       setLlmLoading(false)
     }
   }
 
   // Public Storage: アバター画像アップロード
-  const handlePublicUpload = async (e) => {
+  const handlePublicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -293,16 +293,16 @@ export function ExamplesPage() {
       })
 
       setPublicUploadResult(result)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Public upload error:', error)
-      setPublicUploadResult({ error: error.message })
+      setPublicUploadResult({ error: (error as Error).message })
     } finally {
       setPublicUploading(false)
     }
   }
 
   // Private Storage: PDFアップロード
-  const handlePrivateUpload = async (e) => {
+  const handlePrivateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -328,9 +328,9 @@ export function ExamplesPage() {
       })
 
       setPrivateUploadResult(result)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Private upload error:', error)
-      setPrivateUploadResult({ error: error.message })
+      setPrivateUploadResult({ error: (error as Error).message })
     } finally {
       setPrivateUploading(false)
     }
@@ -344,10 +344,10 @@ export function ExamplesPage() {
       setUrlLoading(true)
       const result = await PrivateStorageService.getSignedUrl(privateUploadResult.id)
       setPrivateFileUrl(result.signedUrl)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Get signed URL error:', error)
       setPrivateFileUrl(null)
-      setPrivateUploadResult({ ...privateUploadResult, error: error.message })
+      setPrivateUploadResult({ ...privateUploadResult, error: (error as Error).message })
     } finally {
       setUrlLoading(false)
     }
@@ -361,7 +361,7 @@ export function ExamplesPage() {
       await generateImage({
         prompt: imagePrompt,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Image generation error:', error)
     }
   }
@@ -374,7 +374,7 @@ export function ExamplesPage() {
       await generateVariation(generatedImage.publicUrl, {
         provider: 'dalle', // DALL-E supports variation
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Variation generation error:', error)
     }
   }
@@ -387,7 +387,7 @@ export function ExamplesPage() {
       await generateEdit(generatedImage.publicUrl, editPrompt, {
         // provider: 'gemini' is automatically set
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Image edit error:', error)
     }
   }
@@ -410,7 +410,7 @@ export function ExamplesPage() {
       if (defaultWorkflow) {
         setSelectedWorkflow(defaultWorkflow)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Load workflows error:', error)
     } finally {
       setWorkflowsLoading(false)
@@ -431,7 +431,7 @@ export function ExamplesPage() {
       // ファイル名のみを抽出（既存のUIと互換性のため）
       const modelFilenames = data.map(model => model.filename)
       setAvailableModels(modelFilenames)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Load models error:', error)
     } finally {
       setModelsLoading(false)
@@ -465,15 +465,15 @@ export function ExamplesPage() {
       const { data: _data, error } = await ComfyUIWorkflowRepository.create({
         name: newWorkflowName,
         description: newWorkflowDescription || null,
-        workflow_json: workflowJson,
+        workflowJson: workflowJson,
         is_active: true,
         is_default: false,
         tags: [],
-      })
+      } as any)
 
       if (error) {
         console.error('Create workflow error:', error)
-        alert(`Failed to create workflow: ${error.message}`)
+        alert(`Failed to create workflow: ${(error as Error).message}`)
         return
       }
 
@@ -484,9 +484,9 @@ export function ExamplesPage() {
       setNewWorkflowJSON('')
       setWorkflowFormOpen(false)
       await loadWorkflows()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Create workflow error:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${(error as Error).message}`)
     } finally {
       setWorkflowCreating(false)
     }
@@ -501,14 +501,14 @@ export function ExamplesPage() {
         prompt: comfyUIPrompt,
         provider: 'comfyui',
         workflowId: selectedWorkflow?.id,
-        size: comfyUISize,
+        size: comfyUISize as any,
         comfyui_config: {
           steps: comfyUISteps[0],
           cfg: comfyUICfg[0],
           ckpt_name: comfyUIModel,
         },
-      })
-    } catch (error) {
+      } as any)
+    } catch (error: unknown) {
       console.error('ComfyUI generation error:', error)
     }
   }
@@ -530,9 +530,9 @@ export function ExamplesPage() {
 
     if (error) {
       console.error('Slack notify error:', error)
-      setSlackResult({ success: false, error: error.message })
+      setSlackResult({ success: false, error: (error as Error).message })
     } else {
-      setSlackResult({ success: true, ...data })
+      setSlackResult({ success: true, ...(data as any) })
     }
 
     setSlackSending(false)
@@ -556,9 +556,9 @@ export function ExamplesPage() {
 
     if (error) {
       console.error('Send email error:', error)
-      setEmailResult({ success: false, error: error.message })
+      setEmailResult({ success: false, error: (error as Error).message })
     } else {
-      setEmailResult({ success: true, ...data })
+      setEmailResult({ success: true, ...(data as any) })
     }
 
     setEmailSending(false)
@@ -590,9 +590,9 @@ export function ExamplesPage() {
       const result = await EventService.emit(eventType, payload)
       setEventResult({ success: true, event: result })
       setReceivedEvents(prev => [result, ...prev].slice(0, 10))
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Event emit error:', error)
-      setEventResult({ error: error.message })
+      setEventResult({ error: (error as Error).message })
     } finally {
       setEventEmitting(false)
     }
@@ -616,9 +616,9 @@ export function ExamplesPage() {
       })
 
       setJobId(event.id)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Job start error:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${(error as Error).message}`)
     } finally {
       setJobStarting(false)
     }
@@ -636,10 +636,10 @@ export function ExamplesPage() {
         output: base62,
         compression: Math.round((1 - base62.length / cdnUuidInput.length) * 100),
       })
-    } catch (error) {
+    } catch (error: unknown) {
       setCdnConvertResult({
         success: false,
-        error: error.message,
+        error: (error as Error).message,
       })
     }
   }
@@ -655,16 +655,16 @@ export function ExamplesPage() {
         input: cdnBase62Input,
         output: uuid,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       setCdnConvertResult({
         success: false,
-        error: error.message,
+        error: (error as Error).message,
       })
     }
   }
 
   // CDN Gateway: File Upload with Hooks
-  const handleCdnUpload = (e) => {
+  const handleCdnUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -718,9 +718,9 @@ export function ExamplesPage() {
       if (error) throw error
 
       setFuncCallResult(data)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Function Call Test] Error:', error)
-      setFuncCallError(error.message || 'Unknown error')
+      setFuncCallError((error as Error).message || 'Unknown error')
     } finally {
       setFuncCallLoading(false)
     }
@@ -966,7 +966,7 @@ const saved = UserProfile.fromDatabase(data)`}</code>
             </Button>
             {profile && (
               <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg">
-                {profile.error ? (
+                {'error' in profile ? (
                   <>
                     <p className="font-bold mb-2 text-orange-600">Note:</p>
                     <p className="text-sm text-gray-700">{profile.error}</p>
@@ -1067,8 +1067,8 @@ const result = await gemini.chat(prompt)
               <Input
                 placeholder="プロンプトを入力 (例: こんにちは！)"
                 value={llmPrompt}
-                onChange={(e) => setLlmPrompt(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleLLMChat()}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLlmPrompt(e.target.value)}
+                onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleLLMChat()}
               />
               <Button
                 variant="gradient"
@@ -1369,11 +1369,11 @@ const result = await generate({ prompt: 'A cat' }) // undefined`}</code>
                 <Input
                   type="text"
                   value={imagePrompt}
-                  onChange={(e) => setImagePrompt(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImagePrompt(e.target.value)}
                   placeholder="A serene Japanese garden with cherry blossoms"
                   disabled={imageGenerating || !user}
                   className="mt-1"
-                  onKeyDown={(e) => {
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                     if (e.key === 'Enter' && !imageGenerating && user) {
                       handleGenerateImage()
                     }
@@ -1626,7 +1626,7 @@ console.log(edited.publicUrl)`}</code>
                     <Input
                       placeholder="e.g., Add a wizard hat to the subject"
                       value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditPrompt(e.target.value)}
                     />
                   </div>
 
@@ -1776,7 +1776,7 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
                           <Input
                             placeholder="SDXL Basic Text-to-Image"
                             value={newWorkflowName}
-                            onChange={(e) => setNewWorkflowName(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewWorkflowName(e.target.value)}
                           />
                         </div>
                         <div>
@@ -1784,7 +1784,7 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
                           <Input
                             placeholder="Stable Diffusion XL basic workflow"
                             value={newWorkflowDescription}
-                            onChange={(e) => setNewWorkflowDescription(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewWorkflowDescription(e.target.value)}
                           />
                         </div>
                         <div>
@@ -1793,7 +1793,7 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
                             className="w-full h-64 p-2 border rounded-md font-mono text-xs"
                             placeholder='{"3": {"inputs": {...}, "class_type": "KSampler"}, ...}'
                             value={newWorkflowJSON}
-                            onChange={(e) => setNewWorkflowJSON(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewWorkflowJSON(e.target.value)}
                           />
                           <p className="text-xs text-gray-500 mt-1">
                             Tip: Use {"{{prompt}}"} as placeholder for dynamic prompt injection
@@ -1832,7 +1832,7 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
                 <>
                   <Select
                     value={selectedWorkflow?.id}
-                    onValueChange={(value) => {
+                    onValueChange={(value: string) => {
                       const workflow = workflows.find(w => w.id === value)
                       setSelectedWorkflow(workflow)
                     }}
@@ -1862,7 +1862,7 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
                       )}
                       {selectedWorkflow.tags && selectedWorkflow.tags.length > 0 && (
                         <div className="flex gap-1 flex-wrap">
-                          {selectedWorkflow.tags.map((tag, i) => (
+                          {selectedWorkflow.tags.map((tag: string, i: number) => (
                             <Badge key={i} variant="secondary" className="text-xs">
                               {tag}
                             </Badge>
@@ -1971,11 +1971,11 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
                 <Input
                   type="text"
                   value={comfyUIPrompt}
-                  onChange={(e) => setComfyUIPrompt(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setComfyUIPrompt(e.target.value)}
                   placeholder="A serene Japanese garden with cherry blossoms"
                   disabled={comfyUIGenerating || !user}
                   className="mt-1"
-                  onKeyDown={(e) => {
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                     if (e.key === 'Enter' && !comfyUIGenerating && user) {
                       handleGenerateComfyUI()
                     }
@@ -2100,7 +2100,7 @@ useEventListener(['test.demo'], (event) => {
                 <Input
                   placeholder="test.demo"
                   value={eventType}
-                  onChange={(e) => setEventType(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEventType(e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -2112,7 +2112,7 @@ useEventListener(['test.demo'], (event) => {
                   rows={3}
                   placeholder='{"message": "Hello Event System!"}'
                   value={eventPayload}
-                  onChange={(e) => setEventPayload(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEventPayload(e.target.value)}
                 />
               </div>
 
@@ -2269,7 +2269,7 @@ const { progress, isCompleted, result } = useJob(event.id, {
                   <Input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
                     className="mt-1"
                   />
                 </div>
@@ -2278,7 +2278,7 @@ const { progress, isCompleted, result } = useJob(event.id, {
                   <Input
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
                     className="mt-1"
                   />
                 </div>
@@ -2362,7 +2362,7 @@ const { progress, isCompleted, result } = useJob(event.id, {
               <Input
                 placeholder="Enter message"
                 value={slackMessage}
-                onChange={(e) => setSlackMessage(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSlackMessage(e.target.value)}
               />
               <Button
                 onClick={handleSlackNotify}
@@ -2406,18 +2406,18 @@ const { progress, isCompleted, result } = useJob(event.id, {
               <Input
                 placeholder="To: email@example.com"
                 value={emailTo}
-                onChange={(e) => setEmailTo(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmailTo(e.target.value)}
                 type="email"
               />
               <Input
                 placeholder="Subject"
                 value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmailSubject(e.target.value)}
               />
               <textarea
                 placeholder="Email body..."
                 value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEmailBody(e.target.value)}
                 className="w-full p-2 border rounded-md min-h-[100px] text-sm"
               />
               <Button
@@ -2498,7 +2498,7 @@ createAlias({
                 <Input
                   placeholder="550e8400-e29b-41d4-a716-446655440000"
                   value={cdnUuidInput}
-                  onChange={(e) => setCdnUuidInput(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCdnUuidInput(e.target.value)}
                 />
                 <Button
                   variant="outline"
@@ -2514,7 +2514,7 @@ createAlias({
                 <Input
                   placeholder="Base62文字列"
                   value={cdnBase62Input}
-                  onChange={(e) => setCdnBase62Input(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCdnBase62Input(e.target.value)}
                 />
                 <Button
                   variant="outline"
@@ -2653,7 +2653,7 @@ createAlias({
                     <Input
                       placeholder="cat123"
                       value={cdnShortCode}
-                      onChange={(e) => setCdnShortCode(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCdnShortCode(e.target.value)}
                       className="mt-1"
                     />
                     <p className="text-xs text-gray-500 mt-1">→ /functions/v1/cdn-gateway/i/cat123</p>
@@ -2664,7 +2664,7 @@ createAlias({
                     <Input
                       placeholder="my-cat-2025"
                       value={cdnSlug}
-                      onChange={(e) => setCdnSlug(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCdnSlug(e.target.value)}
                       className="mt-1"
                     />
                     <p className="text-xs text-gray-500 mt-1">→ /functions/v1/cdn-gateway/s/my-cat-2025</p>
@@ -2791,7 +2791,7 @@ createAlias({
                   <label className="text-sm font-medium text-gray-700">Provider</label>
                   <select
                     value={funcCallProvider}
-                    onChange={(e) => setFuncCallProvider(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFuncCallProvider(e.target.value)}
                     className="w-full mt-1 p-2 border rounded"
                   >
                     <option value="openai">OpenAI</option>
@@ -2805,7 +2805,7 @@ createAlias({
                   <Input
                     placeholder="Say hello to Akatsuki"
                     value={funcCallPrompt}
-                    onChange={(e) => setFuncCallPrompt(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFuncCallPrompt(e.target.value)}
                     className="mt-1"
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -2850,7 +2850,7 @@ createAlias({
                       {funcCallResult.functionCalls && funcCallResult.functionCalls.length > 0 && (
                         <div>
                           <strong>Function Calls:</strong>
-                          {funcCallResult.functionCalls.map((fc, i) => (
+                          {funcCallResult.functionCalls.map((fc: any, i: number) => (
                             <div key={i} className="bg-purple-50 p-2 rounded mt-1">
                               <div><strong>Function:</strong> {fc.name}</div>
                               <div><strong>Arguments:</strong> {JSON.stringify(fc.arguments)}</div>
