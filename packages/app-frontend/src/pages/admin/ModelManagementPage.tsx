@@ -4,24 +4,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Badge } from '../../components/ui/badge'
 import { Input } from '../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog'
 import { ComfyUIModelRepository } from '../../repositories'
 import { ComfyUIModel } from '../../models'
 import { useAuth } from '../../contexts/AuthContext'
 import { EdgeFunctionService } from '../../services'
 
+interface EditForm {
+  displayName: string
+  description: string
+  category: string
+  tags: string
+  isFeatured: boolean
+  sortOrder: number | string
+}
+
 export function ModelManagementPage() {
   const { user } = useAuth()
-  const [models, setModels] = useState([])
+  const [models, setModels] = useState<ComfyUIModel[]>([])
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
-  const [selectedModel, setSelectedModel] = useState(null)
+  const [selectedModel, setSelectedModel] = useState<ComfyUIModel | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
 
   // Form states
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<EditForm>({
     displayName: '',
     description: '',
     category: 'other',
@@ -64,15 +73,16 @@ export function ModelManagementPage() {
       alert(`Sync completed!\n- Synced: ${data.synced}\n- Added: ${data.added}\n- Deactivated: ${data.deactivated}`)
       await loadModels()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Sync error:', error)
-      alert(`Sync error: ${error.message}`)
+      alert(`Sync error: ${errorMessage}`)
     } finally {
       setSyncing(false)
     }
   }
 
   // Open edit dialog
-  const handleEdit = (model) => {
+  const handleEdit = (model: ComfyUIModel) => {
     setSelectedModel(model)
     setEditForm({
       displayName: model.displayName || '',
@@ -96,7 +106,7 @@ export function ModelManagementPage() {
         category: editForm.category,
         tags: editForm.tags.split(',').map(t => t.trim()).filter(t => t),
         is_featured: editForm.isFeatured,
-        sort_order: parseInt(editForm.sortOrder) || 0,
+        sort_order: parseInt(String(editForm.sortOrder)) || 0,
       }
 
       const { error } = await ComfyUIModelRepository.update(selectedModel.id, updates)
@@ -110,13 +120,14 @@ export function ModelManagementPage() {
       setEditDialogOpen(false)
       await loadModels()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Update error:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${errorMessage}`)
     }
   }
 
   // Toggle featured status
-  const toggleFeatured = async (model) => {
+  const toggleFeatured = async (model: ComfyUIModel) => {
     const { error } = await ComfyUIModelRepository.update(model.id, {
       is_featured: !model.isFeatured
     })

@@ -8,17 +8,35 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { UserQuotaRepository } from '../../repositories'
 import { useAuth } from '../../contexts/AuthContext'
 
+interface UserData {
+  id: string
+  user_id: string
+  plan_type: 'free' | 'pro' | 'enterprise'
+  monthly_request_limit: number
+  requests_used: number
+  user?: {
+    email?: string
+    username?: string
+  }
+}
+
+interface EditForm {
+  planType: string
+  monthlyLimit: number | string
+  requestsUsed: number | string
+}
+
 export function QuotaManagementPage() {
   const { user } = useAuth()
-  const [users, setUsers] = useState([])
+  const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedUser, setSelectedUser] = useState(null)
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [planFilter, setPlanFilter] = useState('all')
 
   // Form states
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<EditForm>({
     planType: 'free',
     monthlyLimit: 100,
     requestsUsed: 0,
@@ -29,17 +47,18 @@ export function QuotaManagementPage() {
     try {
       setLoading(true)
       const data = await UserQuotaRepository.getAllUsersWithQuota()
-      setUsers(data)
+      setUsers(data as UserData[])
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Failed to load users:', error)
-      alert(`Failed to load users: ${error.message}`)
+      alert(`Failed to load users: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
   }
 
   // Open edit dialog
-  const handleEdit = (userData) => {
+  const handleEdit = (userData: UserData) => {
     setSelectedUser(userData)
     setEditForm({
       planType: userData.plan_type,
@@ -60,16 +79,16 @@ export function QuotaManagementPage() {
       }
 
       // Update limit
-      if (editForm.monthlyLimit !== selectedUser.monthly_request_limit) {
-        await UserQuotaRepository.updateQuotaLimit(selectedUser.user_id, parseInt(editForm.monthlyLimit))
+      if (Number(editForm.monthlyLimit) !== selectedUser.monthly_request_limit) {
+        await UserQuotaRepository.updateQuotaLimit(selectedUser.user_id, parseInt(String(editForm.monthlyLimit)))
       }
 
       // Reset usage if changed
-      if (editForm.requestsUsed !== selectedUser.requests_used) {
+      if (Number(editForm.requestsUsed) !== selectedUser.requests_used) {
         await UserQuotaRepository.upsertQuota(selectedUser.user_id, {
           plan_type: editForm.planType,
-          monthly_request_limit: parseInt(editForm.monthlyLimit),
-          requests_used: parseInt(editForm.requestsUsed),
+          monthly_request_limit: parseInt(String(editForm.monthlyLimit)),
+          requests_used: parseInt(String(editForm.requestsUsed)),
         })
       }
 
@@ -77,13 +96,14 @@ export function QuotaManagementPage() {
       setEditDialogOpen(false)
       await loadUsers()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Update error:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${errorMessage}`)
     }
   }
 
   // Reset usage
-  const handleResetUsage = async (userData) => {
+  const handleResetUsage = async (userData: UserData) => {
     if (!confirm(`Reset usage for ${userData.user?.email || userData.user?.username || 'this user'}?`)) return
 
     try {
@@ -91,24 +111,26 @@ export function QuotaManagementPage() {
       alert('Usage reset successfully!')
       await loadUsers()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Reset error:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${errorMessage}`)
     }
   }
 
   // Quick plan change
-  const handleQuickPlanChange = async (userData, newPlan) => {
+  const handleQuickPlanChange = async (userData: UserData, newPlan: string) => {
     try {
       await UserQuotaRepository.updatePlanType(userData.user_id, newPlan)
 
       // Auto-adjust limit based on plan
-      const limits = { free: 100, pro: 1000, enterprise: 10000 }
+      const limits: Record<string, number> = { free: 100, pro: 1000, enterprise: 10000 }
       await UserQuotaRepository.updateQuotaLimit(userData.user_id, limits[newPlan])
 
       await loadUsers()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Plan change error:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${errorMessage}`)
     }
   }
 
@@ -130,12 +152,12 @@ export function QuotaManagementPage() {
     totalRequests: users.reduce((sum, u) => sum + u.requests_used, 0),
     avgUsage: users.length > 0
       ? (users.reduce((sum, u) => sum + (u.requests_used / u.monthly_request_limit * 100), 0) / users.length).toFixed(1)
-      : 0,
+      : '0',
   }
 
   // Get plan badge variant
-  const getPlanBadge = (plan) => {
-    const variants = {
+  const getPlanBadge = (plan: string) => {
+    const variants: Record<string, any> = {
       free: 'secondary',
       pro: 'default',
       enterprise: 'gradient',
@@ -144,7 +166,7 @@ export function QuotaManagementPage() {
   }
 
   // Get usage color
-  const getUsageColor = (used, limit) => {
+  const getUsageColor = (used: number, limit: number) => {
     const percentage = (used / limit) * 100
     if (percentage >= 90) return 'text-red-600 font-bold'
     if (percentage >= 70) return 'text-orange-600'

@@ -8,10 +8,30 @@ import { EventRepository } from '../../repositories'
 import { useAllEvents } from '../../hooks/useEventListener'
 import { useAuth } from '../../contexts/AuthContext'
 
+interface EventData {
+  id: string
+  event_type: string
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+  payload: Record<string, any>
+  error_message?: string
+  retry_count: number
+  created_at: string
+  [key: string]: any
+}
+
+interface Statistics {
+  total?: number
+  pending?: number
+  processing?: number
+  completed?: number
+  failed?: number
+  last24h?: number
+}
+
 export function EventMonitorPage() {
   const { user } = useAuth()
-  const [events, setEvents] = useState([])
-  const [statistics, setStatistics] = useState(null)
+  const [events, setEvents] = useState<EventData[]>([])
+  const [statistics, setStatistics] = useState<Statistics | null>(null)
   const [loading, setLoading] = useState(false)
   const [eventTypeFilter, setEventTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -30,11 +50,12 @@ export function EventMonitorPage() {
         EventRepository.getAll({ limit: 100 }),
         EventRepository.getStatistics(),
       ])
-      setEvents(eventsData)
-      setStatistics(statsData)
+      setEvents(eventsData as EventData[])
+      setStatistics(statsData as Statistics)
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Failed to load data:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -45,9 +66,9 @@ export function EventMonitorPage() {
   }, [])
 
   // Merge live events with loaded events
-  const allEvents = [...liveEvents, ...events].reduce((acc, event) => {
+  const allEvents: EventData[] = [...liveEvents, ...events].reduce((acc: EventData[], event) => {
     if (!acc.find((e) => e.id === event.id)) {
-      acc.push(event)
+      acc.push(event as EventData)
     }
     return acc
   }, [])
@@ -68,8 +89,8 @@ export function EventMonitorPage() {
   const eventTypes = [...new Set(allEvents.map((e) => e.event_type))]
 
   // Get status badge variant
-  const getStatusBadge = (status) => {
-    const variants = {
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, any> = {
       pending: 'secondary',
       processing: 'default',
       completed: 'outline',
@@ -80,27 +101,29 @@ export function EventMonitorPage() {
   }
 
   // Retry failed event
-  const handleRetry = async (eventId) => {
+  const handleRetry = async (eventId: string) => {
     try {
       await EventRepository.retry(eventId)
       alert('Event queued for retry!')
       await loadData()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Failed to retry:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${errorMessage}`)
     }
   }
 
   // Delete event
-  const handleDelete = async (eventId) => {
+  const handleDelete = async (eventId: string) => {
     if (!confirm('Delete this event?')) return
 
     try {
       await EventRepository.delete(eventId)
       await loadData()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Failed to delete:', error)
-      alert(`Error: ${error.message}`)
+      alert(`Error: ${errorMessage}`)
     }
   }
 
