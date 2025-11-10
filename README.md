@@ -1,187 +1,187 @@
 # 🚀 Akatsuki (暁) Template
 
-**VITE + React + Shuttle (Axum) + Supabase + AIGen 統合テンプレート**
+**VITE + React + Shuttle (Axum) + Supabase + AIGen Integrated Template**
 
-`Akatsuki` は、AI機能を「息を吸うように」組み込める、**0→1フェーズの最速立ち上げ** に特化した開発テンプレートです。
+`Akatsuki` is a development template specialized for **fastest 0→1 phase launch**, enabling you to integrate AI features as naturally as breathing.
 
 > [!IMPORTANT]
-> **初めての方へ:** このプロジェクトには重要な「憲法」があります。
-> 開発を始める前に、必ず **`AGENT.md`** を読み、設計思想とルール（特に `workspace/` とライブラリ管理）を理解してください。
+> **For First-Time Users:** This project has an important "constitution."
+> Before starting development, please read **`AGENT.md`** to understand the design philosophy and rules (especially `workspace/` and library management).
 
 ---
 
-## ✨ 主な機能 (Key Features)
+## ✨ Key Features
 
-* **AIGen 標準搭載:** 画像生成、Img2Img、Agent実行のAPIエンドポイントが最初から組み込まれています。
-* **モノレポ構成:** `packages/` がNPM Workspacesで連携済み。
-* **環境統一:** `.tool-versions` と `.nvmrc` により、Node.js と Rust のバージョンを統一します。
-* **Supabase連携:** 開発チームで共有する `Supabase-dev` 環境を活用。
+* **AIGen Built-in:** API endpoints for image generation, Img2Img, and Agent execution are integrated from the start.
+* **Monorepo Structure:** `packages/` are linked with NPM Workspaces.
+* **Unified Environment:** `.tool-versions` and `.nvmrc` ensure consistent Node.js and Rust versions.
+* **Supabase Integration:** Utilizes a shared `Supabase-dev` environment for development teams.
 
-## 🛠️ 技術スタック (Tech Stack)
+## 🛠️ Tech Stack
 
-| 領域 | 技術選定 |
+| Domain | Technology |
 | :--- | :--- |
-| **フロントエンド** | VITE + React + Tailwind CSS |
-| **バックエンド** | Shuttle + Axum (Rust) |
-| **データベース** | Supabase (PostgreSQL) |
-| **リポジトリ** | モノレポ (NPM Workspaces) |
+| **Frontend** | VITE + React + Tailwind CSS |
+| **Backend** | Shuttle + Axum (Rust) |
+| **Database** | Supabase (PostgreSQL) |
+| **Repository** | Monorepo (NPM Workspaces) |
 
 ---
 
-## 🚀 最速起動 (Quick Start)
+## 🚀 Quick Start
 
-たった **3ステップ** で開発を開始できます！
+Get started with development in just **3 steps**!
 
-### 前提条件 (Prerequisites)
+### Prerequisites
 
-⚠️ **忘れやすいポイント:**
+⚠️ **Easy to Forget:**
 
-以下のツールをインストールしてください。詳細は [`docs/setup.md`](docs/setup.md) を参照。
+Please install the following tools. See [`docs/setup.md`](docs/setup.md) for details.
 
-- **Node.js** v20.x 以上 (`nvm use` または `asdf install`)
+- **Node.js** v20.x or higher (`nvm use` or `asdf install`)
 - **Rust & Cargo** (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
 - **Shuttle CLI** (`cargo install cargo-shuttle`)
-- **Supabase CLI** (`npm install -g supabase`) ← **これを忘れがち！**
+- **Supabase CLI** (`npm install -g supabase`) ← **Often forgotten!**
 
-### ステップ 1: プロジェクト作成
+### Step 1: Create Project
 
-⚠️ **重要:** アプリ名を指定してクローン！
+⚠️ **Important:** Clone with your app name!
 
 ```bash
-# アプリ名を指定してクローン（例: my-awesome-app）
+# Clone with your app name (example: my-awesome-app)
 git clone https://github.com/yourusername/akatsuki.git my-awesome-app
 cd my-awesome-app
 npm install
 ```
 
-### ステップ 2: Supabase プロジェクト作成
+### Step 2: Create Supabase Project
 
-[Supabase Dashboard](https://app.supabase.com/) で新規プロジェクトを作成。
+Create a new project on [Supabase Dashboard](https://app.supabase.com/).
 
-1. 「New Project」をクリック
-2. プロジェクト情報を入力（**Database Password は控えておく**）
-3. 「Create new project」をクリック
+1. Click "New Project"
+2. Enter project information (**Save the Database Password**)
+3. Click "Create new project"
 
-詳細は [`docs/setup.md`](docs/setup.md) 参照。
+See [`docs/setup.md`](docs/setup.md) for details.
 
-### ステップ 3: 自動セットアップ 🎯
+### Step 3: Automated Setup 🎯
 
 ```bash
 npm run setup
 ```
 
-このコマンドが以下を自動的に実行します：
+This command automatically executes the following:
 
-- 📦 プロジェクト名 & 説明の設定（package.json 更新）
-- 🔄 Git 履歴のクリーン化（新規リポジトリとして初期化）
-- ✅ 前提条件チェック
-- 📝 Supabase 情報の入力（対話的）
-- 📝 `.env` ファイル自動生成
-- 🔗 Supabase プロジェクトにリンク
-- 🗄️ データベースマイグレーション適用
-- ⚡ Edge Functions デプロイ
-- 🔑 Secrets 設定ガイド
-- 🔍 バックエンド確認
-- 📝 初回 Git コミット作成
+- 📦 Set project name & description (update package.json)
+- 🔄 Clean Git history (initialize as new repository)
+- ✅ Check prerequisites
+- 📝 Enter Supabase information (interactive)
+- 📝 Auto-generate `.env` files
+- 🔗 Link to Supabase project
+- 🗄️ Apply database migrations
+- ⚡ Deploy Edge Functions
+- 🔑 Secrets configuration guide
+- 🔍 Backend verification
+- 📝 Create initial Git commit
 
-**以上！** 開発サーバーを起動してアプリを確認：
+**That's it!** Start the development servers and check your app:
 
 ```bash
-# ターミナル1: フロントエンド
+# Terminal 1: Frontend
 npm run dev:frontend  # http://localhost:5173
 
-# ターミナル2: バックエンド
+# Terminal 2: Backend
 npm run dev:backend   # http://localhost:8000
 ```
 
 ---
 
-### セットアップ状況の確認
+### Check Setup Status
 
-いつでも以下のコマンドでセットアップ状況を確認できます：
+You can check the setup status at any time with:
 
 ```bash
 npm run setup:check
 ```
 
-### 詳細なセットアップ手順
+### Detailed Setup Instructions
 
-手動セットアップや詳細な手順は [`docs/setup.md`](docs/setup.md) を参照してください。
+For manual setup or detailed instructions, refer to [`docs/setup.md`](docs/setup.md).
 
 ---
 
-## 📁 ディレクトリ構成
+## 📁 Directory Structure
 
 ```
 akatsuki/
-├── README.md              # (このファイル) クイックスタート
-├── AGENT.md              # 【必読】設計思想、アーキテクチャ、全ルール
-├── issue.md              # プロジェクトのマスタープラン
-├── package.json          # モノレポのルート設定
-├── .tool-versions        # asdf/mise用バージョン管理
-├── .nvmrc                # nvm用Node.jsバージョン指定
+├── README.md              # (This file) Quick Start
+├── AGENT.md              # [MUST READ] Design philosophy, architecture, all rules
+├── issue.md              # Project master plan
+├── package.json          # Monorepo root configuration
+├── .tool-versions        # Version management for asdf/mise
+├── .nvmrc                # Node.js version specification for nvm
 ├── packages/
 │   ├── app-frontend/     # Frontend (VITE + React)
 │   │   ├── src/
-│   │   ├── .env          # Frontend環境変数 (Git管理外)
+│   │   ├── .env          # Frontend environment variables (not in Git)
 │   │   └── package.json
 │   └── app-backend/      # Backend (Shuttle + Axum)
 │       ├── src/
-│       ├── .env          # Backend環境変数 (Git管理外)
-│       ├── .env.example  # 環境変数サンプル
+│       ├── .env          # Backend environment variables (not in Git)
+│       ├── .env.example  # Environment variables sample
 │       └── Cargo.toml
-├── docs/                 # 公式ドキュメント (手順書、設計書など)
-└── workspace/            # (Git管理外) 個人の作業場
+├── docs/                 # Official documentation (guides, design docs, etc.)
+└── workspace/            # (Not in Git) Personal workspace
 ```
 
-### 各ディレクトリの役割
+### Directory Roles
 
-| ファイル/ディレクトリ | 役割 |
+| File/Directory | Role |
 | :--- | :--- |
-| **`README.md`** | **(このファイル)** クイックスタート |
-| **`AGENT.md`** | **【必読】** 設計思想、アーキテクチャ、全ルール |
-| **`issue.md`** | プロジェクトのマスタープラン |
-| `packages/app-frontend/` | Vite + React フロントエンドアプリ |
-| `packages/app-backend/` | Shuttle + Axum バックエンドAPI |
-| `docs/` | チームの公式ナレッジ (手順書、設計書) |
-| `workspace/` | **(Git管理外)** 個人の作業場 (メモ、下書き) |
+| **`README.md`** | **(This file)** Quick Start |
+| **`AGENT.md`** | **[MUST READ]** Design philosophy, architecture, all rules |
+| **`issue.md`** | Project master plan |
+| `packages/app-frontend/` | Vite + React frontend application |
+| `packages/app-backend/` | Shuttle + Axum backend API |
+| `docs/` | Team's official knowledge (guides, design docs) |
+| `workspace/` | **(Not in Git)** Personal workspace (notes, drafts) |
 
 ---
 
-## 🔧 開発コマンド
+## 🔧 Development Commands
 
-プロジェクトルートで使用できる npm scripts：
+npm scripts available at project root:
 
 ### Frontend
 
 ```bash
-npm run dev:frontend      # 開発サーバー起動 (localhost:5173)
-npm run build:frontend    # プロダクションビルド
-npm run preview:frontend  # ビルド結果のプレビュー
+npm run dev:frontend      # Start development server (localhost:5173)
+npm run build:frontend    # Production build
+npm run preview:frontend  # Preview build results
 ```
 
 ### Backend
 
 ```bash
-npm run dev:backend       # Shuttle ローカル開発サーバー起動
-npm run check:backend     # コンパイルチェック
-npm run build:backend     # リリースビルド
-npm run test:backend      # テスト実行
-npm run deploy:backend    # Shuttleへデプロイ
+npm run dev:backend       # Start Shuttle local development server
+npm run check:backend     # Compilation check
+npm run build:backend     # Release build
+npm run test:backend      # Run tests
+npm run deploy:backend    # Deploy to Shuttle
 ```
 
 ---
 
-## 🌐 APIエンドポイント
+## 🌐 API Endpoints
 
-Backend が提供する主要なエンドポイント：
+Main endpoints provided by the Backend:
 
 ### Health Check
-- **GET** `/health` - サーバーの稼働状況確認
+- **GET** `/health` - Check server status
 
-### AIGen 機能
+### AIGen Features
 
-#### 1. Text-to-Image (画像生成)
+#### 1. Text-to-Image (Image Generation)
 - **POST** `/api/aigen/text-to-image`
   ```json
   {
@@ -192,7 +192,7 @@ Backend が提供する主要なエンドポイント：
   }
   ```
 
-#### 2. Image-to-Image (画像変換)
+#### 2. Image-to-Image (Image Transformation)
 - **POST** `/api/aigen/image-to-image`
   ```json
   {
@@ -203,7 +203,7 @@ Backend が提供する主要なエンドポイント：
   }
   ```
 
-#### 3. Agent Execute (LLMタスク実行)
+#### 3. Agent Execute (LLM Task Execution)
 - **POST** `/api/aigen/agent-execute`
   ```json
   {
@@ -213,24 +213,24 @@ Backend が提供する主要なエンドポイント：
   }
   ```
 
-詳細は `packages/app-backend/README.md` を参照してください。
+See `packages/app-backend/README.md` for details.
 
 ---
 
-## 📚 さらに詳しく
+## 📚 Learn More
 
-- **設計思想とルール:** `AGENT.md` を必ず読んでください
-- **Backend詳細:** `packages/app-backend/README.md`
-- **デプロイ手順:** `docs/guide/` (今後追加予定)
-
----
-
-## 🤝 開発方針
-
-- **Supabase-dev環境の共有:** チーム（1〜2名）で開発用Supabaseプロジェクトを共有します
-- **workspace/ の活用:** 個人のメモや下書きは `workspace/` に保存します（Git管理外）
-- **モノレポ管理:** 共通コンポーネントは `packages/` に配置します
+- **Design Philosophy and Rules:** Please read `AGENT.md`
+- **Backend Details:** `packages/app-backend/README.md`
+- **Deployment Guide:** `docs/guide/` (coming soon)
 
 ---
 
-**Akatsuki** で最高の 0→1 開発体験をスタートしましょう！ 🚀
+## 🤝 Development Policy
+
+- **Shared Supabase-dev Environment:** Teams (1-2 members) share the development Supabase project
+- **Utilize workspace/:** Save personal notes and drafts in `workspace/` (not in Git)
+- **Monorepo Management:** Place shared components in `packages/`
+
+---
+
+**Start your best 0→1 development experience with Akatsuki!** 🚀
