@@ -5,17 +5,27 @@ import { PrivateStorageService } from '../../services/PrivateStorageService'
 import { FileUtils } from '../../utils/FileUtils'
 
 /**
+ * File upload options
+ */
+export interface FileUploadOptions {
+  isPublic?: boolean
+  folder?: string
+  maxSizeMB?: number
+  allowedTypes?: string[]
+  multiple?: boolean
+}
+
+/**
+ * FileUpload Component props
+ */
+export interface FileUploadProps {
+  onUploadComplete?: (results: any[]) => void
+  options?: FileUploadOptions
+}
+
+/**
  * FileUpload Component
  * ファイルアップロード用のシンプルなコンポーネント
- *
- * @param {Object} props
- * @param {Function} props.onUploadComplete - アップロード完了時のコールバック
- * @param {Object} props.options - オプション
- * @param {boolean} props.options.isPublic - true: PublicStorage, false: PrivateStorage (デフォルト: true)
- * @param {string} props.options.folder - フォルダ名
- * @param {number} props.options.maxSizeMB - 最大ファイルサイズ（MB）
- * @param {string[]} props.options.allowedTypes - 許可するMIMEタイプ
- * @param {boolean} props.options.multiple - 複数ファイル選択
  *
  * @example
  * // Public アバター画像
@@ -24,13 +34,14 @@ import { FileUtils } from '../../utils/FileUtils'
  *   options={{ isPublic: true, folder: 'avatars', maxSizeMB: 2, allowedTypes: FileUtils.IMAGE_TYPES }}
  * />
  *
+ * @example
  * // Private ドキュメント
  * <FileUpload
  *   onUploadComplete={(results) => console.log(results)}
  *   options={{ isPublic: false, folder: 'documents', maxSizeMB: 10 }}
  * />
  */
-export function FileUpload({ onUploadComplete, options = {} }) {
+export function FileUpload({ onUploadComplete, options = {} }: FileUploadProps) {
   const {
     isPublic = true,
     folder = '',
@@ -40,11 +51,11 @@ export function FileUpload({ onUploadComplete, options = {} }) {
   } = options
 
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState(null)
-  const [selectedFiles, setSelectedFiles] = useState([])
-  const fileInputRef = useRef(null)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     setSelectedFiles(files)
     setError(null)
@@ -92,13 +103,14 @@ export function FileUpload({ onUploadComplete, options = {} }) {
       }
     } catch (err) {
       console.error('Upload error:', err)
-      setError(err.message)
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      setError(errorMessage)
     } finally {
       setUploading(false)
     }
   }
 
-  const handleRemoveFile = (index) => {
+  const handleRemoveFile = (index: number) => {
     const newFiles = selectedFiles.filter((_, i) => i !== index)
     setSelectedFiles(newFiles)
   }

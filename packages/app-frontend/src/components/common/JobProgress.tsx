@@ -2,19 +2,25 @@ import { Progress } from '../ui/progress'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { useJob } from '../../hooks/useJob'
+import type { ReactNode } from 'react'
+
+/**
+ * Job Progress Component props
+ */
+export interface JobProgressProps {
+  jobId: string
+  title?: string
+  onComplete?: (result: any) => void
+  onError?: (error: string) => void
+  showResult?: boolean
+  renderResult?: (result: any) => ReactNode
+  className?: string
+}
 
 /**
  * Job Progress Component
  *
  * Displays job execution progress with real-time updates
- *
- * @param {string} jobId - Job ID to monitor
- * @param {string} title - Job title (optional)
- * @param {function} onComplete - Callback when job completes: (result) => void
- * @param {function} onError - Callback when job fails: (error) => void
- * @param {boolean} showResult - Show result when completed (default: true)
- * @param {function} renderResult - Custom result renderer: (result) => JSX.Element
- * @param {string} className - Additional CSS classes
  *
  * @example
  * <JobProgress
@@ -42,7 +48,7 @@ export function JobProgress({
   showResult = true,
   renderResult,
   className = '',
-}) {
+}: JobProgressProps) {
   const {
     job,
     progress,
@@ -106,13 +112,13 @@ export function JobProgress({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className={getStatusColor()}>
-            {title || job.event_type.replace('job:', '')}
+            {title || (job as any).event_type?.replace('job:', '')}
           </CardTitle>
           {getStatusBadge()}
         </div>
-        {job.created_at && (
+        {(job as any).created_at && (
           <CardDescription>
-            Started: {new Date(job.created_at).toLocaleString()}
+            Started: {new Date((job as any).created_at).toLocaleString()}
           </CardDescription>
         )}
       </CardHeader>
@@ -150,23 +156,23 @@ export function JobProgress({
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h4 className="text-sm font-semibold text-red-700 mb-2">Error</h4>
             <p className="text-sm text-red-600">{error}</p>
-            {job.retry_count > 0 && (
+            {(job as any).retry_count > 0 && (
               <p className="text-xs text-red-500 mt-2">
-                Retry attempts: {job.retry_count} / {job.max_retries}
+                Retry attempts: {(job as any).retry_count} / {(job as any).max_retries}
               </p>
             )}
           </div>
         )}
 
         {/* Job Details */}
-        {job.processing_started_at && (
+        {(job as any).processing_started_at && (
           <div className="text-xs text-gray-500">
-            Processing started: {new Date(job.processing_started_at).toLocaleString()}
+            Processing started: {new Date((job as any).processing_started_at).toLocaleString()}
           </div>
         )}
-        {job.processed_at && (
+        {(job as any).processed_at && (
           <div className="text-xs text-gray-500">
-            Completed at: {new Date(job.processed_at).toLocaleString()}
+            Completed at: {new Date((job as any).processed_at).toLocaleString()}
           </div>
         )}
       </CardContent>
@@ -175,16 +181,21 @@ export function JobProgress({
 }
 
 /**
+ * Compact Job Progress props
+ */
+export interface JobProgressCompactProps {
+  jobId: string
+  onComplete?: (result: any) => void
+  onError?: (error: string) => void
+}
+
+/**
  * Compact Job Progress (minimal UI)
- *
- * @param {string} jobId - Job ID to monitor
- * @param {function} onComplete - Callback when job completes
- * @param {function} onError - Callback when job fails
  *
  * @example
  * <JobProgressCompact jobId={jobId} />
  */
-export function JobProgressCompact({ jobId, onComplete, onError }) {
+export function JobProgressCompact({ jobId, onComplete, onError }: JobProgressCompactProps) {
   const { progress, isCompleted, isFailed, error } = useJob(jobId, {
     onComplete,
     onError,
@@ -207,11 +218,16 @@ export function JobProgressCompact({ jobId, onComplete, onError }) {
 }
 
 /**
+ * Multiple Jobs Progress props
+ */
+export interface JobProgressBatchProps {
+  jobIds: string[]
+  title?: string
+  renderJobItem?: (jobId: string, index: number) => ReactNode
+}
+
+/**
  * Multiple Jobs Progress (batch monitoring)
- *
- * @param {string[]} jobIds - Array of job IDs to monitor
- * @param {string} title - Overall title
- * @param {function} renderJobItem - Custom job item renderer: (job, index) => JSX.Element
  *
  * @example
  * <JobProgressBatch
@@ -219,7 +235,7 @@ export function JobProgressCompact({ jobId, onComplete, onError }) {
  *   title="Batch Report Generation"
  * />
  */
-export function JobProgressBatch({ jobIds, title, renderJobItem }) {
+export function JobProgressBatch({ jobIds, title, renderJobItem }: JobProgressBatchProps) {
   return (
     <Card>
       <CardHeader>

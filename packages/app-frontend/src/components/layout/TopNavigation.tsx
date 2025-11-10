@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { useAuth } from '../../contexts/AuthContext'
-import { Home, BookOpen, LogIn, LogOut, LayoutDashboard, Sparkles, Images } from 'lucide-react'
+import { Home, BookOpen, LogIn, LogOut, LayoutDashboard } from 'lucide-react'
 
 /**
  * TopNavigation コンポーネント

@@ -640,9 +640,16 @@ function CleanComponent() {
 
 ### 4.2. TypeScript
 
-AkatsukiはTypeScriptを採用しています。一部既存のJSXファイルも実行可能になっています。
+AkatsukiはTypeScriptを採用しています。
 
-- 🔄 新規ファイルは全て `.tsx` / `.ts` で作成
+**TypeScript移行状況:**
+- ✅ **Model/Repository/Service/Hook層は完全にTS化済み**
+- 🔄 Component/Page層は一部 `.jsx` が残存（段階的移行中）
+- 📝 新規ファイルは全て `.tsx` / `.ts` で作成
+
+**重要:**
+本ドキュメント内で `.js` と記載されている箇所も、実際には `.ts` で実装されています。
+実装時は既存ファイルを確認してください（例: `UserProfile.ts`, `Agent.ts`）。
 
 #### 型定義の使い方
 
@@ -1790,6 +1797,62 @@ A: 以下の場合のみ停止して確認：
    - セキュリティなど重要な設計判断が必要な時
    - ユーザーが明示的に「相談しよう」「設計をしよう」などと言った時
    - それ以外は一気に進める
+
+---
+
+#### 6.4.5. 実装時のベストプラクティス（最重要）
+
+**既存コードを最優先で参照せよ**
+
+VibeCoding では、以下の順序で参考資料を活用してください：
+
+**1. 既存の実装パターン（最優先）**
+
+既存コードは「実際に動いている」実装なので、最も信頼できます。
+
+- `src/models/UserProfile.ts` - Model層の実装パターン
+- `src/repositories/UserProfileRepository.ts` - Repository層の実装パターン
+- `src/hooks/usePublicProfile.ts` - React Query統合パターン
+- `src/pages/ExamplesPage.jsx` - 全機能のデモ実装
+- `src/pages/AdminDashboard.jsx` - ダッシュボード実装パターン
+
+**利点:**
+- ✅ TypeScript型定義が正確
+- ✅ 実際に動作している
+- ✅ Akatsukiのベストプラクティスに準拠
+
+**2. Design Templates（参考）**
+
+セクション 8.9 を見て、近いパターンを把握します。
+
+- Template 1: AI画像生成アプリ
+- Template 2: LLMチャットアプリ
+- Template 3: ファイル管理アプリ
+- Template 4: ダッシュボード
+
+**重要:**
+- ⚠️ そのままコピペせず、要件に応じてカスタマイズ
+- ⚠️ テンプレートはあくまで「参考」
+- ✅ 既存コードと組み合わせて使う
+
+**3. QuickStart Checklist（フロー確認）**
+
+セクション 6.4.1 でフロー確認
+
+- Step 1: 要件整理 → workspace/[feature]-design.md
+- Step 2: テンプレート参考
+- Step 3: 設計整理
+- Step 4-7: 実装・動作確認・振り返り
+
+**実装時の鉄則:**
+```
+既存コード > Design Templates > ドキュメント内のサンプルコード
+```
+
+AGENT.md内の詳細なコードサンプルは、実装パターンが充実してきたため、
+今後は既存コードを優先的に参照することを推奨します。
+
+---
 
 ### 6.5. ライブラリ (Lib) 管理ポリシー
 

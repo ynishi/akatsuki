@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, ExternalLink, Sparkles } from 'lucide-react'
+import type { SearchProvider } from '@/services/WebSearchService'
 
 /**
  * Web検索カード（Tavily / Gemini 対応）
@@ -14,7 +15,7 @@ import { Search, ExternalLink, Sparkles } from 'lucide-react'
  */
 export function WebSearchCard() {
   const [query, setQuery] = useState('')
-  const [provider, setProvider] = useState('gemini')
+  const [provider, setProvider] = useState<SearchProvider>('gemini')
   const { searchAsync, isPending, data, reset } = useWebSearch()
 
   const handleSearch = async () => {
@@ -22,14 +23,14 @@ export function WebSearchCard() {
     await searchAsync({ query, numResults: 10, provider })
   }
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSearch()
     }
   }
 
-  const handleProviderChange = (newProvider) => {
-    setProvider(newProvider)
+  const handleProviderChange = (newProvider: string) => {
+    setProvider(newProvider as SearchProvider)
     reset() // 検索結果をクリア
   }
 
@@ -71,7 +72,7 @@ export function WebSearchCard() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder={
               provider === 'gemini'
                 ? '質問を入力（例: 2024年のAI画像生成の最新動向を教えて）'
@@ -136,7 +137,7 @@ export function WebSearchCard() {
             </div>
 
             {/* Gemini Search Queries */}
-            {data.searchQueries && data.searchQueries.length > 0 && (
+            {data.searchQueries && Array.isArray(data.searchQueries) && data.searchQueries.length > 0 && (
               <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
                 <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-purple-900">
                   <Search className="w-4 h-4" />

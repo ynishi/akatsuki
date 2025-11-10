@@ -10,7 +10,25 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { useAIModels, useAIProviders } from '@/hooks/useAIModels'
+import { useAIModels, useAIProviders, AIModelFilters } from '@/hooks/useAIModels'
+import type { AIModel } from '@/models/AIModel'
+
+/**
+ * Model selector props
+ */
+export interface ModelSelectorProps {
+  value: string
+  onChange: (value: string) => void
+  provider?: string | null
+  isBasic?: boolean | null
+  filters?: AIModelFilters
+  label?: string
+  showBadges?: boolean
+  groupBy?: 'provider' | 'tier' | 'none'
+  placeholder?: string
+  className?: string
+  activeOnly?: boolean
+}
 
 /**
  * AIモデル選択コンポーネント
@@ -38,11 +56,11 @@ export function ModelSelector({
   filters = {},
   label = 'AIモデル',
   showBadges = true,
-  groupBy = 'provider', // 'provider' | 'tier' | 'none'
+  groupBy = 'provider',
   placeholder = 'モデルを選択',
   className = '',
   activeOnly = true,
-}) {
+}: ModelSelectorProps) {
   // DBからモデルを取得（カスタムフック経由）
   const allFilters = useMemo(() => ({
     ...filters,
@@ -59,7 +77,7 @@ export function ModelSelector({
       return { all: models }
     }
 
-    const groups = {}
+    const groups: Record<string, AIModel[]> = {}
     models.forEach((model) => {
       const key = groupBy === 'tier'
         ? (model.isBasic ? 'basic' : 'advanced')
@@ -74,7 +92,7 @@ export function ModelSelector({
   }, [models, groupBy])
 
   // グループラベル生成
-  const getGroupLabel = (key) => {
+  const getGroupLabel = (key: string): string => {
     if (groupBy === 'provider') {
       return key.charAt(0).toUpperCase() + key.slice(1)
     }
@@ -175,9 +193,24 @@ export function ModelSelector({
 }
 
 /**
+ * Provider selector props
+ */
+export interface ProviderSelectorProps {
+  value: string
+  onChange: (value: string) => void
+  label?: string
+  className?: string
+}
+
+/**
  * プロバイダー選択コンポーネント
  */
-export function ProviderSelector({ value, onChange, label = 'AI Provider', className = '' }) {
+export function ProviderSelector({
+  value,
+  onChange,
+  label = 'AI Provider',
+  className = ''
+}: ProviderSelectorProps) {
   const { providers } = useAIProviders()
 
   return (
@@ -202,9 +235,24 @@ export function ProviderSelector({ value, onChange, label = 'AI Provider', class
 }
 
 /**
+ * Tier selector props
+ */
+export interface TierSelectorProps {
+  value: string
+  onChange: (value: string) => void
+  label?: string
+  className?: string
+}
+
+/**
  * Tier選択コンポーネント
  */
-export function TierSelector({ value, onChange, label = 'Model Tier', className = '' }) {
+export function TierSelector({
+  value,
+  onChange,
+  label = 'Model Tier',
+  className = ''
+}: TierSelectorProps) {
   return (
     <div className={`space-y-2 ${className}`}>
       {label && <Label>{label}</Label>}
