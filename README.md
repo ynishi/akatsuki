@@ -116,7 +116,6 @@ For manual setup or detailed instructions, refer to [`docs/setup.md`](docs/setup
 akatsuki/
 ├── README.md              # (This file) Quick Start
 ├── AGENT.md              # [MUST READ] Design philosophy, architecture, all rules
-├── issue.md              # Project master plan
 ├── package.json          # Monorepo root configuration
 ├── .tool-versions        # Version management for asdf/mise
 ├── .nvmrc                # Node.js version specification for nvm
@@ -140,7 +139,6 @@ akatsuki/
 | :--- | :--- |
 | **`README.md`** | **(This file)** Quick Start |
 | **`AGENT.md`** | **[MUST READ]** Design philosophy, architecture, all rules |
-| **`issue.md`** | Project master plan |
 | `packages/app-frontend/` | Vite + React frontend application |
 | `packages/app-backend/` | Shuttle + Axum backend API |
 | `docs/` | Team's official knowledge (guides, design docs) |

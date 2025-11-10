@@ -116,7 +116,6 @@ npm run setup:check
 akatsuki/
 ├── README.md              # (このファイル) クイックスタート
 ├── AGENT.md              # 【必読】設計思想、アーキテクチャ、全ルール
-├── issue.md              # プロジェクトのマスタープラン
 ├── package.json          # モノレポのルート設定
 ├── .tool-versions        # asdf/mise用バージョン管理
 ├── .nvmrc                # nvm用Node.jsバージョン指定
@@ -140,7 +139,6 @@ akatsuki/
 | :--- | :--- |
 | **`README.md`** | **(このファイル)** クイックスタート |
 | **`AGENT.md`** | **【必読】** 設計思想、アーキテクチャ、全ルール |
-| **`issue.md`** | プロジェクトのマスタープラン |
 | `packages/app-frontend/` | Vite + React フロントエンドアプリ |
 | `packages/app-backend/` | Shuttle + Axum バックエンドAPI |
 | `docs/` | チームの公式ナレッジ (手順書、設計書) |
