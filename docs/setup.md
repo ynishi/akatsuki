@@ -102,7 +102,7 @@ supabase --version
 
 ```bash
 # アプリ名を指定してクローン（例: my-awesome-app）
-git clone https://github.com/yourusername/akatsuki.git my-awesome-app
+git clone https://github.com/ynishi/akatsuki.git my-awesome-app
 
 # プロジェクトディレクトリに移動
 cd my-awesome-app

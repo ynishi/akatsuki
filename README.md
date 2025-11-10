@@ -1,5 +1,9 @@
 # 🚀 Akatsuki (暁) Template
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/ynishi/akatsuki.svg?style=social&label=Star)](https://github.com/ynishi/akatsuki)
+[![GitHub forks](https://img.shields.io/github/forks/ynishi/akatsuki.svg?style=social&label=Fork)](https://github.com/ynishi/akatsuki/fork)
+
 **VITE + React + Shuttle (Axum) + Supabase + AIGen Integrated Template**
 
 `Akatsuki` is a development template specialized for **fastest 0→1 phase launch**, enabling you to integrate AI features as naturally as breathing.
@@ -12,7 +16,7 @@
 
 ## ✨ Key Features
 
-* **AIGen Built-in:** API endpoints for image generation, Img2Img, and Agent execution are integrated from the start.
+* **AIGen Built-in:** API endpoints for image generation and Img2Img are integrated from the start.
 * **Monorepo Structure:** `packages/` are linked with NPM Workspaces.
 * **Unified Environment:** `.tool-versions` and `.nvmrc` ensure consistent Node.js and Rust versions.
 * **Supabase Integration:** Utilizes a shared `Supabase-dev` environment for development teams.
@@ -43,13 +47,13 @@ Please install the following tools. See [`docs/setup.md`](docs/setup.md) for det
 - **Shuttle CLI** (`cargo install cargo-shuttle`)
 - **Supabase CLI** (`npm install -g supabase`) ← **Often forgotten!**
 
-### Step 1: Create Project
+### Step 1: Clone and Install
 
 ⚠️ **Important:** Clone with your app name!
 
 ```bash
 # Clone with your app name (example: my-awesome-app)
-git clone https://github.com/yourusername/akatsuki.git my-awesome-app
+git clone https://github.com/ynishi/akatsuki.git my-awesome-app
 cd my-awesome-app
 npm install
 ```
@@ -61,28 +65,33 @@ Create a new project on [Supabase Dashboard](https://app.supabase.com/).
 1. Click "New Project"
 2. Enter project information (**Save the Database Password**)
 3. Click "Create new project"
+4. Note down the following from Settings > API:
+   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
+   - **Anon Key** (the `anon` `public` key)
 
 See [`docs/setup.md`](docs/setup.md) for details.
 
 ### Step 3: Automated Setup 🎯
 
+Once you have your Supabase project ready, run:
+
 ```bash
 npm run setup
 ```
 
-This command automatically executes the following:
+**This single command handles everything!** It automatically:
 
-- 📦 Set project name & description (update package.json)
-- 🔄 Clean Git history (initialize as new repository)
-- ✅ Check prerequisites
-- 📝 Enter Supabase information (interactive)
-- 📝 Auto-generate `.env` files
-- 🔗 Link to Supabase project
-- 🗄️ Apply database migrations
-- ⚡ Deploy Edge Functions
-- 🔑 Secrets configuration guide
-- 🔍 Backend verification
-- 📝 Create initial Git commit
+- 📦 Sets project name & description (updates package.json)
+- 🔄 Cleans Git history (initializes as new repository)
+- ✅ Checks all prerequisites (Node.js, Rust, Shuttle, Supabase CLI)
+- 📝 Prompts for Supabase information (Project URL, Anon Key, Database Password)
+- 📝 Auto-generates `.env` files for Frontend and Backend
+- 🔗 Links to your Supabase project
+- 🗄️ Applies database migrations (tables, RLS policies, triggers)
+- ⚡ Deploys Edge Functions (ai-chat, generate-image, etc.)
+- 🔑 Shows Secrets configuration guide
+- 🔍 Verifies Backend compilation
+- 📝 Creates initial Git commit
 
 **That's it!** Start the development servers and check your app:
 
@@ -201,16 +210,6 @@ Main endpoints provided by the Backend:
   }
   ```
 
-#### 3. Agent Execute (LLM Task Execution)
-- **POST** `/api/aigen/agent-execute`
-  ```json
-  {
-    "task": "Summarize this text...",
-    "model": "gpt-4",
-    "system_prompt": "You are a helpful assistant"
-  }
-  ```
-
 See `packages/app-backend/README.md` for details.
 
 ---
@@ -228,6 +227,18 @@ See `packages/app-backend/README.md` for details.
 - **Shared Supabase-dev Environment:** Teams (1-2 members) share the development Supabase project
 - **Utilize workspace/:** Save personal notes and drafts in `workspace/` (not in Git)
 - **Monorepo Management:** Place shared components in `packages/`
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 

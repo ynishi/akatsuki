@@ -1,5 +1,9 @@
 # 🚀 Akatsuki (暁) Template
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/ynishi/akatsuki.svg?style=social&label=Star)](https://github.com/ynishi/akatsuki)
+[![GitHub forks](https://img.shields.io/github/forks/ynishi/akatsuki.svg?style=social&label=Fork)](https://github.com/ynishi/akatsuki/fork)
+
 **VITE + React + Shuttle (Axum) + Supabase + AIGen 統合テンプレート**
 
 `Akatsuki` は、AI機能を「息を吸うように」組み込める、**0→1フェーズの最速立ち上げ** に特化した開発テンプレートです。
@@ -12,7 +16,7 @@
 
 ## ✨ 主な機能 (Key Features)
 
-* **AIGen 標準搭載:** 画像生成、Img2Img、Agent実行のAPIエンドポイントが最初から組み込まれています。
+* **AIGen 標準搭載:** 画像生成、Img2ImgのAPIエンドポイントが最初から組み込まれています。
 * **モノレポ構成:** `packages/` がNPM Workspacesで連携済み。
 * **環境統一:** `.tool-versions` と `.nvmrc` により、Node.js と Rust のバージョンを統一します。
 * **Supabase連携:** 開発チームで共有する `Supabase-dev` 環境を活用。
@@ -43,13 +47,13 @@
 - **Shuttle CLI** (`cargo install cargo-shuttle`)
 - **Supabase CLI** (`npm install -g supabase`) ← **これを忘れがち！**
 
-### ステップ 1: プロジェクト作成
+### ステップ 1: クローンとインストール
 
 ⚠️ **重要:** アプリ名を指定してクローン！
 
 ```bash
 # アプリ名を指定してクローン（例: my-awesome-app）
-git clone https://github.com/yourusername/akatsuki.git my-awesome-app
+git clone https://github.com/ynishi/akatsuki.git my-awesome-app
 cd my-awesome-app
 npm install
 ```
@@ -61,28 +65,33 @@ npm install
 1. 「New Project」をクリック
 2. プロジェクト情報を入力（**Database Password は控えておく**）
 3. 「Create new project」をクリック
+4. Settings > API から以下を控えておく：
+   - **Project URL** (例: `https://xxxxx.supabase.co`)
+   - **Anon Key** (`anon` `public` のキー)
 
 詳細は [`docs/setup.md`](docs/setup.md) 参照。
 
 ### ステップ 3: 自動セットアップ 🎯
 
+Supabase プロジェクトの準備ができたら、以下を実行：
+
 ```bash
 npm run setup
 ```
 
-このコマンドが以下を自動的に実行します：
+**このコマンド一つで全て完了！** 自動的に：
 
-- 📦 プロジェクト名 & 説明の設定（package.json 更新）
-- 🔄 Git 履歴のクリーン化（新規リポジトリとして初期化）
-- ✅ 前提条件チェック
-- 📝 Supabase 情報の入力（対話的）
-- 📝 `.env` ファイル自動生成
+- 📦 プロジェクト名 & 説明を設定（package.json 更新）
+- 🔄 Git 履歴をクリーン化（新規リポジトリとして初期化）
+- ✅ 前提条件をチェック（Node.js, Rust, Shuttle, Supabase CLI）
+- 📝 Supabase 情報を入力（Project URL, Anon Key, Database Password）
+- 📝 `.env` ファイルを自動生成（Frontend と Backend）
 - 🔗 Supabase プロジェクトにリンク
-- 🗄️ データベースマイグレーション適用
-- ⚡ Edge Functions デプロイ
-- 🔑 Secrets 設定ガイド
-- 🔍 バックエンド確認
-- 📝 初回 Git コミット作成
+- 🗄️ データベースマイグレーションを適用（テーブル、RLSポリシー、トリガー）
+- ⚡ Edge Functions をデプロイ（ai-chat, generate-image など）
+- 🔑 Secrets 設定ガイドを表示
+- 🔍 バックエンドのコンパイルを確認
+- 📝 初回 Git コミットを作成
 
 **以上！** 開発サーバーを起動してアプリを確認：
 
@@ -201,16 +210,6 @@ Backend が提供する主要なエンドポイント：
   }
   ```
 
-#### 3. Agent Execute (LLMタスク実行)
-- **POST** `/api/aigen/agent-execute`
-  ```json
-  {
-    "task": "Summarize this text...",
-    "model": "gpt-4",
-    "system_prompt": "You are a helpful assistant"
-  }
-  ```
-
 詳細は `packages/app-backend/README.md` を参照してください。
 
 ---
@@ -228,6 +227,18 @@ Backend が提供する主要なエンドポイント：
 - **Supabase-dev環境の共有:** チーム（1〜2名）で開発用Supabaseプロジェクトを共有します
 - **workspace/ の活用:** 個人のメモや下書きは `workspace/` に保存します（Git管理外）
 - **モノレポ管理:** 共通コンポーネントは `packages/` に配置します
+
+---
+
+## 📄 ライセンス
+
+このプロジェクトはMITライセンスの下でライセンスされています - 詳細は [LICENSE](LICENSE) ファイルを参照してください。
+
+---
+
+## 🤝 コントリビューション
+
+コントリビューションを歓迎します！ガイドラインについては [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
 ---
 
