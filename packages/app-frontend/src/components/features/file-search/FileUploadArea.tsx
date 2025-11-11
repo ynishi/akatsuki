@@ -14,13 +14,12 @@ interface FileUploadAreaProps {
 }
 
 /**
- * FileUploadArea - ファイルアップロード用コンポーネント（Phase 1: 最小実装 + Select対応）
+ * FileUploadArea - ファイルアップロード用コンポーネント
  *
  * @description
  * File Search用のファイルアップロードUI
  * Store をSelectで指定してファイルをアップロード
- *
- * TODO Phase 2: モック削除、実際のEdge Function呼び出し
+ * 実際のEdge Function (knowledge-file-upload) と統合済み
  */
 export function FileUploadArea({ selectedStoreId, onStoreChange }: FileUploadAreaProps) {
   const [storeId, setStoreId] = useState(selectedStoreId || '')
@@ -69,7 +68,6 @@ export function FileUploadArea({ selectedStoreId, onStoreChange }: FileUploadAre
     if (!selectedFile || !storeId.trim()) return
 
     try {
-      // TODO Phase 2: 実際のEdge Function呼び出し（現在はモック）
       await uploadFileAsync(selectedFile)
       setUploadSuccess(true)
       setSelectedFile(null)

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MessageSquare, Sparkles, FileSearch, X, Database } from 'lucide-react'
 import { useFileSearchStores } from '@/hooks/useFileSearchStores'
+import { FileSearchService } from '@/services/FileSearchService'
 
 interface RAGChatAreaProps {
   selectedStoreIds?: string[]
@@ -13,13 +14,13 @@ interface RAGChatAreaProps {
 }
 
 /**
- * RAGChatArea - RAGチャット用コンポーネント（Phase 1: 簡易版・モック + Select対応）
+ * RAGChatArea - RAGチャット用コンポーネント
  *
  * @description
  * File Search RAGを使用したチャットUI
  * Store を複数選択してRAG検索 + チャット
+ * 実際のEdge Function (ai-chat) と統合済み
  *
- * TODO Phase 2: モック削除、実際のEdge Function呼び出し
  * TODO Phase 3: 既存LLMChatCardとの統合検討
  */
 export function RAGChatArea({ selectedStoreIds = [], onStoreIdsChange }: RAGChatAreaProps) {
@@ -58,23 +59,23 @@ export function RAGChatArea({ selectedStoreIds = [], onStoreIdsChange }: RAGChat
     setResponse(null)
 
     try {
-      // TODO Phase 2: 実際のEdge Function呼び出し（現在はモック）
-      // const { data, error } = await FileSearchService.chatWithRAG(
-      //   message,
-      //   activeStoreIds
-      // )
+      const { data, error } = await FileSearchService.chatWithRAG(
+        message,
+        activeStoreIds
+      )
 
-      // Mock response
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      const storeNames = activeStoreIds
-        .map((id) => stores?.find((s) => s.id === id)?.displayName || id)
-        .join(', ')
-      const mockResponse = `[Mock Response]\n\nYour question: "${message}"\n\nStores searched: ${storeNames || 'None'}\n\nThis is a mock response. In Phase 2, this will be replaced with actual File Search RAG results.`
+      if (error) {
+        setResponse(`Error: ${error.message}`)
+        console.error('RAG chat failed:', error)
+        return
+      }
 
-      setResponse(mockResponse)
+      if (data) {
+        setResponse(data.response)
+      }
     } catch (error) {
       console.error('RAG chat failed:', error)
-      setResponse('Error: Failed to get response')
+      setResponse(`Error: ${error instanceof Error ? error.message : 'Failed to get response'}`)
     } finally {
       setIsPending(false)
     }

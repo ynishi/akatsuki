@@ -128,6 +128,7 @@ export class FileSearchService {
       const { data, error } = await EdgeFunctionService.invoke<{ store: UploadFileResponse['store'] }>(
         'knowledge-file-upload',
         {
+          mode: 'create_store',
           display_name: displayName,
           provider,
         }
@@ -172,6 +173,7 @@ export class FileSearchService {
 
     try {
       const formData = new FormData()
+      formData.append('mode', 'upload_file')
       formData.append('file', file)
       formData.append('provider', provider)
       if (storeId) {
@@ -227,18 +229,25 @@ export class FileSearchService {
     const { model, provider = 'gemini' } = options
 
     try {
-      const { data, error } = await EdgeFunctionService.invoke<RAGChatResponse>('ai-chat', {
-        message,
-        file_search_store_ids: storeIds,
+      const { data, error } = await EdgeFunctionService.invoke<any>('ai-chat', {
         provider,
+        prompt: message,
         model,
+        fileSearchStoreIds: storeIds,
       })
 
       if (error) {
         return { data: null, error }
       }
 
-      return { data, error: null }
+      // ai-chatのレスポンス形式をRAGChatResponseに変換
+      const ragResponse: RAGChatResponse = {
+        query: message,
+        response: data?.response || '',
+        // grounding_metadataは将来的にai-chatから返される場合に対応
+      }
+
+      return { data: ragResponse, error: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       return { data: null, error: new Error(`RAGチャットに失敗: ${message}`) }
