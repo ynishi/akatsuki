@@ -16,6 +16,8 @@ import { corsHeaders } from './cors.ts'
 import { UserQuotaRepository } from './repositories/UserQuotaRepository.ts'
 import { LLMCallLogRepository } from './repositories/LLMCallLogRepository.ts'
 import { ComfyUIWorkflowRepository } from './repositories/ComfyUIWorkflowRepository.ts'
+import { FileSearchStoreRepository } from './repositories/FileSearchStoreRepository.ts'
+import { KnowledgeFileRepository } from './repositories/KnowledgeFileRepository.ts'
 
 /**
  * Repository集約オブジェクト
@@ -24,6 +26,8 @@ export interface Repositories {
   userQuota: UserQuotaRepository
   llmCallLog: LLMCallLogRepository
   comfyuiWorkflow: ComfyUIWorkflowRepository
+  fileSearchStore: FileSearchStoreRepository
+  knowledgeFile: KnowledgeFileRepository
 }
 
 /**
@@ -66,6 +70,8 @@ export interface AkatsukiHandlerOptions<I, O> {
   logic: (context: HandlerContext<I>) => Promise<O>
   /** 認証を必須とするか（デフォルト: true） */
   requireAuth?: boolean
+  /** 事前パース済み入力（FormData等の特殊ケース用） */
+  input?: I
 }
 
 /**
@@ -113,6 +119,8 @@ function createRepositories(supabaseAdmin: SupabaseClient): Repositories {
     userQuota: new UserQuotaRepository(supabaseAdmin),
     llmCallLog: new LLMCallLogRepository(supabaseAdmin),
     comfyuiWorkflow: new ComfyUIWorkflowRepository(supabaseAdmin),
+    fileSearchStore: new FileSearchStoreRepository(supabaseAdmin),
+    knowledgeFile: new KnowledgeFileRepository(supabaseAdmin),
   }
 }
 
@@ -181,8 +189,15 @@ export async function createAkatsukiHandler<I, O>(
     repos = createRepositories(adminClient)
 
     // 4. 入力バリデーション
-    const body = await req.json()
-    const validation = options.inputSchema.safeParse(body)
+    let validation
+    if (options.input) {
+      // 事前パース済み入力（FormData等）
+      validation = options.inputSchema.safeParse(options.input)
+    } else {
+      // 通常のJSON入力
+      const body = await req.json()
+      validation = options.inputSchema.safeParse(body)
+    }
 
     if (!validation.success) {
       console.warn('[Akatsuki Handler] Validation failed:', validation.error.errors)

@@ -29,6 +29,7 @@ const InputSchema = z.object({
   maxTokens: z.number().positive().optional().default(1000),
   responseJson: z.boolean().optional().default(false),
   enableFunctionCalling: z.boolean().optional().default(false),
+  fileSearchStoreIds: z.array(z.string().uuid()).optional(), // File Search (RAG) 用のStore ID配列
 }).refine(data => data.prompt || data.messages, {
   message: 'Either prompt or messages is required',
 })
@@ -300,8 +301,49 @@ Deno.serve(async (req) => {
             const selectedModel = input.model || 'gemini-2.5-flash'
 
             const modelConfig: any = { model: selectedModel }
+
+            // Tools configuration
+            const tools: any[] = []
+
+            // Function Calling
             if (input.enableFunctionCalling && availableFunctions.length > 0) {
-              modelConfig.tools = [{ functionDeclarations: toGeminiFunctionDeclarations(availableFunctions) }]
+              tools.push({ functionDeclarations: toGeminiFunctionDeclarations(availableFunctions) })
+            }
+
+            // File Search (RAG)
+            if (input.fileSearchStoreIds && input.fileSearchStoreIds.length > 0) {
+              // Verify ownership and get store names
+              const storeNames: string[] = []
+              for (const storeId of input.fileSearchStoreIds) {
+                const hasOwnership = await repos.fileSearchStore.checkOwnership(storeId, user.id)
+                if (!hasOwnership) {
+                  console.warn(`[ai-chat] User ${user.id} does not own store ${storeId}, skipping`)
+                  continue
+                }
+
+                const store = await repos.fileSearchStore.findById(storeId)
+                if (store && store.name) {
+                  storeNames.push(store.name) // "corpora/xxx"
+                }
+              }
+
+              if (storeNames.length > 0) {
+                // Add semantic retrieval tool for File Search
+                tools.push({
+                  retrieval: {
+                    disableAttribution: false,
+                    vertexRagStore: {
+                      ragCorpora: storeNames,
+                    },
+                  },
+                })
+
+                console.log(`[ai-chat] File Search enabled with ${storeNames.length} corpora:`, storeNames)
+              }
+            }
+
+            if (tools.length > 0 && !modelConfig.tools) {
+              modelConfig.tools = tools
             }
 
             const geminiModel = genAI.getGenerativeModel(modelConfig)
