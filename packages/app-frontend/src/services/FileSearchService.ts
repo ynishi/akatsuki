@@ -1,6 +1,11 @@
 import { EdgeFunctionService } from './EdgeFunctionService'
 
 /**
+ * File Search provider type
+ */
+export type FileSearchProvider = 'gemini' // 将来的に | 'openai' | 'pinecone' | 'weaviate' など追加可能
+
+/**
  * Upload file response
  */
 export interface UploadFileResponse {
@@ -37,6 +42,36 @@ export interface RAGChatResponse {
 }
 
 /**
+ * Create store options
+ */
+export interface CreateStoreOptions {
+  provider?: FileSearchProvider
+}
+
+/**
+ * Upload file options
+ */
+export interface UploadFileOptions {
+  displayName?: string
+  provider?: FileSearchProvider
+}
+
+/**
+ * RAG chat options
+ */
+export interface RAGChatOptions {
+  model?: string
+  provider?: FileSearchProvider
+}
+
+/**
+ * Delete store options
+ */
+export interface DeleteStoreOptions {
+  provider?: FileSearchProvider
+}
+
+/**
  * Service response
  */
 export interface ServiceResponse<T> {
@@ -46,41 +81,55 @@ export interface ServiceResponse<T> {
 
 /**
  * File Search Service
- * Gemini File Search API統合サービス
+ * File Search API統合サービス
+ * Provider: Gemini（デフォルト）、将来的に他のプロバイダーも追加可能
  *
  * @example
  * import { FileSearchService } from '@/services/FileSearchService'
  *
- * // Store作成
+ * // Store作成（Geminiデフォルト）
  * const { data, error } = await FileSearchService.createStore('My Knowledge Base')
  *
- * // ファイルアップロード
- * const { data, error } = await FileSearchService.uploadFile(storeId, file)
+ * // ファイルアップロード（Provider指定可能）
+ * const { data, error } = await FileSearchService.uploadFile(storeId, file, {
+ *   provider: 'gemini'
+ * })
  *
  * // RAGチャット
- * const { data, error } = await FileSearchService.chatWithRAG('質問', [storeId])
+ * const { data, error } = await FileSearchService.chatWithRAG('質問', [storeId], {
+ *   provider: 'gemini'
+ * })
  */
 export class FileSearchService {
   /**
    * 新しいFile Search Storeを作成
    *
    * @param displayName - 表示名
+   * @param options - オプション（provider指定など）
    * @returns Store情報
    *
    * @example
+   * // Gemini（デフォルト）
    * const { data, error } = await FileSearchService.createStore('My Knowledge Base')
-   * if (error) {
-   *   console.error(error)
-   * } else {
-   *   console.log(data.store.id)
-   * }
+   *
+   * @example
+   * // Provider明示指定
+   * const { data, error } = await FileSearchService.createStore('My Knowledge Base', {
+   *   provider: 'gemini'
+   * })
    */
-  static async createStore(displayName: string): Promise<ServiceResponse<{ store: UploadFileResponse['store'] }>> {
+  static async createStore(
+    displayName: string,
+    options: CreateStoreOptions = {}
+  ): Promise<ServiceResponse<{ store: UploadFileResponse['store'] }>> {
+    const { provider = 'gemini' } = options
+
     try {
       const { data, error } = await EdgeFunctionService.invoke<{ store: UploadFileResponse['store'] }>(
         'knowledge-file-upload',
         {
           display_name: displayName,
+          provider,
         }
       )
 
@@ -100,32 +149,36 @@ export class FileSearchService {
    *
    * @param storeId - Store ID（省略時は新規作成）
    * @param file - アップロードするファイル
-   * @param options - オプション
+   * @param options - オプション（displayName, provider指定など）
    * @returns アップロード結果
    *
    * @example
+   * // Gemini（デフォルト）
    * const { data, error } = await FileSearchService.uploadFile(storeId, file)
-   * if (error) {
-   *   console.error(error)
-   * } else {
-   *   console.log(data.file.gemini_file_name)
-   * }
+   *
+   * @example
+   * // Provider明示指定
+   * const { data, error } = await FileSearchService.uploadFile(storeId, file, {
+   *   displayName: 'My Document',
+   *   provider: 'gemini'
+   * })
    */
   static async uploadFile(
     storeId: string | null,
     file: File,
-    options: {
-      displayName?: string
-    } = {}
+    options: UploadFileOptions = {}
   ): Promise<ServiceResponse<UploadFileResponse>> {
+    const { displayName, provider = 'gemini' } = options
+
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('provider', provider)
       if (storeId) {
         formData.append('store_id', storeId)
       }
-      if (options.displayName) {
-        formData.append('display_name', options.displayName)
+      if (displayName) {
+        formData.append('display_name', displayName)
       }
 
       const { data, error } = await EdgeFunctionService.invoke<UploadFileResponse>('knowledge-file-upload', formData, {
@@ -148,34 +201,37 @@ export class FileSearchService {
    *
    * @param message - ユーザーメッセージ
    * @param storeIds - 検索対象のStore ID配列
-   * @param options - オプション
+   * @param options - オプション（model, provider指定など）
    * @returns RAGレスポンス
    *
    * @example
+   * // Gemini（デフォルト）
    * const { data, error } = await FileSearchService.chatWithRAG(
    *   'このドキュメントについて教えて',
    *   [storeId]
    * )
-   * if (error) {
-   *   console.error(error)
-   * } else {
-   *   console.log(data.response)
-   *   console.log(data.grounding_metadata?.citations)
-   * }
+   *
+   * @example
+   * // Provider & Model指定
+   * const { data, error } = await FileSearchService.chatWithRAG(
+   *   'このドキュメントについて教えて',
+   *   [storeId],
+   *   { provider: 'gemini', model: 'gemini-2.0-flash-exp' }
+   * )
    */
   static async chatWithRAG(
     message: string,
     storeIds: string[],
-    options: {
-      model?: string
-    } = {}
+    options: RAGChatOptions = {}
   ): Promise<ServiceResponse<RAGChatResponse>> {
+    const { model, provider = 'gemini' } = options
+
     try {
       const { data, error } = await EdgeFunctionService.invoke<RAGChatResponse>('ai-chat', {
         message,
         file_search_store_ids: storeIds,
-        provider: 'gemini', // Gemini のみ File Search 対応
-        model: options.model,
+        provider,
+        model,
       })
 
       if (error) {
@@ -193,18 +249,29 @@ export class FileSearchService {
    * File Search Storeを削除
    *
    * @param storeId - Store ID
+   * @param options - オプション（provider指定など）
    * @returns 削除結果
    *
    * @example
+   * // Gemini（デフォルト）
    * const { error } = await FileSearchService.deleteStore(storeId)
-   * if (error) {
-   *   console.error(error)
-   * }
+   *
+   * @example
+   * // Provider明示指定
+   * const { error } = await FileSearchService.deleteStore(storeId, {
+   *   provider: 'gemini'
+   * })
    */
-  static async deleteStore(storeId: string): Promise<ServiceResponse<{ success: boolean }>> {
+  static async deleteStore(
+    storeId: string,
+    options: DeleteStoreOptions = {}
+  ): Promise<ServiceResponse<{ success: boolean }>> {
+    const { provider = 'gemini' } = options
+
     try {
       const { data, error } = await EdgeFunctionService.invoke<{ success: boolean }>('knowledge-file-delete', {
         store_id: storeId,
+        provider,
       })
 
       if (error) {

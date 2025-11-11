@@ -1,15 +1,15 @@
 /**
  * File Search Store Model
- * Gemini File Search APIのCorpusを管理
+ * File Search APIのCorpus（Knowledge Base）を管理
  *
  * ベストプラクティス:
- * - Gemini APIのCorpus（Knowledge Base）とDB上の管理情報を1:1で紐付け
+ * - File Search API Corpus（Knowledge Base）とDB上の管理情報を1:1で紐付け
  * - RLS (Row Level Security) でユーザー自身のみアクセス可能に設定
  */
 
 export interface FileSearchStoreData {
   id?: string | null
-  name: string // Gemini API corpus name (e.g., "corpora/xxx")
+  name: string // File Search API corpus name (e.g., "corpora/xxx")
   displayName?: string | null
   userId: string
   createdAt?: string | null
@@ -35,7 +35,7 @@ export class FileSearchStore {
 
   constructor({ id = null, name, displayName = null, userId, createdAt = null, updatedAt = null }: FileSearchStoreData) {
     this.id = id
-    this.name = name // Gemini API corpus name
+    this.name = name // File Search API corpus name
     this.displayName = displayName
     this.userId = userId
     this.createdAt = createdAt

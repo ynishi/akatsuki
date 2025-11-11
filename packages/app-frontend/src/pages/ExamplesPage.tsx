@@ -23,6 +23,7 @@ import { uuidToBase62, base62ToUuid } from '../utils/base62'
 // eslint-disable-next-line no-restricted-imports
 import { PublicProfileRepository } from '../repositories/PublicProfileRepository'
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
+import { FileSearchDemo } from '../components/features/file-search/FileSearchDemo'
 import { JobProgress } from '../components/common/JobProgress'
 
 export function ExamplesPage() {
@@ -2065,6 +2066,9 @@ console.log(result.publicUrl) // 生成された画像URL`}</code>
 
         {/* Web Search Example */}
         <WebSearchCard />
+
+        {/* Gemini File Search Demo (Phase 1) */}
+        <FileSearchDemo />
 
         {/* Event System Example */}
         <Card>

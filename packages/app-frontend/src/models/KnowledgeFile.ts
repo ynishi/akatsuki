@@ -1,10 +1,10 @@
 /**
  * Knowledge File Model
- * Gemini File Search APIにアップロードされたファイルを管理
+ * File Search APIにアップロードされたファイルを管理
  *
  * ベストプラクティス:
  * - files テーブルとの外部キーで Storage 情報を管理
- * - Gemini API のfile nameと紐付け
+ * - File Search API のfile nameと紐付け
  * - RLS (Row Level Security) でユーザー自身のみアクセス可能に設定
  */
 
@@ -12,7 +12,7 @@ export interface KnowledgeFileData {
   id?: string | null
   storeId: string
   fileId: string // files テーブルへの外部キー
-  geminiFileName: string // Gemini API file name (e.g., "corpora/xxx/documents/xxx")
+  geminiFileName: string // File Search API file name (e.g., "corpora/xxx/documents/xxx")
   userId: string
   createdAt?: string | null
   // 関連データ（JOIN時に取得）
