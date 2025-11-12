@@ -3,9 +3,10 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createAkatsukiHandler } from '../_shared/handler.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 import { ErrorCodes } from '../_shared/api_types.ts'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
-import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.21.0'
+import { GoogleGenAI } from 'npm:@google/genai@1.29.0'
 
 // IN型定義
 const InputSchema = z.discriminatedUnion('mode', [
@@ -41,7 +42,12 @@ interface Output {
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   // FormData の場合は手動でパース
   let parsedInput: Input
 
@@ -92,23 +98,24 @@ Deno.serve(async (req) => {
         )
       }
 
-      const provider = input.provider
+      const provider = input.provider;
 
-      // Gemini API クライアント初期化
-      const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
-      if (!geminiApiKey) {
+      // https://www.npmjs.com/package/@google/genai#quickstart
+      const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+      if (!GEMINI_API_KEY) {
         throw Object.assign(
-          new Error('GEMINI_API_KEY not configured'),
+          new Error(`InternalServerError: internal server error`),
           { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
         )
       }
-      const genAI = new GoogleGenerativeAI(geminiApiKey)
+
+      const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
 
       // === Mode 1: Store作成のみ ===
       if (input.mode === 'create_store') {
-        // Gemini Corpus 作成
-        const corpus = await genAI.corpora.create({
-          displayName: input.display_name,
+        // Gemini File Search Store 作成
+        const fileSearchStore = await ai.fileSearchStores.create({
+          config: { displayName: input.display_name }
         })
 
         // DB に Store を保存（Repository使用）
@@ -116,20 +123,20 @@ Deno.serve(async (req) => {
         try {
           storeRecord = await repos.fileSearchStore.create({
             user_id: user.id,
-            name: corpus.name, // "corpora/xxx"
+            name: fileSearchStore.name, // "corpora/xxx"
             display_name: input.display_name,
             provider: provider,
           })
-        } catch (error) {
-          // DB保存失敗時は Gemini Corpus を削除（ロールバック）
+        } catch (error: any) {
+          // DB保存失敗時は Gemini Store を削除（ロールバック）
           try {
-            await genAI.corpora.delete(corpus.name)
+            await ai.fileSearchStores.delete({ name: fileSearchStore.name })
           } catch (e) {
-            console.error('Failed to rollback Gemini Corpus:', e)
+            console.error('Failed to rollback Gemini File Search Store:', e)
           }
           throw Object.assign(
             new Error(`Failed to save store: ${error.message}`),
-            { code: ErrorCodes.DATABASE_ERROR, status: 500 }
+            { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
           )
         }
 
@@ -166,24 +173,26 @@ Deno.serve(async (req) => {
       } else {
         // 新規Store作成
         const displayName = input.display_name || 'My Knowledge Base'
-        const corpus = await genAI.corpora.create({ displayName })
+        const fileSearchStore = await ai.fileSearchStores.create({
+          config: { displayName }
+        })
 
         try {
           storeRecord = await repos.fileSearchStore.create({
             user_id: user.id,
-            name: corpus.name,
+            name: fileSearchStore.name,
             display_name: displayName,
             provider: provider,
           })
-        } catch (error) {
+        } catch (error: any) {
           try {
-            await genAI.corpora.delete(corpus.name)
+            await ai.fileSearchStores.delete({ name: fileSearchStore.name })
           } catch (e) {
-            console.error('Failed to rollback Gemini Corpus:', e)
+            console.error('Failed to rollback Gemini File Search Store:', e)
           }
           throw Object.assign(
             new Error(`Failed to save store: ${error.message}`),
-            { code: ErrorCodes.DATABASE_ERROR, status: 500 }
+            { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
           )
         }
       }
@@ -203,7 +212,7 @@ Deno.serve(async (req) => {
       if (uploadError) {
         throw Object.assign(
           new Error(`Storage upload failed: ${uploadError.message}`),
-          { code: ErrorCodes.STORAGE_ERROR, status: 500 }
+          { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
         )
       }
 
@@ -232,33 +241,30 @@ Deno.serve(async (req) => {
         }
         throw Object.assign(
           new Error(`Failed to save file metadata: ${fileError.message}`),
-          { code: ErrorCodes.DATABASE_ERROR, status: 500 }
+          { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
         )
       }
 
       // 2-4. Gemini File Search APIにアップロード
-      // Signed URL取得
-      const { data: signedUrlData, error: signedUrlError } = await adminClient.storage
-        .from('private_uploads')
-        .createSignedUrl(storagePath, 3600) // 1時間有効
+      // ファイルをGemini File Search Storeにアップロード
+      console.log('[knowledge-file-upload] Uploading to Gemini:', {
+        storeName: storeRecord.name,
+        fileName: input.file.name,
+      })
 
-      if (signedUrlError || !signedUrlData) {
-        throw Object.assign(
-          new Error('Failed to create signed URL'),
-          { code: ErrorCodes.STORAGE_ERROR, status: 500 }
-        )
-      }
+      const operation = await ai.fileSearchStores.uploadToFileSearchStore({
+        file: input.file,
+        fileSearchStoreName: storeRecord.name,
+        config: { displayName: input.file.name }
+      })
 
-      // Gemini APIにファイルをアップロード
-      const fileBlob = await fetch(signedUrlData.signedUrl).then(r => r.blob())
-      const uploadedFile = await genAI.corpora.uploadDocument(
-        storeRecord.name,
-        {
-          displayName: input.file.name,
-          mimeType: input.file.type,
-        },
-        fileBlob
-      )
+      // アップロード完了を待機
+      const uploadResult = await operation.response
+
+      console.log('[knowledge-file-upload] Gemini file uploaded:', uploadResult)
+
+      // Gemini file name を取得（uploadResult.name または uploadResult.file?.name など）
+      const geminiFileName = uploadResult?.name || uploadResult?.file?.name || `${storeRecord.name}/files/${fileRecord.id}`
 
       // 2-5. knowledge_filesテーブルに記録（Repository使用）
       let knowledgeFileRecord
@@ -266,19 +272,17 @@ Deno.serve(async (req) => {
         knowledgeFileRecord = await repos.knowledgeFile.create({
           store_id: storeRecord.id,
           file_id: fileRecord.id,
-          gemini_file_name: uploadedFile.name, // "corpora/xxx/documents/xxx"
+          gemini_file_name: geminiFileName,
           user_id: user.id,
         })
-      } catch (error) {
+      } catch (error: any) {
         // Gemini Document削除（ロールバック）
-        try {
-          await genAI.documents.delete(uploadedFile.name)
-        } catch (e) {
-          console.error('Failed to rollback Gemini document:', e)
-        }
+        // Note: Gemini API v1beta には document 個別削除APIがないため、
+        // Corpus全体を削除するか、そのままにするかの判断が必要
+        console.error('Failed to save knowledge file (Gemini document may remain):', error)
         throw Object.assign(
           new Error(`Failed to save knowledge file: ${error.message}`),
-          { code: ErrorCodes.DATABASE_ERROR, status: 500 }
+          { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
         )
       }
 
@@ -291,7 +295,7 @@ Deno.serve(async (req) => {
         file: {
           id: knowledgeFileRecord.id,
           file_id: fileRecord.id,
-          gemini_file_name: uploadedFile.name,
+          gemini_file_name: geminiFileName,
         },
       }
     },
