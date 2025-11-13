@@ -3299,44 +3299,6 @@ Akatsukiは、LLMが自律的にシステム機能を呼び出せる**Function C
 - ✅ ユーザーが独自Functionを登録可能（LLM Platform型アプリも作れる）
 - ✅ VibeCodingで柔軟にカスタマイズ可能
 
-### 11.3. データベーススキーマ
-
-**function_call_definitions テーブル:**
-```sql
-CREATE TABLE function_call_definitions (
-  id UUID PRIMARY KEY,
-  user_id UUID,  -- NULL = global function
-  name TEXT NOT NULL,
-  description TEXT NOT NULL,
-  parameters_schema JSONB NOT NULL,  -- JSON Schema
-  target_event_type TEXT NOT NULL,   -- e.g., 'job:send_webhook'
-  is_enabled BOOLEAN DEFAULT true,
-  is_global BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ
-);
-```
-
-**function_call_logs テーブル:**
-```sql
-CREATE TABLE function_call_logs (
-  id UUID PRIMARY KEY,
-  llm_call_log_id UUID,  -- LLM呼び出しとの紐付け
-  user_id UUID,
-  function_name TEXT NOT NULL,
-  function_arguments JSONB NOT NULL,
-  execution_type TEXT NOT NULL,  -- 'async' (全てJob経由)
-  status TEXT NOT NULL,  -- 'pending' | 'success' | 'failed'
-  result JSONB,
-  error_message TEXT,
-  system_event_id UUID,  -- Job ID
-  execution_time_ms INTEGER,
-  started_at TIMESTAMPTZ,
-  completed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ
-);
-```
-
 ### 11.4. 使い方
 
 **1. Function定義を追加（Admin UI）**
@@ -3485,6 +3447,208 @@ export const jobHandlers: Record<string, JobHandler> = {
 - フィルター（Function名、ステータス）
 - 詳細表示（引数、結果、エラー）
 - 統計情報
+
+---
+
+## 12. RAG File Search System（知識ベース統合）
+
+### 12.1. 概要
+
+AkatsukiはRAG（Retrieval-Augmented Generation）機能を統合し、複数のFile Search Providerに対応した堅牢なファイル管理システムを提供します。
+
+**特徴:**
+- ✅ **Provider抽象化**: Gemini/OpenAI/Pinecone/AnythingLLM等に対応
+- ✅ **ハイブリッドストレージ**: Supabase Storage + Provider両方にファイルを保存
+- ✅ **2-step Upload Flow**: ファイルアップロードとインデックス化を分離
+- ✅ **型安全性**: 厳密な型定義でパラメータミスを防止
+
+### 12.2. アーキテクチャ
+
+```
+┌─────────────────────────────────────────────┐
+│ Frontend: FileSearchService.ts              │
+│ - 統一されたAPI                             │
+│ - Provider抽象化                            │
+└─────────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────────┐
+│ Edge Functions (2-step flow)               │
+│                                             │
+│ Step 1: file-upload (汎用的)                │
+│   - Supabase Storageにアップロード          │
+│   - filesテーブル作成                       │
+│   OUTPUT: file_id                           │
+│                                             │
+│ Step 2: knowledge-file-index (RAG専用)      │
+│   - file_idからファイル取得                 │
+│   - Providerにインデックス化                │
+│   - knowledge_filesテーブル作成             │
+└─────────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────────┐
+│ Provider Client Layer                       │
+│                                             │
+│ RAGProviderInterface (共通IF)               │
+│  ├─ GeminiRAGClient      [実装済み]         │
+│  ├─ OpenAIRAGClient      [TODO]            │
+│  ├─ PineconeRAGClient    [TODO]            │
+│  └─ AnythingLLMClient    [TODO]            │
+└─────────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────────┐
+│ Database                                    │
+│                                             │
+│ files (Supabase Storage管理)                │
+│  ↓ file_id                                  │
+│ knowledge_files (関係テーブル)               │
+│  ↓ store_id                                 │
+│ file_search_stores (RAG Store管理)          │
+│  ↓ provider                                 │
+│ Provider Storage (Gemini/OpenAI/etc.)       │
+└─────────────────────────────────────────────┘
+```
+
+### 12.3. Frontend Service
+
+#### FileSearchService
+
+**Location:** `packages/app-frontend/src/services/FileSearchService.ts`
+
+統一されたAPIを提供（2-step flowを内部で実行）：
+
+```typescript
+import { FileSearchService } from '@/services/FileSearchService'
+
+// 1. Create Store
+const { data: storeData } = await FileSearchService.createStore('My Knowledge Base', {
+  provider: 'gemini'
+})
+
+// 2. Upload File (2-step flow internally)
+const { data: uploadData } = await FileSearchService.uploadFile(storeData.store.id, file, {
+  provider: 'gemini'
+})
+
+// 3. RAG Chat
+const { data: chatData } = await FileSearchService.chatWithRAG(
+  'このドキュメントについて教えて',
+  [storeData.store.id],
+  { provider: 'gemini', model: 'gemini-2.0-flash-exp' }
+)
+
+// 4. List Files
+const { data: filesData } = await FileSearchService.listFiles(storeData.store.id)
+
+// 5. Delete Store
+await FileSearchService.deleteStore(storeData.store.id)
+```
+
+**内部動作（2-step flow）:**
+```typescript
+// uploadFile() internally:
+// Step 1: file-upload Edge Function → get file_id
+// Step 2: knowledge-file-index Edge Function → index to provider
+```
+
+### 12.4. RAG Chat統合（ai-chat）
+
+**Location:** `supabase/functions/ai-chat/index.ts`
+
+File Search機能はai-chatに統合されています：
+
+```typescript
+// INPUT
+{
+  provider: 'gemini' | 'openai' | 'anthropic',
+  prompt: string,
+  model?: string,
+  fileSearchStoreIds?: string[], // RAG用のStore ID配列
+  enableFileSearch?: boolean
+}
+
+// OUTPUT
+{
+  response: string,
+  grounding_metadata?: {
+    search_results: [...],
+    citations: [...]
+  }
+}
+```
+
+### 12.5. 新しいProviderの追加方法
+
+**Step 1: Provider Client実装**
+
+1. `supabase/functions/_shared/providers/new-provider-rag-client.ts` を作成
+2. `RAGProviderInterface` を実装
+
+**Step 2: Factory登録**
+
+`rag-provider-factory.ts` に追加：
+
+```typescript
+import { NewProviderRAGClient } from './new-provider-rag-client.ts'
+
+export type RAGProviderType = 'gemini' | 'openai' | 'pinecone' | 'new-provider'
+
+export function createRAGProvider(provider: RAGProviderType): RAGProviderInterface {
+  switch (provider) {
+    // ... 既存のcase
+    case 'new-provider': {
+      const apiKey = Deno.env.get('NEW_PROVIDER_API_KEY')
+      if (!apiKey) throw new Error('NEW_PROVIDER_API_KEY not configured')
+      return new NewProviderRAGClient(apiKey)
+    }
+  }
+}
+```
+
+**Step 3: Migration更新**
+
+`file_search_stores` のCHECK制約を更新：
+
+
+**Step 4: Frontend型更新**
+
+`FileSearchService.ts` の型定義を更新：
+
+```typescript
+export type FileSearchProvider = 
+  | 'gemini' 
+  | 'openai' 
+  | 'pinecone' 
+  | 'weaviate'
+  | 'new-provider'
+```
+
+### 12.6. ベストプラクティス
+
+**ファイルアップロード:**
+- ✅ 2-step flowを使用（Storage → Indexing）
+- ✅ private_uploadsバケットを使用（RAGファイル用）
+- ✅ metadata にpurpose: 'rag'を設定
+- ✅ エラーハンドリング（Storage失敗時のクリーンアップ）
+
+**Provider実装:**
+- ✅ RAGProviderInterfaceを厳密に実装
+- ✅ エラーメッセージは明確に
+- ✅ 一時ファイルは必ず削除
+
+**セキュリティ:**
+- ✅ RLSで全テーブルを保護
+- ✅ files.owner_id で所有権を検証
+- ✅ file_search_stores.user_id で権限確認
+
+**型安全性:**
+- ✅ file_id/store_id/provider_file_nameを明確に区別
+
+### 12.7. 設計ドキュメント
+
+詳細な設計ドキュメントは以下を参照：
+- `docs/design/rag-file-search-architecture.md` - アーキテクチャ全体像
+- `docs/design/rag-provider-abstraction.md` - Provider抽象化パターン
+- `docs/design/rag-2step-upload-flow.md` - 2-step Upload Flow設計
 
 ---
 
