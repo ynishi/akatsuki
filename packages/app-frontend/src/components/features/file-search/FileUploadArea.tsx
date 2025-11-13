@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 // Removed Card imports - now using section element
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, FileText, CheckCircle2, Plus, Database } from 'lucide-react'
+import { Upload, FileText, CheckCircle2, Plus, Database, List } from 'lucide-react'
 import { useKnowledgeFiles } from '@/hooks/useKnowledgeFiles'
 import { useFileSearchStores } from '@/hooks/useFileSearchStores'
+import { FileSearchService } from '@/services/FileSearchService'
 
 interface FileUploadAreaProps {
   selectedStoreId?: string
@@ -27,11 +28,42 @@ export function FileUploadArea({ selectedStoreId, onStoreChange }: FileUploadAre
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [newStoreName, setNewStoreName] = useState('')
   const [showCreateStore, setShowCreateStore] = useState(false)
+  const [filesList, setFilesList] = useState<any[]>([])
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false)
 
   const { stores, isLoading: storesLoading, createStoreAsync, isPending: isCreating } = useFileSearchStores()
   const { uploadFileAsync, isPending: isUploading } = useKnowledgeFiles(storeId || null)
 
   const isPending = isUploading || isCreating
+
+  // Load files list when store changes
+  useEffect(() => {
+    if (storeId) {
+      loadFilesList()
+    } else {
+      setFilesList([])
+    }
+  }, [storeId])
+
+  const loadFilesList = async () => {
+    if (!storeId) return
+
+    setIsLoadingFiles(true)
+    try {
+      const { data, error } = await FileSearchService.listFiles(storeId)
+      if (error) {
+        console.error('Failed to load files list:', error)
+        setFilesList([])
+      } else {
+        setFilesList(data?.files || [])
+      }
+    } catch (error) {
+      console.error('Failed to load files list:', error)
+      setFilesList([])
+    } finally {
+      setIsLoadingFiles(false)
+    }
+  }
 
   const handleStoreChange = (value: string) => {
     if (value === '__no_stores__') return
@@ -75,6 +107,9 @@ export function FileUploadArea({ selectedStoreId, onStoreChange }: FileUploadAre
       // Reset file input
       const fileInput = document.getElementById('file-input') as HTMLInputElement
       if (fileInput) fileInput.value = ''
+
+      // Reload files list
+      await loadFilesList()
     } catch (error) {
       console.error('File upload failed:', error)
       setUploadSuccess(false)
@@ -216,8 +251,59 @@ export function FileUploadArea({ selectedStoreId, onStoreChange }: FileUploadAre
           </div>
         )}
 
+        {/* Files List */}
+        {storeId && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <List className="w-4 h-4" />
+                Files in Store ({filesList.length})
+              </label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadFilesList}
+                disabled={isLoadingFiles}
+              >
+                {isLoadingFiles ? 'Loading...' : 'Refresh'}
+              </Button>
+            </div>
+
+            {isLoadingFiles ? (
+              <div className="text-center py-4 text-sm text-gray-500">
+                Loading files...
+              </div>
+            ) : filesList.length > 0 ? (
+              <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+                {filesList.map((file, index) => (
+                  <div
+                    key={file.name || index}
+                    className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded"
+                  >
+                    <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {file.displayName || file.name}
+                      </p>
+                      {file.createTime && (
+                        <p className="text-xs text-gray-500">
+                          {new Date(file.createTime).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-sm text-gray-500 border rounded-lg">
+                No files uploaded yet
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Empty State */}
-        {!selectedFile && !uploadSuccess && (
+        {!selectedFile && !uploadSuccess && !storeId && (
           <div className="text-center py-8 px-4 border-2 border-dashed border-gray-200 rounded-lg">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 mb-3">
               <Upload className="w-6 h-6 text-blue-600" />

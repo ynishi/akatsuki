@@ -7,7 +7,7 @@ import { ErrorCodes } from '../_shared/api_types.ts'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
 import OpenAI from 'https://esm.sh/openai@4'
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.24.3'
-import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.12.0'
+import { GoogleGenAI } from 'npm:@google/genai@1.29.0'
 import {
   loadFunctionDefinitions,
   toOpenAITools,
@@ -26,10 +26,11 @@ const InputSchema = z.object({
   messages: z.array(z.any()).optional(),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional().default(0.7),
-  maxTokens: z.number().positive().optional().default(1000),
+  maxTokens: z.number().positive().optional().default(2000),
   responseJson: z.boolean().optional().default(false),
   enableFunctionCalling: z.boolean().optional().default(false),
   fileSearchStoreIds: z.array(z.string().uuid()).optional(), // File Search (RAG) 用のStore ID配列
+  enableFileSearch: z.boolean().optional(), // File Searchを使用するかどうか
 }).refine(data => data.prompt || data.messages, {
   message: 'Either prompt or messages is required',
 })
@@ -55,6 +56,7 @@ interface Output {
     arguments: Record<string, any>
     result: any
   }>
+  grounding_metadata?: any // File Search (RAG) の引用情報
 }
 
 Deno.serve(async (req) => {
@@ -106,12 +108,14 @@ Deno.serve(async (req) => {
       let callSuccess = true
       let errorMsg: string | undefined
       let llmCallLogId: string | undefined
+      let responseGroundingMetadata: any = null // File Search (RAG) grounding metadata
       const executedFunctionCalls: Array<{ name: string; arguments: Record<string, any>; result: any }> = []
 
       // Load Function Definitions from DB (if enabled)
       const availableFunctions = input.enableFunctionCalling
         ? await loadFunctionDefinitions(user.id, adminClient)
         : []
+      const enableFileSearch = input.enableFileSearch ?? ((input.fileSearchStoreIds?.length ?? 0) > 0)
 
       try {
         // 5. Provider別のLLM API呼び出し
@@ -133,6 +137,19 @@ Deno.serve(async (req) => {
             }
             if (input.enableFunctionCalling && availableFunctions.length > 0) {
               params.tools = toOpenAITools(availableFunctions)
+            }
+
+            // TODO: File Search (RAG) Integration - OpenAI
+            // OpenAI uses Assistants API with file_search tool for RAG.
+            // Implementation guide:
+            // 1. Get store names from input.fileSearchStoreIds (similar to Gemini)
+            // 2. Create Assistant with file_search tool enabled
+            // 3. Create Thread with vector_store_ids
+            // 4. Run Thread and retrieve response with citations
+            // See: _shared/providers/openai-rag-client.ts for implementation details
+            if (enableFileSearch && input.fileSearchStoreIds && input.fileSearchStoreIds.length > 0) {
+              console.warn('[ai-chat] OpenAI File Search not implemented yet')
+              // TODO: Implement OpenAI File Search integration
             }
 
             let completion = await openai.chat.completions.create(params)
@@ -210,6 +227,24 @@ Deno.serve(async (req) => {
             let systemPrompt = 'You are a helpful assistant.'
             if (input.responseJson) {
               systemPrompt += ' Your response must be in valid JSON format.'
+            }
+
+            // TODO: File Search (RAG) Integration - Anthropic
+            // Anthropic does not have built-in File Search like Gemini or OpenAI.
+            // For RAG with Anthropic, we need to:
+            // 1. Get store names from input.fileSearchStoreIds
+            // 2. Use RAGProviderClient to search() for relevant documents
+            // 3. Inject retrieved documents into system prompt or user message
+            // 4. Let Claude generate response based on retrieved context
+            //
+            // Implementation strategy:
+            // - Use createRAGProvider() to get provider client
+            // - Call client.search() to retrieve relevant chunks
+            // - Format chunks into context string
+            // - Inject into system prompt: "Use the following context to answer..."
+            if (enableFileSearch && input.fileSearchStoreIds && input.fileSearchStoreIds.length > 0) {
+              console.warn('[ai-chat] Anthropic File Search not implemented yet')
+              // TODO: Implement manual RAG integration for Anthropic
             }
 
             const messageParams: any = {
@@ -297,21 +332,21 @@ Deno.serve(async (req) => {
             const apiKey = Deno.env.get('GEMINI_API_KEY')
             if (!apiKey) throw new Error('GEMINI_API_KEY not configured')
 
-            const genAI = new GoogleGenerativeAI(apiKey)
+            // 新しいSDKで初期化
+            const genAI = new GoogleGenAI({ apiKey })
             const selectedModel = input.model || 'gemini-2.5-flash'
 
-            const modelConfig: any = { model: selectedModel }
-
-            // Tools configuration
-            const tools: any[] = []
-
-            // Function Calling
-            if (input.enableFunctionCalling && availableFunctions.length > 0) {
-              tools.push({ functionDeclarations: toGeminiFunctionDeclarations(availableFunctions) })
-            }
-
-            // File Search (RAG)
-            if (input.fileSearchStoreIds && input.fileSearchStoreIds.length > 0) {
+            // ============================================================================
+            // File Search (RAG) Integration - Gemini
+            // ============================================================================
+            // Note: Gemini's File Search is integrated at the LLM generation level.
+            // Unlike other providers, we don't need to manually retrieve documents.
+            // The SDK handles document retrieval and grounding automatically.
+            //
+            // For provider abstraction, see: _shared/providers/gemini-rag-client.ts
+            // ============================================================================
+            let fileSearchStoreNames: string[] | undefined
+            if (enableFileSearch && input.fileSearchStoreIds && input.fileSearchStoreIds.length > 0) {
               // Verify ownership and get store names
               const storeNames: string[] = []
               for (const storeId of input.fileSearchStoreIds) {
@@ -328,42 +363,67 @@ Deno.serve(async (req) => {
               }
 
               if (storeNames.length > 0) {
-                // Add semantic retrieval tool for File Search
-                tools.push({
-                  retrieval: {
-                    disableAttribution: false,
-                    vertexRagStore: {
-                      ragCorpora: storeNames,
-                    },
-                  },
-                })
-
-                console.log(`[ai-chat] File Search enabled with ${storeNames.length} corpora:`, storeNames)
+                fileSearchStoreNames = storeNames
+                console.log(`[ai-chat] File Search enabled with ${storeNames.length} stores:`, storeNames)
+              } else {
+                console.warn('[ai-chat] File Search requested but no accessible stores found, disabling File Search')
               }
             }
 
-            if (tools.length > 0 && !modelConfig.tools) {
-              modelConfig.tools = tools
+            // Tools configuration (Function Calling)
+            const tools: any[] = []
+            if (fileSearchStoreNames && fileSearchStoreNames.length > 0) {
+              tools.push({ fileSearch: { fileSearchStoreNames } })
+            }
+            if (input.enableFunctionCalling && availableFunctions.length > 0) {
+              tools.push({ functionDeclarations: toGeminiFunctionDeclarations(availableFunctions) })
             }
 
-            const geminiModel = genAI.getGenerativeModel(modelConfig)
+            // Prepare config
+            // File Search使用時は大きなmaxOutputTokensが必要（取得したコンテンツ処理のため）
+            const maxOutputTokens = fileSearchStoreNames && fileSearchStoreNames.length > 0
+              ? Math.max(input.maxTokens, 4000)
+              : input.maxTokens
 
-            const generationConfig = input.responseJson
-              ? { responseMimeType: 'application/json', temperature: input.temperature, maxOutputTokens: input.maxTokens }
-              : { temperature: input.temperature, maxOutputTokens: input.maxTokens }
+            const config: any = {
+              temperature: input.temperature,
+              maxOutputTokens: maxOutputTokens,
+            }
 
-            const chat = geminiModel.startChat({
-              generationConfig,
-              history: [],
+            if (input.responseJson) {
+              config.responseMimeType = 'application/json'
+            }
+
+            if (tools.length > 0) {
+              config.tools = tools
+            }
+            if (fileSearchStoreNames && fileSearchStoreNames.length > 0) {
+              config.fileSearchConfig = { fileSearchStores: fileSearchStoreNames }
+            }
+
+            // Prepare contents
+            const contents: any[] = [{
+              role: 'user',
+              parts: [{ text: input.messages?.[0]?.parts?.[0]?.text || input.prompt! }]
+            }]
+
+            // Generate content using new SDK
+            let result = await genAI.models.generateContent({
+              model: selectedModel,
+              contents: contents,
+              config: config
             })
 
-            let result = await chat.sendMessage(
-              input.messages?.[0]?.parts?.[0]?.text || input.prompt!
-            )
-
             // Handle function calling (Gemini)
-            while (result.response.functionCalls()) {
-              const functionCalls = result.response.functionCalls()
+            while (result.functionCalls && result.functionCalls.length > 0) {
+              const functionCalls = result.functionCalls
+
+              // Add model's response to contents
+              if (result.candidates && result.candidates[0]) {
+                contents.push(result.candidates[0].content)
+              }
+
+              const functionResponseParts: any[] = []
 
               for (const funcCall of functionCalls) {
                 const funcName = funcCall.name
@@ -397,8 +457,8 @@ Deno.serve(async (req) => {
                   },
                 })
 
-                // Send function result back
-                result = await chat.sendMessage([{
+                // Add function response
+                functionResponseParts.push({
                   functionResponse: {
                     name: funcName,
                     response: {
@@ -406,21 +466,61 @@ Deno.serve(async (req) => {
                       message: execResult.success
                         ? `Function '${funcName}' has been scheduled for execution. Job ID: ${execResult.eventId}`
                         : `Error: ${execResult.error}`,
-                    },
-                  },
-                }])
+                    }
+                  }
+                })
               }
+
+              // Send function results back to model
+              contents.push({
+                role: 'user',
+                parts: functionResponseParts
+              })
+
+              result = await genAI.models.generateContent({
+                model: selectedModel,
+                contents: contents,
+                config: config
+              })
             }
 
-            responseText = result.response.text()
+            // Debug: Log full result structure
+            console.log('[ai-chat] Full Gemini result structure:', JSON.stringify(result, null, 2))
+
+            // Get response text
+            responseText = result.text || result.candidates?.[0]?.content?.parts?.[0]?.text || ''
             usedModel = selectedModel
 
-            const usageMetadata = result.response.usageMetadata
-            if (usageMetadata) {
-              inputTokens = usageMetadata.promptTokenCount
-              outputTokens = usageMetadata.candidatesTokenCount
-              totalTokens = usageMetadata.totalTokenCount
+            console.log('[ai-chat] Extracted response text:', responseText)
+            console.log('[ai-chat] result.text:', result.text)
+            console.log('[ai-chat] result.candidates:', result.candidates)
+
+            // Check finish reason
+            if (result.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+              console.error('[ai-chat] Response was cut off due to MAX_TOKENS limit!')
+              throw new Error('Response was cut off due to token limit. Please increase maxTokens or simplify your query.')
             }
+
+            // Extract usage metadata if available
+            if (result.usageMetadata) {
+              inputTokens = result.usageMetadata.promptTokenCount || 0
+              outputTokens = result.usageMetadata.candidatesTokenCount || 0
+              totalTokens = result.usageMetadata.totalTokenCount || 0
+            }
+
+            // Extract grounding metadata (File Search citations)
+            if (result.candidates?.[0]?.groundingMetadata) {
+              responseGroundingMetadata = result.candidates[0].groundingMetadata
+              console.log('[ai-chat] File Search grounding metadata:', JSON.stringify(responseGroundingMetadata, null, 2))
+            }
+
+            console.log('[ai-chat] Gemini response:', {
+              text: responseText,
+              usage: { inputTokens, outputTokens, totalTokens },
+              fileSearchUsed: !!fileSearchConfig,
+              functionCallsExecuted: executedFunctionCalls.length,
+              hasGroundingMetadata: !!responseGroundingMetadata
+            })
             break
           }
 
@@ -472,6 +572,7 @@ Deno.serve(async (req) => {
             }
           : undefined,
         functionCalls: executedFunctionCalls.length > 0 ? executedFunctionCalls : undefined,
+        grounding_metadata: responseGroundingMetadata, // File Search (RAG) 引用情報
       }
     },
   })

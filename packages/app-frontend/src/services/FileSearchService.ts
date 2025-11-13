@@ -42,6 +42,14 @@ export interface RAGChatResponse {
 }
 
 /**
+ * AI Chat Edge Function response
+ */
+interface AIChatEdgeFunctionResponse {
+  response: string
+  grounding_metadata?: RAGChatResponse['grounding_metadata']
+}
+
+/**
  * Create store options
  */
 export interface CreateStoreOptions {
@@ -125,7 +133,7 @@ export class FileSearchService {
     const { provider = 'gemini' } = options
 
     try {
-      const { data, error } = await EdgeFunctionService.invoke<{ store: UploadFileResponse['store'] }>(
+      const { data: storeResult, error: createError } = await EdgeFunctionService.invoke<{ store: UploadFileResponse['store'] }>(
         'knowledge-file-upload',
         {
           mode: 'create_store',
@@ -134,11 +142,15 @@ export class FileSearchService {
         }
       )
 
-      if (error) {
-        return { data: null, error }
+      if (createError) {
+        return { data: null, error: createError }
       }
 
-      return { data, error: null }
+      if (!storeResult) {
+        return { data: null, error: new Error('Store作成に失敗: レスポンスが空です') }
+      }
+
+      return { data: storeResult, error: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       return { data: null, error: new Error(`Store作成に失敗: ${message}`) }
@@ -183,15 +195,19 @@ export class FileSearchService {
         formData.append('display_name', displayName)
       }
 
-      const { data, error } = await EdgeFunctionService.invoke<UploadFileResponse>('knowledge-file-upload', formData, {
+      const { data: uploadResult, error: uploadError } = await EdgeFunctionService.invoke<UploadFileResponse>('knowledge-file-upload', formData, {
         isFormData: true,
       })
 
-      if (error) {
-        return { data: null, error }
+      if (uploadError) {
+        return { data: null, error: uploadError }
       }
 
-      return { data, error: null }
+      if (!uploadResult) {
+        return { data: null, error: new Error('ファイルアップロードに失敗: レスポンスが空です') }
+      }
+
+      return { data: uploadResult, error: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       return { data: null, error: new Error(`ファイルアップロードに失敗: ${message}`) }
@@ -229,28 +245,72 @@ export class FileSearchService {
     const { model, provider = 'gemini' } = options
 
     try {
-      const { data, error } = await EdgeFunctionService.invoke<any>('ai-chat', {
+      const { data: chatResult, error: chatError } = await EdgeFunctionService.invoke<AIChatEdgeFunctionResponse>('ai-chat', {
         provider,
         prompt: message,
         model,
         fileSearchStoreIds: storeIds,
       })
 
-      if (error) {
-        return { data: null, error }
+      if (chatError) {
+        return { data: null, error: chatError }
+      }
+
+      if (!chatResult) {
+        return { data: null, error: new Error('RAGチャットに失敗: レスポンスが空です') }
       }
 
       // ai-chatのレスポンス形式をRAGChatResponseに変換
       const ragResponse: RAGChatResponse = {
         query: message,
-        response: data?.response || '',
-        // grounding_metadataは将来的にai-chatから返される場合に対応
+        response: chatResult.response || '',
+        grounding_metadata: chatResult.grounding_metadata,
       }
 
       return { data: ragResponse, error: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       return { data: null, error: new Error(`RAGチャットに失敗: ${message}`) }
+    }
+  }
+
+  /**
+   * File Search Store内のファイル一覧を取得
+   *
+   * @param storeId - Store ID
+   * @param options - オプション（provider指定など）
+   * @returns ファイル一覧
+   *
+   * @example
+   * const { data, error } = await FileSearchService.listFiles(storeId)
+   * if (data) {
+   *   console.log(`${data.files.length} files in store`)
+   * }
+   */
+  static async listFiles(
+    storeId: string,
+    options: DeleteStoreOptions = {}
+  ): Promise<ServiceResponse<{ files: any[] }>> {
+    const { provider = 'gemini' } = options
+
+    try {
+      const { data: listResult, error: listError } = await EdgeFunctionService.invoke<{ files: any[] }>('knowledge-file-list', {
+        store_id: storeId,
+        provider,
+      })
+
+      if (listError) {
+        return { data: null, error: listError }
+      }
+
+      if (!listResult) {
+        return { data: null, error: new Error('ファイル一覧取得に失敗: レスポンスが空です') }
+      }
+
+      return { data: listResult, error: null }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { data: null, error: new Error(`ファイル一覧取得に失敗: ${message}`) }
     }
   }
 
@@ -278,16 +338,20 @@ export class FileSearchService {
     const { provider = 'gemini' } = options
 
     try {
-      const { data, error } = await EdgeFunctionService.invoke<{ success: boolean }>('knowledge-file-delete', {
+      const { data: deleteResult, error: deleteError } = await EdgeFunctionService.invoke<{ success: boolean }>('knowledge-file-delete', {
         store_id: storeId,
         provider,
       })
 
-      if (error) {
-        return { data: null, error }
+      if (deleteError) {
+        return { data: null, error: deleteError }
       }
 
-      return { data, error: null }
+      if (!deleteResult) {
+        return { data: null, error: new Error('Store削除に失敗: レスポンスが空です') }
+      }
+
+      return { data: deleteResult, error: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       return { data: null, error: new Error(`Store削除に失敗: ${message}`) }

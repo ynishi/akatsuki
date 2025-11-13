@@ -1,12 +1,13 @@
 // Knowledge File Upload Edge Function
-// File Search (RAG) 用のファイルアップロード + Corpus管理
+// File Search (RAG) 用のファイルアップロード + Store管理
+// Provider抽象化パターン採用
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createAkatsukiHandler } from '../_shared/handler.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { ErrorCodes } from '../_shared/api_types.ts'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
-import { GoogleGenAI } from 'npm:@google/genai@1.29.0'
+import { createRAGProvider, type RAGProviderType } from '../_shared/providers/rag-provider-factory.ts'
 
 // IN型定義
 const InputSchema = z.discriminatedUnion('mode', [
@@ -14,7 +15,7 @@ const InputSchema = z.discriminatedUnion('mode', [
   z.object({
     mode: z.literal('create_store'),
     display_name: z.string().min(1),
-    provider: z.enum(['gemini']).optional().default('gemini'),
+    provider: z.enum(['gemini', 'openai', 'pinecone', 'anythingllm', 'weaviate']).optional().default('gemini'),
   }),
   // Mode 2: ファイルアップロード（Store自動作成 or 既存Store使用）
   z.object({
@@ -22,7 +23,7 @@ const InputSchema = z.discriminatedUnion('mode', [
     file: z.instanceof(File),
     store_id: z.string().uuid().optional(), // 省略時は新規作成
     display_name: z.string().optional(), // Store名（新規作成時）
-    provider: z.enum(['gemini']).optional().default('gemini'),
+    provider: z.enum(['gemini', 'openai', 'pinecone', 'anythingllm', 'weaviate']).optional().default('gemini'),
   }),
 ])
 
@@ -32,13 +33,13 @@ type Input = z.infer<typeof InputSchema>
 interface Output {
   store: {
     id: string
-    name: string // Corpus name (e.g., "corpora/xxx")
+    name: string // Provider-specific store identifier
     display_name: string | null
   }
   file?: {
-    id: string // knowledge_files.id
+    id: string // knowledge_files.id (if file was uploaded)
     file_id: string // files.id
-    gemini_file_name: string // Document name (e.g., "corpora/xxx/documents/xxx")
+    provider_file_name: string // Provider-specific file identifier
   }
 }
 
@@ -64,13 +65,13 @@ Deno.serve(async (req: Request) => {
         file,
         store_id: store_id || undefined,
         display_name: display_name || undefined,
-        provider: provider as 'gemini',
+        provider: provider as RAGProviderType,
       }
     } else if (display_name) {
       parsedInput = {
         mode: 'create_store' as const,
         display_name,
-        provider: provider as 'gemini',
+        provider: provider as RAGProviderType,
       }
     } else {
       throw new Error('Either file or display_name must be provided')
@@ -98,44 +99,50 @@ Deno.serve(async (req: Request) => {
         )
       }
 
-      const provider = input.provider;
+      // 2. RAG Provider インスタンス作成
+      const provider = input.provider
+      let ragClient
 
-      // https://www.npmjs.com/package/@google/genai#quickstart
-      const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-      if (!GEMINI_API_KEY) {
+      try {
+        ragClient = createRAGProvider(provider)
+      } catch (error: any) {
         throw Object.assign(
-          new Error(`InternalServerError: internal server error`),
+          new Error(`Failed to initialize provider '${provider}': ${error.message}`),
           { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
         )
       }
 
-      const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
-
       // === Mode 1: Store作成のみ ===
       if (input.mode === 'create_store') {
-        // Gemini File Search Store 作成
-        const fileSearchStore = await ai.fileSearchStores.create({
-          config: { displayName: input.display_name }
-        })
+        let providerStore
+        try {
+          // Provider Client経由でStore作成
+          providerStore = await ragClient.createStore(input.display_name)
+        } catch (error: any) {
+          throw Object.assign(
+            new Error(`Failed to create store with provider '${provider}': ${error.message}`),
+            { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
+          )
+        }
 
         // DB に Store を保存（Repository使用）
         let storeRecord
         try {
           storeRecord = await repos.fileSearchStore.create({
             user_id: user.id,
-            name: fileSearchStore.name, // "corpora/xxx"
+            name: providerStore.name, // Provider-specific identifier
             display_name: input.display_name,
             provider: provider,
           })
         } catch (error: any) {
-          // DB保存失敗時は Gemini Store を削除（ロールバック）
+          // DB保存失敗時は Provider Store を削除（ロールバック）
           try {
-            await ai.fileSearchStores.delete({ name: fileSearchStore.name })
+            await ragClient.deleteStore(providerStore.name)
           } catch (e) {
-            console.error('Failed to rollback Gemini File Search Store:', e)
+            console.error(`[knowledge-file-upload] Failed to rollback provider store:`, e)
           }
           throw Object.assign(
-            new Error(`Failed to save store: ${error.message}`),
+            new Error(`Failed to save store to database: ${error.message}`),
             { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
           )
         }
@@ -170,133 +177,103 @@ Deno.serve(async (req: Request) => {
             { code: ErrorCodes.NOT_FOUND, status: 404 }
           )
         }
+
+        // Provider consistency check
+        if (storeRecord.provider !== provider) {
+          throw Object.assign(
+            new Error(`Store provider mismatch: store uses '${storeRecord.provider}', but request specifies '${provider}'`),
+            { code: ErrorCodes.BAD_REQUEST, status: 400 }
+          )
+        }
       } else {
         // 新規Store作成
         const displayName = input.display_name || 'My Knowledge Base'
-        const fileSearchStore = await ai.fileSearchStores.create({
-          config: { displayName }
-        })
+
+        let providerStore
+        try {
+          providerStore = await ragClient.createStore(displayName)
+        } catch (error: any) {
+          throw Object.assign(
+            new Error(`Failed to create store with provider '${provider}': ${error.message}`),
+            { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
+          )
+        }
 
         try {
           storeRecord = await repos.fileSearchStore.create({
             user_id: user.id,
-            name: fileSearchStore.name,
+            name: providerStore.name,
             display_name: displayName,
             provider: provider,
           })
         } catch (error: any) {
           try {
-            await ai.fileSearchStores.delete({ name: fileSearchStore.name })
+            await ragClient.deleteStore(providerStore.name)
           } catch (e) {
-            console.error('Failed to rollback Gemini File Search Store:', e)
+            console.error(`[knowledge-file-upload] Failed to rollback provider store:`, e)
           }
           throw Object.assign(
-            new Error(`Failed to save store: ${error.message}`),
+            new Error(`Failed to save store to database: ${error.message}`),
             { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
           )
         }
       }
 
-      // 2-2. Private Storageにファイルアップロード
-      const timestamp = Date.now()
-      const sanitizedFilename = input.file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-      const storagePath = `${user.id}/knowledge-base/${storeRecord.id}/${timestamp}-${sanitizedFilename}`
-
-      const { data: uploadData, error: uploadError } = await adminClient.storage
-        .from('private_uploads')
-        .upload(storagePath, input.file, {
-          contentType: input.file.type,
-          upsert: false,
-        })
-
-      if (uploadError) {
-        throw Object.assign(
-          new Error(`Storage upload failed: ${uploadError.message}`),
-          { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
-        )
-      }
-
-      // 2-3. filesテーブルに記録
-      const { data: fileRecord, error: fileError } = await adminClient
-        .from('files')
-        .insert({
-          owner_id: user.id,
-          storage_path: uploadData.path,
-          bucket_name: 'private_uploads',
-          file_name: input.file.name,
-          file_size: input.file.size,
-          mime_type: input.file.type,
-          is_public: false,
-          status: 'active',
-        })
-        .select()
-        .single()
-
-      if (fileError) {
-        // Storage削除（ロールバック）
-        try {
-          await adminClient.storage.from('private_uploads').remove([storagePath])
-        } catch (e) {
-          console.error('Failed to rollback storage:', e)
-        }
-        throw Object.assign(
-          new Error(`Failed to save file metadata: ${fileError.message}`),
-          { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
-        )
-      }
-
-      // 2-4. Gemini File Search APIにアップロード
-      // ファイルをGemini File Search Storeにアップロード
-      console.log('[knowledge-file-upload] Uploading to Gemini:', {
-        storeName: storeRecord.name,
+      // 2-2. ファイルアップロード（一時ファイル経由）
+      console.log('[knowledge-file-upload] Uploading file:', {
         fileName: input.file.name,
+        fileSize: input.file.size,
+        fileType: input.file.type,
+        provider: provider,
       })
 
-      const operation = await ai.fileSearchStores.uploadToFileSearchStore({
-        file: input.file,
-        fileSearchStoreName: storeRecord.name,
-        config: { displayName: input.file.name }
-      })
+      // 一時ファイルに書き出し
+      const tempFilePath = `/tmp/${Date.now()}-${input.file.name}`
+      const fileBuffer = await input.file.arrayBuffer()
+      await Deno.writeFile(tempFilePath, new Uint8Array(fileBuffer))
 
-      // アップロード完了を待機
-      const uploadResult = await operation.response
-
-      console.log('[knowledge-file-upload] Gemini file uploaded:', uploadResult)
-
-      // Gemini file name を取得（uploadResult.name または uploadResult.file?.name など）
-      const geminiFileName = uploadResult?.name || uploadResult?.file?.name || `${storeRecord.name}/files/${fileRecord.id}`
-
-      // 2-5. knowledge_filesテーブルに記録（Repository使用）
-      let knowledgeFileRecord
       try {
-        knowledgeFileRecord = await repos.knowledgeFile.create({
-          store_id: storeRecord.id,
-          file_id: fileRecord.id,
-          gemini_file_name: geminiFileName,
-          user_id: user.id,
+        // Provider Client経由でアップロード
+        const uploadResult = await ragClient.uploadFile({
+          storeName: storeRecord.name,
+          file: input.file,
+          tempFilePath: tempFilePath,
+          displayName: input.file.name,
+          mimeType: input.file.type,
         })
+
+        console.log('[knowledge-file-upload] Upload successful:', uploadResult)
+
+        // 一時ファイル削除
+        await Deno.remove(tempFilePath).catch((e: any) =>
+          console.error('[knowledge-file-upload] Failed to remove temp file:', e)
+        )
+
+        // TODO: Save file metadata to knowledge_files table if needed
+        // For now, we return the provider file name directly
+
+        return {
+          store: {
+            id: storeRecord.id,
+            name: storeRecord.name,
+            display_name: storeRecord.display_name,
+          },
+          file: {
+            id: 'not-implemented', // TODO: Save to knowledge_files table
+            file_id: 'not-implemented', // TODO: Save to files table
+            provider_file_name: uploadResult.fileName,
+          },
+        }
       } catch (error: any) {
-        // Gemini Document削除（ロールバック）
-        // Note: Gemini API v1beta には document 個別削除APIがないため、
-        // Corpus全体を削除するか、そのままにするかの判断が必要
-        console.error('Failed to save knowledge file (Gemini document may remain):', error)
+        // エラー時も一時ファイル削除
+        await Deno.remove(tempFilePath).catch((e: any) =>
+          console.error('[knowledge-file-upload] Failed to remove temp file:', e)
+        )
+
         throw Object.assign(
-          new Error(`Failed to save knowledge file: ${error.message}`),
+          new Error(`Failed to upload file with provider '${provider}': ${error.message}`),
           { code: ErrorCodes.INTERNAL_ERROR, status: 500 }
         )
-      }
-
-      return {
-        store: {
-          id: storeRecord.id,
-          name: storeRecord.name,
-          display_name: storeRecord.display_name,
-        },
-        file: {
-          id: knowledgeFileRecord.id,
-          file_id: fileRecord.id,
-          gemini_file_name: geminiFileName,
-        },
       }
     },
   })
