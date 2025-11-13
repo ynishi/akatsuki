@@ -2,7 +2,8 @@
  * KnowledgeFile Repository (Edge Functions版)
  * knowledge_files table data access layer
  *
- * File Search API (Gemini等) にアップロードされたファイルを管理
+ * Manages the relationship between files (Supabase Storage) and
+ * File Search stores (RAG providers)
  */
 
 import { BaseRepository } from '../repository.ts'
@@ -18,14 +19,19 @@ export class KnowledgeFileRepository extends BaseRepository {
    * @returns 作成されたレコード
    */
   async create(record: {
+    file_id: string // files.id (UUID) - Supabase Storage reference
     store_id: string // file_search_stores.id (UUID)
-    file_id: string // files.id (UUID)
-    gemini_file_name: string // File Search API file name (e.g., "corpora/xxx/documents/xxx")
-    user_id: string // auth.users.id
+    provider_file_name: string // Provider-specific file identifier (e.g., "corpora/xxx/documents/xxx")
+    indexing_status?: 'pending' | 'processing' | 'completed' | 'failed'
+    error_message?: string
+    metadata?: Record<string, any>
   }): Promise<any> {
     const { data, error } = await this.supabase
       .from('knowledge_files')
-      .insert(record)
+      .insert({
+        ...record,
+        indexing_status: record.indexing_status || 'pending',
+      })
       .select()
       .single()
 
@@ -69,7 +75,17 @@ export class KnowledgeFileRepository extends BaseRepository {
   async findAllByStoreId(storeId: string, limit = 100): Promise<any[]> {
     const { data, error } = await this.supabase
       .from('knowledge_files')
-      .select('*')
+      .select(`
+        *,
+        files:file_id (
+          id,
+          file_name,
+          file_size,
+          mime_type,
+          storage_path,
+          created_at
+        )
+      `)
       .eq('store_id', storeId)
       .order('created_at', { ascending: false })
       .limit(limit)
@@ -91,8 +107,19 @@ export class KnowledgeFileRepository extends BaseRepository {
   async findAllByUserId(userId: string, limit = 100): Promise<any[]> {
     const { data, error } = await this.supabase
       .from('knowledge_files')
-      .select('*')
-      .eq('user_id', userId)
+      .select(`
+        *,
+        files:file_id (
+          id,
+          file_name,
+          file_size,
+          mime_type,
+          storage_path,
+          created_at,
+          owner_id
+        )
+      `)
+      .eq('files.owner_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -128,23 +155,23 @@ export class KnowledgeFileRepository extends BaseRepository {
   }
 
   /**
-   * Gemini File NameでKnowledge Fileを取得
-   * @param geminiFileName - File Search API file name (e.g., "corpora/xxx/documents/xxx")
+   * Provider File NameでKnowledge Fileを取得
+   * @param providerFileName - Provider-specific file identifier
    * @returns Knowledge Fileレコード or null
    */
-  async findByGeminiFileName(geminiFileName: string): Promise<any | null> {
+  async findByProviderFileName(providerFileName: string): Promise<any | null> {
     const { data, error } = await this.supabase
       .from('knowledge_files')
       .select('*')
-      .eq('gemini_file_name', geminiFileName)
+      .eq('provider_file_name', providerFileName)
       .single()
 
     if (error) {
       if (this.isNotFoundError(error)) {
         return null
       }
-      console.error('[KnowledgeFileRepository] findByGeminiFileName error:', error)
-      throw new Error(`Failed to fetch knowledge file by gemini_file_name: ${error.message}`)
+      console.error('[KnowledgeFileRepository] findByProviderFileName error:', error)
+      throw new Error(`Failed to fetch knowledge file by provider_file_name: ${error.message}`)
     }
 
     return data
@@ -176,25 +203,30 @@ export class KnowledgeFileRepository extends BaseRepository {
   }
 
   /**
-   * Knowledge Fileを削除（論理削除）
-   * 物理削除ではなく、is_deleted フラグを立てる
-   *
-   * NOTE: 物理削除する場合は、先にFile Search API側のDocumentも削除すること
-   *
+   * Indexing statusを更新
    * @param knowledgeFileId - knowledge_files.id (UUID)
-   * @returns 削除されたレコード
+   * @param status - Indexing status
+   * @param errorMessage - Error message (optional)
+   * @returns 更新されたレコード
    */
-  async softDelete(knowledgeFileId: string): Promise<any> {
+  async updateIndexingStatus(
+    knowledgeFileId: string,
+    status: 'pending' | 'processing' | 'completed' | 'failed',
+    errorMessage?: string
+  ): Promise<any> {
     const { data, error } = await this.supabase
       .from('knowledge_files')
-      .update({ is_deleted: true })
+      .update({
+        indexing_status: status,
+        error_message: errorMessage || null,
+      })
       .eq('id', knowledgeFileId)
       .select()
       .single()
 
     if (error) {
-      console.error('[KnowledgeFileRepository] softDelete error:', error)
-      throw new Error(`Failed to soft delete knowledge file: ${error.message}`)
+      console.error('[KnowledgeFileRepository] updateIndexingStatus error:', error)
+      throw new Error(`Failed to update indexing status: ${error.message}`)
     }
 
     return data
@@ -203,19 +235,21 @@ export class KnowledgeFileRepository extends BaseRepository {
   /**
    * Knowledge Fileを物理削除
    *
-   * ⚠️ WARNING: 物理削除前に File Search API 側の Document も削除すること
+   * ⚠️ WARNING: 物理削除前に以下を実行すること
+   * 1. Provider側のDocumentも削除
+   * 2. Supabase Storage上のファイル削除（必要に応じて）
    *
    * @param knowledgeFileId - knowledge_files.id (UUID)
    */
-  async hardDelete(knowledgeFileId: string): Promise<void> {
+  async delete(knowledgeFileId: string): Promise<void> {
     const { error } = await this.supabase
       .from('knowledge_files')
       .delete()
       .eq('id', knowledgeFileId)
 
     if (error) {
-      console.error('[KnowledgeFileRepository] hardDelete error:', error)
-      throw new Error(`Failed to hard delete knowledge file: ${error.message}`)
+      console.error('[KnowledgeFileRepository] delete error:', error)
+      throw new Error(`Failed to delete knowledge file: ${error.message}`)
     }
   }
 
@@ -228,16 +262,16 @@ export class KnowledgeFileRepository extends BaseRepository {
   async checkOwnership(knowledgeFileId: string, userId: string): Promise<boolean> {
     const { data, error } = await this.supabase
       .from('knowledge_files')
-      .select('id')
+      .select('id, files:file_id(owner_id)')
       .eq('id', knowledgeFileId)
-      .eq('user_id', userId)
       .single()
 
     if (error || !data) {
       return false
     }
 
-    return true
+    // @ts-ignore: Type inference issue with nested join
+    return data.files?.owner_id === userId
   }
 
   /**
@@ -272,7 +306,16 @@ export class KnowledgeFileRepository extends BaseRepository {
 
     const { data, error } = await this.supabase
       .from('knowledge_files')
-      .select('*')
+      .select(`
+        *,
+        files:file_id (
+          id,
+          file_name,
+          file_size,
+          mime_type,
+          storage_path
+        )
+      `)
       .in('store_id', storeIds)
       .order('created_at', { ascending: false })
       .limit(limit)

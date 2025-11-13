@@ -9,15 +9,19 @@ export type FileSearchProvider = 'gemini' // 将来的に | 'openai' | 'pinecone
  * Upload file response
  */
 export interface UploadFileResponse {
+  knowledge_file: {
+    id: string // knowledge_files.id
+    file_id: string // files.id
+    store_id: string // file_search_stores.id
+    provider_file_name: string // Provider-specific file identifier
+    indexing_status: 'pending' | 'processing' | 'completed' | 'failed'
+    created_at: string
+  }
   store: {
     id: string
     name: string
     display_name: string | null
-  }
-  file: {
-    id: string // knowledge_files.id
-    file_id: string // files.id
-    gemini_file_name: string
+    provider: string
   }
 }
 
@@ -134,7 +138,7 @@ export class FileSearchService {
 
     try {
       const { data: storeResult, error: createError } = await EdgeFunctionService.invoke<{ store: UploadFileResponse['store'] }>(
-        'knowledge-file-upload',
+        'knowledge-file-index',
         {
           mode: 'create_store',
           display_name: displayName,
@@ -158,7 +162,10 @@ export class FileSearchService {
   }
 
   /**
-   * File Search Storeにファイルをアップロード
+   * File Search Storeにファイルをアップロード（2-step flow）
+   *
+   * Step 1: Upload file to Supabase Storage (file-upload Edge Function)
+   * Step 2: Index file to RAG Provider (knowledge-file-index Edge Function)
    *
    * @param storeId - Store ID（省略時は新規作成）
    * @param file - アップロードするファイル
@@ -184,30 +191,63 @@ export class FileSearchService {
     const { displayName, provider = 'gemini' } = options
 
     try {
-      const formData = new FormData()
-      formData.append('mode', 'upload_file')
-      formData.append('file', file)
-      formData.append('provider', provider)
-      if (storeId) {
-        formData.append('store_id', storeId)
-      }
-      if (displayName) {
-        formData.append('display_name', displayName)
-      }
+      // ========================================================================
+      // Step 1: Upload to Supabase Storage
+      // ========================================================================
+      const storageFormData = new FormData()
+      storageFormData.append('file', file)
+      storageFormData.append('bucket', 'private_uploads')
+      storageFormData.append('is_public', 'false')
+      storageFormData.append('metadata', JSON.stringify({ purpose: 'rag' }))
 
-      const { data: uploadResult, error: uploadError } = await EdgeFunctionService.invoke<UploadFileResponse>('knowledge-file-upload', formData, {
+      const { data: fileUploadResult, error: fileUploadError } = await EdgeFunctionService.invoke<{
+        file: {
+          id: string
+          storage_path: string
+          file_name: string
+          file_size: number
+          mime_type: string
+        }
+      }>('file-upload', storageFormData, {
         isFormData: true,
       })
 
-      if (uploadError) {
-        return { data: null, error: uploadError }
+      if (fileUploadError) {
+        return { data: null, error: fileUploadError }
       }
 
-      if (!uploadResult) {
+      if (!fileUploadResult || !fileUploadResult.file) {
         return { data: null, error: new Error('ファイルアップロードに失敗: レスポンスが空です') }
       }
 
-      return { data: uploadResult, error: null }
+      const fileId = fileUploadResult.file.id
+
+      // ========================================================================
+      // Step 2: Index to RAG Provider
+      // ========================================================================
+      const indexPayload = {
+        mode: 'index_file',
+        file_id: fileId,
+        store_id: storeId || undefined,
+        display_name: displayName,
+        provider: provider,
+      }
+
+      const { data: indexResult, error: indexError } = await EdgeFunctionService.invoke<UploadFileResponse>(
+        'knowledge-file-index',
+        indexPayload
+      )
+
+      if (indexError) {
+        // TODO: Cleanup uploaded file from storage if indexing fails
+        return { data: null, error: indexError }
+      }
+
+      if (!indexResult) {
+        return { data: null, error: new Error('ファイルインデックス化に失敗: レスポンスが空です') }
+      }
+
+      return { data: indexResult, error: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       return { data: null, error: new Error(`ファイルアップロードに失敗: ${message}`) }
