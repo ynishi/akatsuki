@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AIRegisterResult } from '../../core/types';
+import type { AIRegisterResult, AIUIResult } from '../../core/types';
 import { AIDirectionMenu } from './AIDirectionMenu';
 import { AIHistoryList } from './AIHistoryList';
 import { AICommandPanel } from './AICommandPanel';
@@ -14,8 +14,10 @@ export interface AIIconSetProps {
   actions: AIRegisterResult['actions'];
   /** 状態（useAIRegisterから取得） */
   state: AIRegisterResult['state'];
-  /** 閉じるコールバック */
-  onClose: () => void;
+  /** UI状態（useAIUIから取得） */
+  uiState: AIUIResult['ui'];
+  /** UIハンドラー（useAIUIから取得） */
+  uiHandlers: AIUIResult['handlers'];
   /** カスタムクラス名 */
   className?: string;
   /** 位置 */
@@ -77,7 +79,8 @@ function TooltipButton({
 export function AIIconSet({
   actions,
   state,
-  onClose,
+  uiState,
+  uiHandlers,
   className = '',
   position = 'bottom',
 }: AIIconSetProps) {
@@ -126,7 +129,7 @@ export function AIIconSet({
         <TooltipButton
           onClick={() => {
             actions.generate();
-            onClose();
+            uiHandlers.closeMenu();
           }}
           disabled={state.isLoading}
           label="生成"
@@ -139,7 +142,7 @@ export function AIIconSet({
         <TooltipButton
           onClick={() => {
             actions.refine();
-            onClose();
+            uiHandlers.closeMenu();
           }}
           disabled={state.isLoading}
           label="修正"
@@ -182,12 +185,12 @@ export function AIIconSet({
               onGenerate={(direction) => {
                 actions.generate({ direction });
                 setShowDirectionMenu(false);
-                onClose();
+                uiHandlers.closeMenu();
               }}
               onRefine={(direction) => {
                 actions.refine({ direction });
                 setShowDirectionMenu(false);
-                onClose();
+                uiHandlers.closeMenu();
               }}
               onClose={() => setShowDirectionMenu(false)}
               isLoading={state.isLoading}
@@ -199,7 +202,7 @@ export function AIIconSet({
         <div className="relative">
           <TooltipButton
             onClick={() => {
-              actions.showCommandPanel();
+              uiHandlers.toggleCommandPanel();
             }}
             disabled={state.isLoading}
             label="コマンド"
@@ -209,12 +212,12 @@ export function AIIconSet({
           </TooltipButton>
 
           {/* コマンドパネル */}
-          {state.showCommandPanel && (
+          {uiState.showCommandPanel && (
             <AICommandPanel
               onExecute={async (command) => {
                 await actions.executeCommand(command);
               }}
-              onClose={() => actions.showCommandPanel()}
+              onClose={() => uiHandlers.toggleCommandPanel()}
               isLoading={state.isLoading}
               position="left"
             />
@@ -225,7 +228,7 @@ export function AIIconSet({
         <div className="relative">
           <TooltipButton
             onClick={() => {
-              actions.showHistory();
+              uiHandlers.toggleHistoryPanel();
             }}
             disabled={state.isLoading}
             label="履歴"
@@ -235,14 +238,14 @@ export function AIIconSet({
           </TooltipButton>
 
           {/* 履歴パネル */}
-          {state.showHistoryPanel && (
+          {uiState.showHistoryPanel && (
             <AIHistoryList
               history={state.history}
               currentIndex={state.currentIndex}
               onSelectHistory={(index) => {
                 actions.jumpToHistory(index);
               }}
-              onClose={() => actions.showHistory()}
+              onClose={() => uiHandlers.toggleHistoryPanel()}
               isLoading={state.isLoading}
               position="left"
             />
@@ -252,7 +255,7 @@ export function AIIconSet({
         {/* 閉じるボタン */}
         <div className="w-px h-8 bg-gray-200" />
         <TooltipButton
-          onClick={onClose}
+          onClick={uiHandlers.closeMenu}
           label="閉じる"
           className={`${iconButtonClass} text-gray-400 hover:text-gray-600`}
         >

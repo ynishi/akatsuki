@@ -9,12 +9,13 @@ import type {
 } from '../types';
 
 /**
- * AIエージェント機能をUIコンポーネントに登録するフック
+ * AIエージェント機能のコアロジックフック（純粋なロジックのみ）
  *
- * このフックはUIコンポーネントとAIロジックを繋ぐ中核的な役割を果たす
+ * UI状態管理は含まない。generate/refine/undo/redoなどのロジックのみを提供。
+ * UI状態管理が必要な場合は useAIUI と組み合わせて使用する。
  *
  * @param options - 登録オプション
- * @returns AIエージェント機能のプロパティとアクション
+ * @returns AIエージェント機能のロジック
  *
  * @example
  * ```tsx
@@ -37,14 +38,9 @@ import type {
  *         value={bio}
  *         onChange={(e) => setBio(e.target.value)}
  *       />
- *       <AITrigger {...ai.triggerProps} />
- *       {ai.menuProps.isOpen && (
- *         <AIIconSet
- *           actions={ai.actions}
- *           state={ai.state}
- *           onClose={ai.menuProps.onClose}
- *         />
- *       )}
+ *       <button onClick={() => ai.actions.generate()}>生成</button>
+ *       <button onClick={() => ai.actions.refine()}>修正</button>
+ *       <button onClick={() => ai.actions.undo()} disabled={!ai.state.canUndo}>戻る</button>
  *     </div>
  *   );
  * }
@@ -58,21 +54,17 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   // Undo/Redo管理
   const undoRedo = useAIUndo<string>(getValue());
 
-  // UI状態
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // ロジック状態のみ（UI状態は含まない）
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [history, setHistory] = useState<AIHistoryEntry[]>([]);
-  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
-  const [_showChatPanel, setShowChatPanel] = useState(false);
 
   // 方向性オプション（カスタムまたはデフォルト）
   const directionsOptions = useMemo(() => {
     if (directions && directions.length > 0) {
       return directions;
     }
-    // デフォルトの方向性をインポート
-    // NOTE: 循環参照を避けるため、ここで直接定義する
+    // デフォルトの方向性
     return [
       {
         id: 'formal',
@@ -207,10 +199,6 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const undo = useCallback(() => {
     if (undoRedo.canUndo) {
       undoRedo.undo();
-      // Undo後の値を取得して設定
-      // useAIUndoはundo()後に自動的にvalueが更新されるので、
-      // 次のレンダリングでundoRedo.valueを使用する
-      // ここでは即座に反映するためsetValueを呼ぶ
       setTimeout(() => {
         setValue(undoRedo.value);
       }, 0);
@@ -223,7 +211,6 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const redo = useCallback(() => {
     if (undoRedo.canRedo) {
       undoRedo.redo();
-      // Redo後の値を取得して設定
       setTimeout(() => {
         setValue(undoRedo.value);
       }, 0);
@@ -236,21 +223,12 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const jumpToHistory = useCallback(
     (index: number) => {
       undoRedo.jumpTo(index);
-      // ジャンプ後の値を取得して設定
       setTimeout(() => {
         setValue(undoRedo.value);
       }, 0);
     },
     [undoRedo, setValue]
   );
-
-  /**
-   * 🗒️ 履歴表示アクション
-   */
-  const showHistory = useCallback(() => {
-    setShowHistoryPanel((prev) => !prev);
-    setShowChatPanel(false); // チャットパネルは閉じる
-  }, []);
 
   /**
    * 💬 コマンド実行アクション
@@ -284,48 +262,14 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     [provider, context, getValue, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
   );
 
-  /**
-   * 💬 コマンドパネル表示アクション
-   */
-  const showCommandPanel = useCallback(() => {
-    setShowChatPanel((prev) => !prev);
-    setShowHistoryPanel(false); // 履歴パネルは閉じる
-  }, []);
-
-  /**
-   * メニューを開く
-   */
-  const openMenu = useCallback(() => {
-    setIsMenuOpen(true);
-  }, []);
-
-  /**
-   * メニューを閉じる
-   */
-  const closeMenu = useCallback(() => {
-    setIsMenuOpen(false);
-  }, []);
-
   return {
-    triggerProps: {
-      onClick: openMenu,
-      onMouseEnter: undefined, // ホバーで開く場合はここで設定
-      isActive: isMenuOpen,
-      'aria-label': 'AI機能を開く',
-    },
-    menuProps: {
-      isOpen: isMenuOpen,
-      onClose: closeMenu,
-    },
     actions: {
       generate,
       refine,
       undo,
       redo,
-      showHistory,
       jumpToHistory,
       executeCommand,
-      showCommandPanel,
     },
     state: {
       isLoading,
@@ -334,8 +278,6 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       canUndo: undoRedo.canUndo,
       canRedo: undoRedo.canRedo,
       directions: directionsOptions,
-      showHistoryPanel,
-      showCommandPanel: _showChatPanel,
       currentIndex: undoRedo.currentIndex,
     },
   };

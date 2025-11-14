@@ -1,17 +1,17 @@
-import type { AIRegisterResult } from '../../core/types';
-
 /**
  * AITriggerコンポーネントのProps
  */
 export interface AITriggerProps {
-  /** トリガープロパティ（useAIRegisterから取得） */
-  triggerProps: AIRegisterResult['triggerProps'];
+  /** メニューを開く関数（useAIUIから取得） */
+  onClick: () => void;
   /** カスタムクラス名 */
   className?: string;
   /** アイコンサイズ */
   size?: 'sm' | 'md' | 'lg';
   /** 位置 */
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  /** アクティブ状態（メニューが開いているか） */
+  isActive?: boolean;
 }
 
 /**
@@ -21,14 +21,20 @@ export interface AITriggerProps {
  *
  * @example
  * ```tsx
+ * const aiUI = useAIUI();
+ *
  * <div className="relative">
  *   <textarea value={text} onChange={...} />
- *   <AITrigger triggerProps={ai.triggerProps} />
+ *   <AITrigger
+ *     onClick={aiUI.handlers.openMenu}
+ *     isActive={aiUI.ui.isMenuOpen}
+ *   />
  * </div>
  * ```
  */
 export function AITrigger({
-  triggerProps,
+  onClick,
+  isActive = false,
   className = '',
   size = 'md',
   position = 'top-right',
@@ -49,9 +55,8 @@ export function AITrigger({
   return (
     <button
       type="button"
-      onClick={triggerProps.onClick}
-      onMouseEnter={triggerProps.onMouseEnter}
-      aria-label={triggerProps['aria-label']}
+      onClick={onClick}
+      aria-label="AI機能を開く"
       className={`
         absolute ${positionClasses[position]} ${sizeClasses[size]}
         flex items-center justify-center
@@ -64,7 +69,7 @@ export function AITrigger({
         active:scale-95
         transition-all duration-200
         cursor-pointer
-        ${triggerProps.isActive ? 'ring-2 ring-purple-300 ring-offset-2' : ''}
+        ${isActive ? 'ring-2 ring-purple-300 ring-offset-2' : ''}
         ${className}
       `}
     >

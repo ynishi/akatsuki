@@ -27,7 +27,7 @@ import { PublicProfileRepository } from '../repositories/PublicProfileRepository
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
 import { FileSearchDemo } from '../components/features/file-search/FileSearchDemo'
 import { JobProgress } from '../components/common/JobProgress'
-import { AIAgentProvider, useAIRegister } from '../../../ai-agent-ui/src/core'
+import { AIAgentProvider, useAIRegister, useAIUI } from '../../../ai-agent-ui/src/core'
 import { AkatsukiAgentProvider, setAIService } from '../../../ai-agent-ui/src/providers'
 import { AIIconSet } from '../../../ai-agent-ui/src/ui'
 
@@ -51,6 +51,7 @@ function AIAgentUICardInner({ user }: { user: any }) {
     getValue: () => bio,
     setValue: (newValue) => setBio(newValue),
   })
+  const bioUI = useAIUI()
 
   const titleAI = useAIRegister({
     context: {
@@ -61,6 +62,7 @@ function AIAgentUICardInner({ user }: { user: any }) {
     getValue: () => title,
     setValue: (newValue) => setTitle(newValue),
   })
+  const titleUI = useAIUI()
 
   return (
       <Card>
@@ -103,17 +105,18 @@ const ai = useAIRegister({
             </label>
             <button
               type="button"
-              onClick={bioAI.triggerProps.onClick}
-              aria-label={bioAI.triggerProps['aria-label']}
+              onClick={bioUI.handlers.openMenu}
+              aria-label="AI機能を開く"
               className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <span className="text-sm animate-pulse">✨</span>
             </button>
-            {bioAI.menuProps.isOpen && (
+            {bioUI.ui.isMenuOpen && (
               <AIIconSet
                 actions={bioAI.actions}
                 state={bioAI.state}
-                onClose={bioAI.menuProps.onClose}
+                uiState={bioUI.ui}
+                uiHandlers={bioUI.handlers}
                 position="bottom"
               />
             )}
@@ -143,17 +146,18 @@ const ai = useAIRegister({
             </label>
             <button
               type="button"
-              onClick={titleAI.triggerProps.onClick}
-              aria-label={titleAI.triggerProps['aria-label']}
+              onClick={titleUI.handlers.openMenu}
+              aria-label="AI機能を開く"
               className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <span className="text-sm animate-pulse">✨</span>
             </button>
-            {titleAI.menuProps.isOpen && (
+            {titleUI.ui.isMenuOpen && (
               <AIIconSet
                 actions={titleAI.actions}
                 state={titleAI.state}
-                onClose={titleAI.menuProps.onClose}
+                uiState={titleUI.ui}
+                uiHandlers={titleUI.handlers}
                 position="bottom"
               />
             )}

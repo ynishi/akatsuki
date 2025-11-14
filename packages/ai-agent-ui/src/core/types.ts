@@ -1,11 +1,11 @@
 /**
- * AIエージェントに渡す文脈情報
+ * AIエージェントのコンテキスト情報
  */
 export interface AIAgentContext {
-  /** スコープ識別子（例: "UserProfile.Bio"） */
+  /** スコープ（例: UserProfile.Bio, Article.Title） */
   scope: string;
 
-  /** コンテンツタイプ */
+  /** タイプ */
   type: 'string' | 'long_text' | 'markdown' | 'json' | 'code';
 
   /** 現在の値 */
@@ -14,58 +14,22 @@ export interface AIAgentContext {
   /** 最大文字数 */
   maxLength?: number;
 
-  /** 関連データ（コンテキスト補助情報） */
+  /** 関連データ */
   relatedData?: Record<string, unknown>;
 
   /** メタデータ */
-  metadata?: {
-    /** ユーザー情報 */
-    user?: {
-      id: string;
-      name?: string;
-    };
-    /** アプリケーションコンテキスト */
-    app?: Record<string, unknown>;
-    /** カスタムメタデータ */
-    [key: string]: unknown;
-  };
+  metadata?: Record<string, unknown>;
 }
 
 /**
- * AI生成/修正のオプション
+ * AIアクションのオプション
  */
 export interface AIActionOptions {
-  /** 方向性指定（例: "フォーマルに", "簡潔に"） */
+  /** 方向性（例: "フォーマルに", "簡潔に"） */
   direction?: string;
 
   /** カスタムプロンプト */
   customPrompt?: string;
-
-  /** ストリーミング有効化 */
-  stream?: boolean;
-}
-
-/**
- * useAIRegisterフックのオプション
- */
-export interface AIRegisterOptions {
-  /** コンテキスト情報 */
-  context: AIAgentContext;
-
-  /** 現在の値を取得するコールバック */
-  getValue: () => string;
-
-  /** 値を設定するコールバック */
-  setValue: (newValue: string) => void;
-
-  /** エラーハンドラー */
-  onError?: (error: Error) => void;
-
-  /** 成功ハンドラー */
-  onSuccess?: (value: string, action: 'generate' | 'refine') => void;
-
-  /** 方向性のカスタムリスト（デフォルト提供） */
-  directions?: DirectionOption[];
 }
 
 /**
@@ -74,84 +38,7 @@ export interface AIRegisterOptions {
 export interface DirectionOption {
   id: string;
   label: string;
-  description?: string;
-  prompt?: string; // カスタムプロンプトテンプレート
-}
-
-/**
- * useAIRegisterフックの戻り値
- */
-export interface AIRegisterResult {
-  /** トリガーアイコン用のプロパティ */
-  triggerProps: {
-    onClick: () => void;
-    onMouseEnter?: () => void;
-    isActive: boolean;
-    'aria-label': string;
-  };
-
-  /** メニュー用のプロパティ */
-  menuProps: {
-    isOpen: boolean;
-    onClose: () => void;
-  };
-
-  /** ヘッドレスアクション */
-  actions: {
-    /** 💫 生成 */
-    generate: (options?: AIActionOptions) => Promise<void>;
-
-    /** 🖌️ 修正 */
-    refine: (options?: AIActionOptions) => Promise<void>;
-
-    /** ← 元に戻す */
-    undo: () => void;
-
-    /** → やり直す */
-    redo: () => void;
-
-    /** 🗒️ 履歴表示 */
-    showHistory: () => void;
-
-    /** 特定の履歴にジャンプ */
-    jumpToHistory: (index: number) => void;
-
-    /** 💬 コマンド実行 */
-    executeCommand: (command: string) => Promise<void>;
-
-    /** コマンドパネル表示 */
-    showCommandPanel: () => void;
-  };
-
-  /** 現在の状態 */
-  state: {
-    /** ローディング中 */
-    isLoading: boolean;
-
-    /** エラー */
-    error: Error | null;
-
-    /** 履歴 */
-    history: AIHistoryEntry[];
-
-    /** Undo可能か */
-    canUndo: boolean;
-
-    /** Redo可能か */
-    canRedo: boolean;
-
-    /** 方向性オプション */
-    directions: DirectionOption[];
-
-    /** 履歴パネルの表示状態 */
-    showHistoryPanel: boolean;
-
-    /** コマンドパネルの表示状態 */
-    showCommandPanel: boolean;
-
-    /** 現在の履歴インデックス */
-    currentIndex: number;
-  };
+  description: string;
 }
 
 /**
@@ -202,3 +89,116 @@ export const DEFAULT_DIRECTIONS: DirectionOption[] = [
     description: '温かみがあり、親しみやすい表現',
   },
 ];
+
+// ============================================================================
+// 純粋なロジックフック: useAIRegister
+// ============================================================================
+
+/**
+ * useAIRegisterのオプション
+ */
+export interface AIRegisterOptions {
+  /** AIエージェントのコンテキスト */
+  context: AIAgentContext;
+
+  /** 現在の値を取得する関数 */
+  getValue: () => string;
+
+  /** 値を設定する関数 */
+  setValue: (value: string) => void;
+
+  /** エラー時のコールバック */
+  onError?: (error: Error) => void;
+
+  /** 成功時のコールバック */
+  onSuccess?: (result: string, action: 'generate' | 'refine' | 'chat') => void;
+
+  /** カスタム方向性オプション */
+  directions?: DirectionOption[];
+}
+
+/**
+ * useAIRegisterの戻り値（純粋なロジックのみ）
+ */
+export interface AIRegisterResult {
+  /** アクション */
+  actions: {
+    /** 💫 生成 */
+    generate: (options?: AIActionOptions) => Promise<void>;
+
+    /** 🖌️ 修正 */
+    refine: (options?: AIActionOptions) => Promise<void>;
+
+    /** ← 元に戻す */
+    undo: () => void;
+
+    /** → やり直す */
+    redo: () => void;
+
+    /** 特定の履歴にジャンプ */
+    jumpToHistory: (index: number) => void;
+
+    /** 💬 コマンド実行 */
+    executeCommand: (command: string) => Promise<void>;
+  };
+
+  /** 状態 */
+  state: {
+    /** ローディング中 */
+    isLoading: boolean;
+
+    /** エラー */
+    error: Error | null;
+
+    /** 履歴 */
+    history: AIHistoryEntry[];
+
+    /** Undo可能か */
+    canUndo: boolean;
+
+    /** Redo可能か */
+    canRedo: boolean;
+
+    /** 方向性オプション */
+    directions: DirectionOption[];
+
+    /** 現在の履歴インデックス */
+    currentIndex: number;
+  };
+}
+
+// ============================================================================
+// UI状態管理フック: useAIUI
+// ============================================================================
+
+/**
+ * useAIUIの戻り値（UI状態のみ）
+ */
+export interface AIUIResult {
+  /** UI状態 */
+  ui: {
+    /** メインメニューが開いているか */
+    isMenuOpen: boolean;
+
+    /** 履歴パネルが開いているか */
+    showHistoryPanel: boolean;
+
+    /** コマンドパネルが開いているか */
+    showCommandPanel: boolean;
+  };
+
+  /** UI操作 */
+  handlers: {
+    /** メニューを開く */
+    openMenu: () => void;
+
+    /** メニューを閉じる */
+    closeMenu: () => void;
+
+    /** 履歴パネルを切り替え */
+    toggleHistoryPanel: () => void;
+
+    /** コマンドパネルを切り替え */
+    toggleCommandPanel: () => void;
+  };
+}

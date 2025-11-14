@@ -295,7 +295,7 @@ export class AkatsukiAgentProvider implements IAIAgentProvider {
    *
    * Gemini 2.5 Flashは最大65,536トークンまでサポート
    */
-  private getMaxTokens(context: AIAgentContext): number {
+  private getMaxTokens(_context: AIAgentContext): number {
     // Gemini 2.5 Flashの上限を使用
     return 65536;
   }
