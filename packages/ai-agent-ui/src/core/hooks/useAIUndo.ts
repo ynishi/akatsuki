@@ -12,6 +12,8 @@ export interface UseAIUndoResult<T> {
   undo: () => void;
   /** やり直す */
   redo: () => void;
+  /** 特定の履歴にジャンプ */
+  jumpTo: (index: number) => void;
   /** Undo可能か */
   canUndo: boolean;
   /** Redo可能か */
@@ -20,6 +22,8 @@ export interface UseAIUndoResult<T> {
   clear: () => void;
   /** 履歴 */
   history: T[];
+  /** 現在の履歴インデックス */
+  currentIndex: number;
 }
 
 /**
@@ -123,6 +127,23 @@ export function useAIUndo<T>(
   }, [currentIndex, history.length]);
 
   /**
+   * 特定の履歴にジャンプ
+   */
+  const jumpTo = useCallback(
+    (index: number) => {
+      if (index >= 0 && index < history.length) {
+        isUndoRedoRef.current = true;
+        setCurrentIndex(index);
+        // 次のティックでフラグをリセット
+        setTimeout(() => {
+          isUndoRedoRef.current = false;
+        }, 0);
+      }
+    },
+    [history.length]
+  );
+
+  /**
    * 履歴をクリア
    */
   const clear = useCallback(() => {
@@ -135,9 +156,11 @@ export function useAIUndo<T>(
     setValue,
     undo,
     redo,
+    jumpTo,
     canUndo: currentIndex > 0,
     canRedo: currentIndex < history.length - 1,
     clear,
     history,
+    currentIndex,
   };
 }

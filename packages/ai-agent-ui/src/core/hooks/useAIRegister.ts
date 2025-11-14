@@ -63,8 +63,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [history, setHistory] = useState<AIHistoryEntry[]>([]);
-  // NOTE: 将来のPhase 1.4で使用予定
-  const [_showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [_showChatPanel, setShowChatPanel] = useState(false);
 
   // 方向性オプション（カスタムまたはデフォルト）
@@ -209,10 +208,12 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     if (undoRedo.canUndo) {
       undoRedo.undo();
       // Undo後の値を取得して設定
-      const previousValue = undoRedo.history[undoRedo.history.length - 2];
-      if (previousValue !== undefined) {
-        setValue(previousValue);
-      }
+      // useAIUndoはundo()後に自動的にvalueが更新されるので、
+      // 次のレンダリングでundoRedo.valueを使用する
+      // ここでは即座に反映するためsetValueを呼ぶ
+      setTimeout(() => {
+        setValue(undoRedo.value);
+      }, 0);
     }
   }, [undoRedo, setValue]);
 
@@ -223,12 +224,25 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     if (undoRedo.canRedo) {
       undoRedo.redo();
       // Redo後の値を取得して設定
-      const nextValue = undoRedo.history[undoRedo.history.length];
-      if (nextValue !== undefined) {
-        setValue(nextValue);
-      }
+      setTimeout(() => {
+        setValue(undoRedo.value);
+      }, 0);
     }
   }, [undoRedo, setValue]);
+
+  /**
+   * 特定の履歴にジャンプ
+   */
+  const jumpToHistory = useCallback(
+    (index: number) => {
+      undoRedo.jumpTo(index);
+      // ジャンプ後の値を取得して設定
+      setTimeout(() => {
+        setValue(undoRedo.value);
+      }, 0);
+    },
+    [undoRedo, setValue]
+  );
 
   /**
    * 🗒️ 履歴表示アクション
@@ -277,6 +291,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       undo,
       redo,
       showHistory,
+      jumpToHistory,
       showChat,
     },
     state: {
@@ -286,6 +301,8 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       canUndo: undoRedo.canUndo,
       canRedo: undoRedo.canRedo,
       directions: directionsOptions,
+      showHistoryPanel,
+      currentIndex: undoRedo.currentIndex,
     },
   };
 }

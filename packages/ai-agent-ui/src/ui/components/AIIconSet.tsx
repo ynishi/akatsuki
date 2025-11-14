@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AIRegisterResult } from '../../core/types';
 import { AIDirectionMenu } from './AIDirectionMenu';
+import { AIHistoryList } from './AIHistoryList';
 // @ts-ignore - Akatsuki専用パッケージなのでapp-frontendのコンポーネントを直接参照
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../app-frontend/src/components/ui/tooltip';
 
@@ -158,16 +159,32 @@ export function AIIconSet({
         </TooltipButton>
 
         {/* 🗒️ 履歴 */}
-        <TooltipButton
-          onClick={() => {
-            actions.showHistory();
-          }}
-          disabled={state.isLoading}
-          label="履歴"
-          className={iconButtonClass}
-        >
-          <span className="text-xl">🗒️</span>
-        </TooltipButton>
+        <div className="relative">
+          <TooltipButton
+            onClick={() => {
+              actions.showHistory();
+            }}
+            disabled={state.isLoading}
+            label="履歴"
+            className={iconButtonClass}
+          >
+            <span className="text-xl">🗒️</span>
+          </TooltipButton>
+
+          {/* 履歴パネル */}
+          {state.showHistoryPanel && (
+            <AIHistoryList
+              history={state.history}
+              currentIndex={state.currentIndex}
+              onSelectHistory={(index) => {
+                actions.jumpToHistory(index);
+              }}
+              onClose={() => actions.showHistory()}
+              isLoading={state.isLoading}
+              position="left"
+            />
+          )}
+        </div>
 
         {/* 🎚️ 方向性指定 */}
         <div className="relative">

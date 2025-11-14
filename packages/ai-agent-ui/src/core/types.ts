@@ -113,6 +113,9 @@ export interface AIRegisterResult {
     /** 🗒️ 履歴表示 */
     showHistory: () => void;
 
+    /** 特定の履歴にジャンプ */
+    jumpToHistory: (index: number) => void;
+
     /** 💬 チャット表示 */
     showChat: () => void;
   };
@@ -136,6 +139,12 @@ export interface AIRegisterResult {
 
     /** 方向性オプション */
     directions: DirectionOption[];
+
+    /** 履歴パネルの表示状態 */
+    showHistoryPanel: boolean;
+
+    /** 現在の履歴インデックス */
+    currentIndex: number;
   };
 }
 
