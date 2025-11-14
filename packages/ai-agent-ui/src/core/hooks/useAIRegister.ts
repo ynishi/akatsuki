@@ -253,9 +253,41 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   }, []);
 
   /**
-   * 💬 チャット表示アクション
+   * 💬 コマンド実行アクション
    */
-  const showChat = useCallback(() => {
+  const executeCommand = useCallback(
+    async (command: string) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const currentValue = getValue();
+        const result = await provider.executeCommand(command, currentValue, context);
+
+        // 値を設定
+        setValue(result);
+        undoRedo.setValue(result);
+
+        // 履歴に追加
+        addHistoryEntry('chat', result);
+
+        // 成功コールバック
+        onSuccess?.(result, 'chat');
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        onError?.(error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [provider, context, getValue, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
+  );
+
+  /**
+   * 💬 コマンドパネル表示アクション
+   */
+  const showCommandPanel = useCallback(() => {
     setShowChatPanel((prev) => !prev);
     setShowHistoryPanel(false); // 履歴パネルは閉じる
   }, []);
@@ -292,7 +324,8 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       redo,
       showHistory,
       jumpToHistory,
-      showChat,
+      executeCommand,
+      showCommandPanel,
     },
     state: {
       isLoading,
@@ -302,6 +335,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       canRedo: undoRedo.canRedo,
       directions: directionsOptions,
       showHistoryPanel,
+      showCommandPanel: _showChatPanel,
       currentIndex: undoRedo.currentIndex,
     },
   };

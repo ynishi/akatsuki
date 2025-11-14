@@ -125,9 +125,14 @@ const ai = useAIRegister({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
             rows={4}
           />
-          {bioAI.state.isLoading && (
-            <p className="text-sm text-purple-600 mt-2">生成中...</p>
-          )}
+          <div className="flex items-center justify-between mt-1">
+            <div className="text-xs text-gray-500">
+              {bio.length} / 500文字
+            </div>
+            {bioAI.state.isLoading && (
+              <p className="text-sm text-purple-600">生成中...</p>
+            )}
+          </div>
         </div>
 
         {/* 記事タイトルフィールド */}
@@ -160,6 +165,9 @@ const ai = useAIRegister({
             placeholder="記事のタイトルを入力..."
             className="w-full"
           />
+          <div className="text-xs text-gray-500 mt-1">
+            {title.length} / 100文字
+          </div>
         </div>
 
         {!user && (

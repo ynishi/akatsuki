@@ -7,9 +7,7 @@ export * from './components/AITrigger';
 export * from './components/AIIconSet';
 export * from './components/AIDirectionMenu';
 export * from './components/AIHistoryList';
+export * from './components/AICommandPanel';
 
-// Components (Phase 1.5で実装予定)
-// export * from './components/AIChatPanel';
-
-// Hooks (Phase 1.4で実装予定)
+// Hooks (将来実装予定)
 // export * from './hooks/useAIUI';

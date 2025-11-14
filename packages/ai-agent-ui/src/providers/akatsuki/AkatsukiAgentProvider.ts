@@ -233,22 +233,70 @@ export class AkatsukiAgentProvider implements IAIAgentProvider {
   }
 
   /**
+   * カスタムコマンド実行
+   */
+  async executeCommand(
+    command: string,
+    currentValue: string,
+    context: AIAgentContext
+  ): Promise<string> {
+    const prompt = this.buildCommandPrompt(command, currentValue, context);
+    const AIService = getAIService();
+    const response = await AIService.chat(prompt, {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      temperature: 0.7,
+      maxTokens: this.getMaxTokens(context),
+    });
+    return response.text;
+  }
+
+  /**
+   * コマンド用プロンプトを構築
+   */
+  private buildCommandPrompt(
+    command: string,
+    currentValue: string,
+    context: AIAgentContext
+  ): string {
+    const parts: string[] = [];
+
+    // ユーザーコマンド
+    parts.push(`以下のコマンドに従って、テキストを処理してください。`);
+    parts.push(`\n【コマンド】`);
+    parts.push(command);
+
+    // 現在のテキスト
+    if (currentValue) {
+      parts.push(`\n【対象テキスト】`);
+      parts.push(currentValue);
+    }
+
+    // コンテキスト情報
+    parts.push(`\n【コンテキスト】`);
+    parts.push(`- スコープ: ${context.scope}`);
+    parts.push(`- タイプ: ${context.type}`);
+
+    // 文字数制限
+    if (context.maxLength) {
+      parts.push(`\n【重要】`);
+      parts.push(`結果は必ず${context.maxLength}文字以内にしてください。`);
+    }
+
+    parts.push(
+      `\n処理結果のテキストのみを返してください。説明や追加のコメントは一切不要です。`
+    );
+
+    return parts.join('\n');
+  }
+
+  /**
    * コンテキストに応じた最大トークン数を取得
    *
    * Gemini 2.5 Flashは最大65,536トークンまでサポート
-   * プロンプトで文字数制限を指示しているが、Refineの場合は
-   * 元のテキスト全文を含むため、十分な余裕を持たせる必要がある
    */
   private getMaxTokens(context: AIAgentContext): number {
-    if (context.maxLength) {
-      // 日本語の場合、文字数 * 4 程度のトークン数を設定
-      // Refine時: 元テキスト(入力) + 改善テキスト(出力) の両方を考慮
-      const estimatedTokens = context.maxLength * 4;
-      // 最小8000、最大は65536だが実用的には16000程度で十分
-      return Math.max(Math.min(estimatedTokens, 16000), 8000);
-    }
-
-    // デフォルト（Gemini 2.5 Flashのデフォルトに合わせる）
-    return 8192;
+    // Gemini 2.5 Flashの上限を使用
+    return 65536;
   }
 }

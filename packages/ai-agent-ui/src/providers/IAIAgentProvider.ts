@@ -57,4 +57,18 @@ export interface IAIAgentProvider {
     onChunk: (chunk: string) => void,
     options?: AIActionOptions
   ): Promise<void>;
+
+  /**
+   * カスタムコマンド実行
+   *
+   * @param command - ユーザーが入力したコマンド（自由形式）
+   * @param currentValue - 現在のテキスト
+   * @param context - コンテキスト情報
+   * @returns 実行結果のテキスト
+   */
+  executeCommand(
+    command: string,
+    currentValue: string,
+    context: AIAgentContext
+  ): Promise<string>;
 }

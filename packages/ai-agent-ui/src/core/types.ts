@@ -116,8 +116,11 @@ export interface AIRegisterResult {
     /** 特定の履歴にジャンプ */
     jumpToHistory: (index: number) => void;
 
-    /** 💬 チャット表示 */
-    showChat: () => void;
+    /** 💬 コマンド実行 */
+    executeCommand: (command: string) => Promise<void>;
+
+    /** コマンドパネル表示 */
+    showCommandPanel: () => void;
   };
 
   /** 現在の状態 */
@@ -142,6 +145,9 @@ export interface AIRegisterResult {
 
     /** 履歴パネルの表示状態 */
     showHistoryPanel: boolean;
+
+    /** コマンドパネルの表示状態 */
+    showCommandPanel: boolean;
 
     /** 現在の履歴インデックス */
     currentIndex: number;

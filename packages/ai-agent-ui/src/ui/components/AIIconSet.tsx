@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AIRegisterResult } from '../../core/types';
 import { AIDirectionMenu } from './AIDirectionMenu';
 import { AIHistoryList } from './AIHistoryList';
+import { AICommandPanel } from './AICommandPanel';
 // @ts-ignore - Akatsuki専用パッケージなのでapp-frontendのコンポーネントを直接参照
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../app-frontend/src/components/ui/tooltip';
 
@@ -120,6 +121,7 @@ export function AIIconSet({
       >
         {/* アイコンセット */}
         <div className="flex items-center gap-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200">
+        {/* === 左半分: シンプル系 === */}
         {/* 💫 生成 */}
         <TooltipButton
           onClick={() => {
@@ -158,34 +160,10 @@ export function AIIconSet({
           <span className="text-xl">←</span>
         </TooltipButton>
 
-        {/* 🗒️ 履歴 */}
-        <div className="relative">
-          <TooltipButton
-            onClick={() => {
-              actions.showHistory();
-            }}
-            disabled={state.isLoading}
-            label="履歴"
-            className={iconButtonClass}
-          >
-            <span className="text-xl">🗒️</span>
-          </TooltipButton>
+        {/* 区切り線 */}
+        <div className="w-px h-8 bg-gray-200" />
 
-          {/* 履歴パネル */}
-          {state.showHistoryPanel && (
-            <AIHistoryList
-              history={state.history}
-              currentIndex={state.currentIndex}
-              onSelectHistory={(index) => {
-                actions.jumpToHistory(index);
-              }}
-              onClose={() => actions.showHistory()}
-              isLoading={state.isLoading}
-              position="left"
-            />
-          )}
-        </div>
-
+        {/* === 右半分: 詳細指定系 === */}
         {/* 🎚️ 方向性指定 */}
         <div className="relative">
           <TooltipButton
@@ -217,17 +195,59 @@ export function AIIconSet({
           )}
         </div>
 
-        {/* 💬 チャット */}
-        <TooltipButton
-          onClick={() => {
-            actions.showChat();
-          }}
-          disabled={state.isLoading}
-          label="チャット"
-          className={iconButtonClass}
-        >
-          <span className="text-xl">💬</span>
-        </TooltipButton>
+        {/* 💬 コマンド */}
+        <div className="relative">
+          <TooltipButton
+            onClick={() => {
+              actions.showCommandPanel();
+            }}
+            disabled={state.isLoading}
+            label="コマンド"
+            className={iconButtonClass}
+          >
+            <span className="text-xl">💬</span>
+          </TooltipButton>
+
+          {/* コマンドパネル */}
+          {state.showCommandPanel && (
+            <AICommandPanel
+              onExecute={async (command) => {
+                await actions.executeCommand(command);
+              }}
+              onClose={() => actions.showCommandPanel()}
+              isLoading={state.isLoading}
+              position="left"
+            />
+          )}
+        </div>
+
+        {/* 🗒️ 履歴 */}
+        <div className="relative">
+          <TooltipButton
+            onClick={() => {
+              actions.showHistory();
+            }}
+            disabled={state.isLoading}
+            label="履歴"
+            className={iconButtonClass}
+          >
+            <span className="text-xl">🗒️</span>
+          </TooltipButton>
+
+          {/* 履歴パネル */}
+          {state.showHistoryPanel && (
+            <AIHistoryList
+              history={state.history}
+              currentIndex={state.currentIndex}
+              onSelectHistory={(index) => {
+                actions.jumpToHistory(index);
+              }}
+              onClose={() => actions.showHistory()}
+              isLoading={state.isLoading}
+              position="left"
+            />
+          )}
+        </div>
 
         {/* 閉じるボタン */}
         <div className="w-px h-8 bg-gray-200" />
