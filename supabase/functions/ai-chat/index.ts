@@ -517,7 +517,7 @@ Deno.serve(async (req) => {
             console.log('[ai-chat] Gemini response:', {
               text: responseText,
               usage: { inputTokens, outputTokens, totalTokens },
-              fileSearchUsed: !!fileSearchConfig,
+              fileSearchUsed: config.fileSearchConfig,
               functionCallsExecuted: executedFunctionCalls.length,
               hasGroundingMetadata: !!responseGroundingMetadata
             })

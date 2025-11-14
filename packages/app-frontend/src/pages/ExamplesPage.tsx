@@ -9,10 +9,12 @@ import { Input } from '../components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip'
 import { UserProfileRepository, UserQuotaRepository, ComfyUIWorkflowRepository, ComfyUIModelRepository } from '../repositories'
 import { UserProfile } from '../models'
 import { callHelloFunction, EdgeFunctionService, EventService } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
+import { AIService } from '../services/ai'
 import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
@@ -25,6 +27,168 @@ import { PublicProfileRepository } from '../repositories/PublicProfileRepository
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
 import { FileSearchDemo } from '../components/features/file-search/FileSearchDemo'
 import { JobProgress } from '../components/common/JobProgress'
+import { AIAgentProvider, useAIRegister } from '../../../ai-agent-ui/src/core'
+import { AkatsukiAgentProvider, setAIService } from '../../../ai-agent-ui/src/providers'
+import { AIIconSet } from '../../../ai-agent-ui/src/ui'
+
+// AIServiceを注入
+setAIService(AIService)
+
+/**
+ * AIエージェントUIデモカード（内部実装）
+ * useAIRegisterフックはAIAgentProvider内で使用する必要があるため分離
+ */
+function AIAgentUICardInner({ user }: { user: any }) {
+  const [bio, setBio] = useState('')
+  const [title, setTitle] = useState('')
+
+  const bioAI = useAIRegister({
+    context: {
+      scope: 'UserProfile.Bio',
+      type: 'long_text',
+      maxLength: 500,
+    },
+    getValue: () => bio,
+    setValue: (newValue) => setBio(newValue),
+  })
+
+  const titleAI = useAIRegister({
+    context: {
+      scope: 'Article.Title',
+      type: 'string',
+      maxLength: 100,
+    },
+    getValue: () => title,
+    setValue: (newValue) => setTitle(newValue),
+  })
+
+  return (
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Agent UI (✨ AI統合ライブラリ)</CardTitle>
+          <CardDescription>
+            入力フィールドにAIエージェント機能を統合 - 1クリックで生成・修正
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+        <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
+          <code>{`import { AIAgentProvider, useAIRegister } from '@akatsuki/ai-agent-ui'
+import { AITrigger, AIIconSet } from '@akatsuki/ai-agent-ui/ui'
+
+const ai = useAIRegister({
+  context: { scope: 'UserProfile.Bio', type: 'long_text' },
+  getValue: () => bio,
+  setValue: (newValue) => setBio(newValue)
+})
+
+<AITrigger triggerProps={ai.triggerProps} />
+{ai.menuProps.isOpen && <AIIconSet ... />}`}</code>
+        </pre>
+
+        <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
+          <p className="font-semibold mb-2">✨ 機能:</p>
+          <ul className="list-disc ml-4 space-y-1">
+            <li>💫 新しいコンテンツを生成</li>
+            <li>🖌️ 既存のコンテンツを改善</li>
+            <li>🎚️ 方向性を指定（フォーマル、簡潔など）</li>
+            <li>← Undo機能</li>
+          </ul>
+        </div>
+
+        {/* 自己紹介フィールド */}
+        <div>
+          <div className="flex items-center gap-2 mb-2 relative">
+            <label className="text-sm font-medium text-gray-700">
+              自己紹介 (Bio)
+            </label>
+            <button
+              type="button"
+              onClick={bioAI.triggerProps.onClick}
+              aria-label={bioAI.triggerProps['aria-label']}
+              className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+            >
+              <span className="text-sm animate-pulse">✨</span>
+            </button>
+            {bioAI.menuProps.isOpen && (
+              <AIIconSet
+                actions={bioAI.actions}
+                state={bioAI.state}
+                onClose={bioAI.menuProps.onClose}
+                position="bottom"
+              />
+            )}
+          </div>
+          <textarea
+            value={bio}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBio(e.target.value)}
+            placeholder="自己紹介を入力してください..."
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+            rows={4}
+          />
+          {bioAI.state.isLoading && (
+            <p className="text-sm text-purple-600 mt-2">生成中...</p>
+          )}
+        </div>
+
+        {/* 記事タイトルフィールド */}
+        <div>
+          <div className="flex items-center gap-2 mb-2 relative">
+            <label className="text-sm font-medium text-gray-700">
+              記事タイトル
+            </label>
+            <button
+              type="button"
+              onClick={titleAI.triggerProps.onClick}
+              aria-label={titleAI.triggerProps['aria-label']}
+              className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+            >
+              <span className="text-sm animate-pulse">✨</span>
+            </button>
+            {titleAI.menuProps.isOpen && (
+              <AIIconSet
+                actions={titleAI.actions}
+                state={titleAI.state}
+                onClose={titleAI.menuProps.onClose}
+                position="bottom"
+              />
+            )}
+          </div>
+          <Input
+            type="text"
+            value={title}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+            placeholder="記事のタイトルを入力..."
+            className="w-full"
+          />
+        </div>
+
+        {!user && (
+          <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+            <strong>Note:</strong> AI機能を使用するには
+            <Link to="/login" className="text-blue-600 hover:underline mx-1">
+              ログイン
+            </Link>
+            が必要です
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * AIエージェントUIデモカード
+ * AIAgentProviderでラップして内部コンポーネントに渡す
+ */
+function AIAgentUICard({ user }: { user: any }) {
+  const provider = new AkatsukiAgentProvider()
+
+  return (
+    <AIAgentProvider provider={provider}>
+      <AIAgentUICardInner user={user} />
+    </AIAgentProvider>
+  )
+}
 
 export function ExamplesPage() {
   const { user } = useAuth()
@@ -1130,6 +1294,9 @@ const result = await gemini.chat(prompt)
             )}
           </CardContent>
         </Card>
+
+        {/* AI Agent UI Example */}
+        <AIAgentUICard user={user} />
 
         {/* Public Storage Example */}
         <Card>
