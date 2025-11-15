@@ -1,18 +1,21 @@
 import { useState } from 'react';
-import type { AIModel } from '../../core/types';
 
 /**
  * AIModelSelectorコンポーネントのProps
  */
 export interface AIModelSelectorProps {
-  /** 利用可能なモデル一覧 */
-  availableModels: AIModel[];
+  /** 利用可能なモデル一覧（プロバイダー情報付き） */
+  availableModels: any[]; // AIModelWithProvider
   /** 現在選択中のモデル */
-  currentModel: AIModel | null;
+  currentModel: any | null; // AIModelWithProvider | null
   /** モデル切り替え時のコールバック */
   onSelectModel: (modelId: string) => void;
   /** Multi-Run時のコールバック（オプション） */
   onMultiRun?: (modelIds: string[]) => Promise<void>;
+  /** Multi-Run選択中のモデルID一覧（Core層から渡される） */
+  selectedModelIds?: string[];
+  /** モデル選択/解除のコールバック（Core層のtoggleModelSelectionを渡す） */
+  onToggleModelSelection?: (modelId: string) => void;
   /** 閉じる時のコールバック */
   onClose: () => void;
   /** ローディング状態 */
@@ -41,12 +44,13 @@ export function AIModelSelector({
   currentModel,
   onSelectModel,
   onMultiRun,
+  selectedModelIds: selectedModelIdsFromCore = [],
+  onToggleModelSelection,
   onClose,
   isLoading = false,
   position = 'bottom',
 }: AIModelSelectorProps) {
   const [mode, setMode] = useState<'single' | 'multi'>('single');
-  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
 
   const positionClasses = {
     top: 'bottom-full mb-2',
@@ -65,16 +69,14 @@ export function AIModelSelector({
   };
 
   const handleToggleModel = (modelId: string) => {
-    setSelectedModelIds((prev) =>
-      prev.includes(modelId)
-        ? prev.filter((id) => id !== modelId)
-        : [...prev, modelId]
-    );
+    if (onToggleModelSelection) {
+      onToggleModelSelection(modelId);
+    }
   };
 
   const handleMultiRun = async () => {
-    if (onMultiRun && selectedModelIds.length > 0) {
-      await onMultiRun(selectedModelIds);
+    if (onMultiRun && selectedModelIdsFromCore.length > 0) {
+      await onMultiRun(selectedModelIdsFromCore);
       onClose();
     }
   };
@@ -214,13 +216,13 @@ export function AIModelSelector({
                 key={model.id}
                 className={`
                   w-full px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors
-                  ${selectedModelIds.includes(model.id) ? 'bg-purple-50' : 'hover:bg-gray-50'}
+                  ${selectedModelIdsFromCore.includes(model.id) ? 'bg-purple-50' : 'hover:bg-gray-50'}
                   border-b border-gray-100 last:border-b-0
                 `}
               >
                 <input
                   type="checkbox"
-                  checked={selectedModelIds.includes(model.id)}
+                  checked={selectedModelIdsFromCore.includes(model.id)}
                   onChange={() => handleToggleModel(model.id)}
                   disabled={isLoading}
                   className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
@@ -251,11 +253,11 @@ export function AIModelSelector({
           <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
             <button
               onClick={handleMultiRun}
-              disabled={isLoading || selectedModelIds.length === 0}
+              disabled={isLoading || selectedModelIdsFromCore.length === 0}
               className={`
                 w-full px-4 py-2 rounded-md text-sm font-medium transition-all
                 ${
-                  selectedModelIds.length > 0
+                  selectedModelIdsFromCore.length > 0
                     ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-sm'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }
@@ -265,12 +267,12 @@ export function AIModelSelector({
               {isLoading ? (
                 '実行中...'
               ) : (
-                `🔄 ${selectedModelIds.length}個のモデルで実行`
+                `🔄 ${selectedModelIdsFromCore.length}個のモデルで実行`
               )}
             </button>
-            {selectedModelIds.length > 0 && (
+            {selectedModelIdsFromCore.length > 0 && (
               <div className="text-xs text-gray-500 mt-2 text-center">
-                選択中: {selectedModelIds.map((id) =>
+                選択中: {selectedModelIdsFromCore.map((id) =>
                   availableModels.find((m) => m.id === id)?.displayName
                 ).join(', ')}
               </div>

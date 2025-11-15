@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAIAgentContext } from '../context/AIAgentContext';
 import { useAIUndo } from './useAIUndo';
+import type { AIModelWithProvider } from '../../providers/IAIProvider';
 import type {
   AIRegisterOptions,
   AIRegisterResult,
@@ -52,7 +53,7 @@ import type {
  * ```
  */
 export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
-  const { provider } = useAIAgentContext();
+  const { registry } = useAIAgentContext();
   const { context, getValue, setValue, onError, onSuccess, directions, systemCommands, tokenLimits } =
     options;
 
@@ -65,12 +66,29 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const [history, setHistory] = useState<AIHistoryEntry[]>([]);
   const [multiRunResults, setMultiRunResults] = useState<MultiRunResult[] | null>(null);
 
-  // モデル情報
-  const availableModels = useMemo(() => provider.getSupportedModels(), [provider]);
-  const [currentModel, setCurrentModelState] = useState(() => provider.getCurrentModel());
+  // 現在選択中のモデルID（単一選択モード）
+  const [currentModelId, setCurrentModelId] = useState<string | null>(() => {
+    const models = registry.getAllAvailableModels();
+    return models.length > 0 ? models[0].id : null;
+  });
 
-  // Token管理
-  const [tokenUsage, setTokenUsage] = useState<TokenUsage>(() => provider.getTokenUsage());
+  // Multi-Run選択中のモデルID（複数選択モード）
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+
+  // モデル情報（有効なプロバイダーから取得）
+  const availableModels = useMemo<AIModelWithProvider[]>(
+    () => registry.getAllAvailableModels(),
+    [registry]
+  );
+
+  // 現在選択中のモデル情報
+  const currentModel = useMemo(
+    () => (currentModelId ? availableModels.find((m) => m.id === currentModelId) || null : null),
+    [currentModelId, availableModels]
+  );
+
+  // Token管理（全プロバイダーの合計）
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage>(() => registry.getTotalTokenUsage());
   const limits: TokenLimits = useMemo(() => tokenLimits || {}, [tokenLimits]);
 
   // Command管理
@@ -86,10 +104,10 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   // Token使用量の定期更新
   useEffect(() => {
     const interval = setInterval(() => {
-      setTokenUsage(provider.getTokenUsage());
+      setTokenUsage(registry.getTotalTokenUsage());
     }, 1000);
     return () => clearInterval(interval);
-  }, [provider]);
+  }, [registry]);
 
   // 方向性オプション（カスタムまたはデフォルト）
   const directionsOptions = useMemo(() => {
@@ -158,21 +176,34 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
    */
   const generate = useCallback(
     async (actionOptions?: AIActionOptions) => {
+      const modelId = actionOptions?.modelId || currentModelId;
+      if (!modelId) {
+        const error = new Error('No model selected');
+        setError(error);
+        onError?.(error);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
 
-        const result = await provider.generate(context, actionOptions);
+        const { provider } = registry.findProviderAndModel(modelId);
+        if (!provider) {
+          throw new Error(`Provider not found for model: ${modelId}`);
+        }
+
+        const result = await provider.generate(modelId, context, actionOptions);
 
         // 値を設定
-        setValue(result);
-        undoRedo.setValue(result);
+        setValue(result.text);
+        undoRedo.setValue(result.text);
 
         // 履歴に追加
-        addHistoryEntry('generate', result, actionOptions?.direction);
+        addHistoryEntry('generate', result.text, actionOptions?.direction);
 
         // 成功コールバック
-        onSuccess?.(result, 'generate');
+        onSuccess?.(result.text, 'generate');
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
@@ -181,7 +212,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         setIsLoading(false);
       }
     },
-    [provider, context, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
+    [registry, currentModelId, context, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
   );
 
   /**
@@ -189,22 +220,35 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
    */
   const refine = useCallback(
     async (actionOptions?: AIActionOptions) => {
+      const modelId = actionOptions?.modelId || currentModelId;
+      if (!modelId) {
+        const error = new Error('No model selected');
+        setError(error);
+        onError?.(error);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
 
+        const { provider } = registry.findProviderAndModel(modelId);
+        if (!provider) {
+          throw new Error(`Provider not found for model: ${modelId}`);
+        }
+
         const currentValue = getValue();
-        const result = await provider.refine(currentValue, context, actionOptions);
+        const result = await provider.refine(modelId, currentValue, context, actionOptions);
 
         // 値を設定
-        setValue(result);
-        undoRedo.setValue(result);
+        setValue(result.text);
+        undoRedo.setValue(result.text);
 
         // 履歴に追加
-        addHistoryEntry('refine', result, actionOptions?.direction);
+        addHistoryEntry('refine', result.text, actionOptions?.direction);
 
         // 成功コールバック
-        onSuccess?.(result, 'refine');
+        onSuccess?.(result.text, 'refine');
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
@@ -213,16 +257,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         setIsLoading(false);
       }
     },
-    [
-      provider,
-      context,
-      getValue,
-      setValue,
-      undoRedo,
-      addHistoryEntry,
-      onSuccess,
-      onError,
-    ]
+    [registry, currentModelId, context, getValue, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
   );
 
   /**
@@ -267,22 +302,35 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
    */
   const executeCommand = useCallback(
     async (command: string) => {
+      const modelId = currentModelId;
+      if (!modelId) {
+        const error = new Error('No model selected');
+        setError(error);
+        onError?.(error);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
 
+        const { provider } = registry.findProviderAndModel(modelId);
+        if (!provider) {
+          throw new Error(`Provider not found for model: ${modelId}`);
+        }
+
         const currentValue = getValue();
-        const result = await provider.executeCommand(command, currentValue, context);
+        const result = await provider.executeCommand(modelId, command, currentValue, context);
 
         // 値を設定
-        setValue(result);
-        undoRedo.setValue(result);
+        setValue(result.text);
+        undoRedo.setValue(result.text);
 
         // 履歴に追加
-        addHistoryEntry('chat', result);
+        addHistoryEntry('chat', result.text);
 
         // 成功コールバック
-        onSuccess?.(result, 'chat');
+        onSuccess?.(result.text, 'chat');
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
@@ -291,69 +339,43 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         setIsLoading(false);
       }
     },
-    [provider, context, getValue, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
+    [registry, currentModelId, context, getValue, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
   );
 
   /**
    * 🎛️ モデル切り替えアクション
    */
-  const setModel = useCallback(
-    (modelId: string) => {
-      provider.setModel(modelId);
-      setCurrentModelState(provider.getCurrentModel());
-    },
-    [provider]
-  );
+  const setModel = useCallback((modelId: string) => {
+    setCurrentModelId(modelId);
+  }, []);
 
   /**
    * 🔄 Multi-Run（複数モデルで同時実行）
    */
   const generateMulti = useCallback(
     async (modelIds: string[]): Promise<MultiRunResult[]> => {
-      const results: MultiRunResult[] = [];
-
-      for (const modelId of modelIds) {
-        const startTime = Date.now();
-        const model = availableModels.find((m) => m.id === modelId);
-
-        if (!model) {
-          results.push({
-            modelId,
-            modelDisplayName: modelId,
-            result: '',
-            duration: 0,
-            error: new Error(`Model not found: ${modelId}`),
-          });
-          continue;
-        }
-
-        try {
-          const result = await provider.generate(context, { modelId });
-          const duration = Date.now() - startTime;
-
-          results.push({
-            modelId,
-            modelDisplayName: model.displayName,
-            result,
-            duration,
-          });
-        } catch (err) {
-          const duration = Date.now() - startTime;
-          results.push({
-            modelId,
-            modelDisplayName: model.displayName,
-            result: '',
-            duration,
-            error: err instanceof Error ? err : new Error(String(err)),
-          });
-        }
-      }
-
+      const results = await registry.generateMulti(modelIds, context);
       setMultiRunResults(results);
       return results;
     },
-    [provider, context, availableModels]
+    [registry, context]
   );
+
+  /**
+   * Multi-Run用: モデル選択/解除
+   */
+  const toggleModelSelection = useCallback((modelId: string) => {
+    setSelectedModelIds((prev) =>
+      prev.includes(modelId) ? prev.filter((id) => id !== modelId) : [...prev, modelId]
+    );
+  }, []);
+
+  /**
+   * Multi-Run用: すべてのモデル選択をクリア
+   */
+  const clearModelSelection = useCallback(() => {
+    setSelectedModelIds([]);
+  }, []);
 
   /**
    * 💾 Promptを保存
@@ -435,6 +457,8 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       executeCommand,
       setModel,
       generateMulti,
+      toggleModelSelection,
+      clearModelSelection,
       savePrompt,
       deletePrompt,
       updatePrompt,
@@ -450,6 +474,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       currentIndex: undoRedo.currentIndex,
       availableModels,
       currentModel,
+      selectedModelIds,
       multiRunResults,
       tokenUsage,
       tokenLimits: limits,

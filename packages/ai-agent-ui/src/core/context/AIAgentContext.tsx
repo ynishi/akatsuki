@@ -1,12 +1,16 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { ProviderRegistry } from '../../providers/ProviderRegistry';
+import type { IAIProvider } from '../../providers/IAIProvider';
 import type { IAIAgentProvider } from '../../providers/IAIAgentProvider';
 
 /**
  * AIエージェントコンテキストの型定義
  */
 interface AIAgentContextValue {
-  /** AIプロバイダーインスタンス */
-  provider: IAIAgentProvider;
+  /** プロバイダーレジストリ */
+  registry: ProviderRegistry;
+  /** レガシー: 単一プロバイダー（後方互換性のため残す） */
+  provider?: IAIAgentProvider;
 }
 
 /**
@@ -18,8 +22,12 @@ const AIAgentContext = createContext<AIAgentContextValue | null>(null);
  * AIエージェントプロバイダーのProps
  */
 export interface AIAgentProviderProps {
-  /** AIプロバイダーインスタンス */
-  provider: IAIAgentProvider;
+  /** プロバイダーレジストリインスタンス */
+  registry?: ProviderRegistry;
+  /** または、プロバイダー配列（内部でRegistryを自動生成） */
+  providers?: IAIProvider[];
+  /** レガシー: 単一プロバイダー（後方互換性のため残す、非推奨） */
+  provider?: IAIAgentProvider;
   /** 子要素 */
   children: ReactNode;
 }
@@ -31,23 +39,67 @@ export interface AIAgentProviderProps {
  *
  * @example
  * ```tsx
- * import { AIAgentProvider } from '@akatsuki/ai-agent-ui';
- * import { AkatsukiAgentProvider } from '@akatsuki/ai-agent-ui/providers';
+ * // 新しい使い方（推奨）
+ * import { AIAgentProvider, ProviderRegistry, GeminiProvider } from '@akatsuki/ai-agent-ui';
  *
  * function App() {
- *   const provider = new AkatsukiAgentProvider();
+ *   const registry = useMemo(() => {
+ *     const reg = new ProviderRegistry();
+ *     reg.register(new GeminiProvider(aiService));
+ *     return reg;
+ *   }, [aiService]);
  *
  *   return (
- *     <AIAgentProvider provider={provider}>
+ *     <AIAgentProvider registry={registry}>
+ *       <YourApp />
+ *     </AIAgentProvider>
+ *   );
+ * }
+ *
+ * // または、providers配列を渡す
+ * function App() {
+ *   const providers = useMemo(() => [
+ *     new GeminiProvider(aiService),
+ *   ], [aiService]);
+ *
+ *   return (
+ *     <AIAgentProvider providers={providers}>
  *       <YourApp />
  *     </AIAgentProvider>
  *   );
  * }
  * ```
  */
-export function AIAgentProvider({ provider, children }: AIAgentProviderProps) {
+export function AIAgentProvider({
+  registry: providedRegistry,
+  providers,
+  provider: legacyProvider,
+  children,
+}: AIAgentProviderProps) {
+  // Registryを作成または受け取る
+  const registry = useMemo(() => {
+    if (providedRegistry) {
+      return providedRegistry;
+    }
+
+    // providers配列から自動生成
+    const newRegistry = new ProviderRegistry();
+    if (providers && providers.length > 0) {
+      providers.forEach((p) => newRegistry.register(p));
+    }
+    return newRegistry;
+  }, [providedRegistry, providers]);
+
+  const value = useMemo(
+    () => ({
+      registry,
+      provider: legacyProvider, // 後方互換性のため残す
+    }),
+    [registry, legacyProvider]
+  );
+
   return (
-    <AIAgentContext.Provider value={{ provider }}>
+    <AIAgentContext.Provider value={value}>
       {children}
     </AIAgentContext.Provider>
   );

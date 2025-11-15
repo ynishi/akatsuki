@@ -293,6 +293,12 @@ export interface AIRegisterResult {
     /** 🔄 Multi-Run（複数モデルで同時実行） */
     generateMulti: (modelIds: string[]) => Promise<MultiRunResult[]>;
 
+    /** Multi-Run用: モデル選択/解除 */
+    toggleModelSelection: (modelId: string) => void;
+
+    /** Multi-Run用: すべてのモデル選択をクリア */
+    clearModelSelection: () => void;
+
     /** 💾 Promptを保存 */
     savePrompt: (label: string, prompt: string, category?: string) => void;
 
@@ -329,11 +335,14 @@ export interface AIRegisterResult {
     /** 現在の履歴インデックス */
     currentIndex: number;
 
-    /** 利用可能なモデル一覧 */
-    availableModels: AIModel[];
+    /** 利用可能なモデル一覧（プロバイダー情報付き） */
+    availableModels: any[]; // AIModelWithProviderですが、循環参照を避けるためanyに
 
     /** 現在選択中のモデル */
-    currentModel: AIModel | null;
+    currentModel: any | null; // AIModelWithProviderですが、循環参照を避けるためanyに
+
+    /** Multi-Run選択中のモデルID一覧 */
+    selectedModelIds: string[];
 
     /** Multi-Run結果（実行後のみ） */
     multiRunResults: MultiRunResult[] | null;

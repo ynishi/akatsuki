@@ -243,6 +243,8 @@ export function AIIconSet({
                 await actions.generateMulti(modelIds);
                 setOpenMenu(null);
               }}
+              selectedModelIds={state.selectedModelIds}
+              onToggleModelSelection={actions.toggleModelSelection}
               onClose={() => setOpenMenu(null)}
               isLoading={state.isLoading}
               position="left"
