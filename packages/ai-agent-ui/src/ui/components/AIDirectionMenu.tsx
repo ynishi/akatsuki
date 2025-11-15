@@ -52,9 +52,19 @@ export function AIDirectionMenu({
       <div className="absolute bottom-full mb-2 left-0 z-50 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 max-h-96 overflow-y-auto">
         {/* ヘッダー */}
         <div className="px-4 py-2 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700">
-            方向性を選択
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">
+              方向性を選択
+            </h3>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="閉じる"
+            >
+              <span className="text-lg">✕</span>
+            </button>
+          </div>
           <p className="text-xs text-gray-500 mt-0.5">
             生成💫または修正🖌️を選んでください
           </p>

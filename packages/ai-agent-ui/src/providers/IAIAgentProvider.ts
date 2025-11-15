@@ -1,4 +1,4 @@
-import type { AIAgentContext, AIActionOptions, AIModel } from '../core/types';
+import type { AIAgentContext, AIActionOptions, AIModel, TokenUsage } from '../core/types';
 
 /**
  * AIエージェントプロバイダーインターフェース
@@ -92,4 +92,16 @@ export interface IAIAgentProvider {
    * @param modelId - 切り替え先のモデルID
    */
   setModel(modelId: string): void;
+
+  /**
+   * 現在のToken使用量を取得
+   *
+   * @returns Token使用量
+   */
+  getTokenUsage(): TokenUsage;
+
+  /**
+   * Token使用量をリセット
+   */
+  resetTokenUsage(): void;
 }

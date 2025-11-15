@@ -4,6 +4,7 @@ import { AIDirectionMenu } from './AIDirectionMenu';
 import { AIHistoryList } from './AIHistoryList';
 import { AICommandPanel } from './AICommandPanel';
 import { AIModelSelector } from './AIModelSelector';
+import { AITokenUsagePanel } from './AITokenUsagePanel';
 // @ts-ignore - Akatsuki専用パッケージなのでapp-frontendのコンポーネントを直接参照
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../app-frontend/src/components/ui/tooltip';
 
@@ -86,7 +87,7 @@ export function AIIconSet({
   position = 'bottom',
 }: AIIconSetProps) {
   // 開いているメニューを一つの状態で管理（同時に複数開かないようにする）
-  const [openMenu, setOpenMenu] = useState<'direction' | 'model' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'direction' | 'model' | 'token' | null>(null);
 
   const positionClasses = {
     top: 'bottom-full mb-2',
@@ -270,6 +271,14 @@ export function AIIconSet({
               onExecute={async (command) => {
                 await actions.executeCommand(command);
               }}
+              onExecuteSystemCommand={async (commandId) => {
+                await actions.executeSystemCommand(commandId);
+              }}
+              systemCommands={state.systemCommands}
+              savedPrompts={state.savedPrompts}
+              onSavePrompt={actions.savePrompt}
+              onDeletePrompt={actions.deletePrompt}
+              onUpdatePrompt={actions.updatePrompt}
               onClose={() => uiHandlers.toggleCommandPanel()}
               isLoading={state.isLoading}
               position="left"
@@ -302,6 +311,37 @@ export function AIIconSet({
               }}
               onClose={() => uiHandlers.toggleHistoryPanel()}
               isLoading={state.isLoading}
+              position="left"
+            />
+          )}
+        </div>
+
+        {/* 📊 Token使用量 */}
+        <div className="relative">
+          <TooltipButton
+            onClick={() => {
+              setOpenMenu(openMenu === 'token' ? null : 'token');
+              // コマンドと履歴のパネルも閉じる
+              if (uiState.showCommandPanel) {
+                uiHandlers.toggleCommandPanel();
+              }
+              if (uiState.showHistoryPanel) {
+                uiHandlers.toggleHistoryPanel();
+              }
+            }}
+            disabled={state.isLoading}
+            label="Token使用量"
+            className={iconButtonClass}
+          >
+            <span className="text-xl">📊</span>
+          </TooltipButton>
+
+          {/* Token使用量パネル */}
+          {openMenu === 'token' && (
+            <AITokenUsagePanel
+              tokenUsage={state.tokenUsage}
+              tokenLimits={state.tokenLimits}
+              onClose={() => setOpenMenu(null)}
               position="left"
             />
           )}

@@ -28,8 +28,8 @@ export interface AIModel {
   /** モデルID */
   id: string;
 
-  /** プロバイダー */
-  provider: 'google' | 'anthropic' | 'openai';
+  /** プロバイダー（AIServiceのprovider名と一致させる） */
+  provider: 'gemini' | 'anthropic' | 'openai';
 
   /** モデル名（APIで使用する名前） */
   name: string;
@@ -71,6 +71,83 @@ export interface MultiRunResult {
 
   /** エラー（失敗時） */
   error?: Error;
+}
+
+/**
+ * Token使用量
+ */
+export interface TokenUsage {
+  /** 入力トークン数 */
+  input: number;
+
+  /** 出力トークン数 */
+  output: number;
+
+  /** 合計トークン数 */
+  total: number;
+
+  /** コスト（オプション） */
+  cost?: number;
+}
+
+/**
+ * Token制限値
+ */
+export interface TokenLimits {
+  /** 最大トークン数（オプション） */
+  maxTokens?: number;
+
+  /** 最大コスト（オプション） */
+  maxCost?: number;
+
+  /** 警告閾値（オプション、0-1の範囲） */
+  warningThreshold?: number;
+}
+
+/**
+ * システムコマンド
+ */
+export interface SystemCommand {
+  /** コマンドID */
+  id: string;
+
+  /** コマンドタイプ */
+  type: 'hidden' | 'preset' | 'editable';
+
+  /** 表示ラベル */
+  label: string;
+
+  /** プロンプト内容 */
+  prompt: string;
+
+  /** カテゴリ（オプション） */
+  category?: string;
+
+  /** 編集可能か */
+  editable: boolean;
+
+  /** UI表示するか */
+  visible: boolean;
+
+  /** 説明（オプション） */
+  description?: string;
+}
+
+/**
+ * 保存されたPrompt（Editableタイプ）
+ */
+export interface SavedPrompt extends SystemCommand {
+  /** タイプは必ずeditable */
+  type: 'editable';
+
+  /** 作成日時 */
+  createdAt: number;
+
+  /** 更新日時 */
+  updatedAt: number;
+
+  /** 使用回数 */
+  usageCount: number;
 }
 
 /**
@@ -170,6 +247,12 @@ export interface AIRegisterOptions {
 
   /** カスタム方向性オプション */
   directions?: DirectionOption[];
+
+  /** カスタムシステムコマンド（Developer指定） */
+  systemCommands?: SystemCommand[];
+
+  /** Token制限値 */
+  tokenLimits?: TokenLimits;
 }
 
 /**
@@ -201,6 +284,18 @@ export interface AIRegisterResult {
 
     /** 🔄 Multi-Run（複数モデルで同時実行） */
     generateMulti: (modelIds: string[]) => Promise<MultiRunResult[]>;
+
+    /** 💾 Promptを保存 */
+    savePrompt: (label: string, prompt: string, category?: string) => void;
+
+    /** 🗑️ Promptを削除 */
+    deletePrompt: (promptId: string) => void;
+
+    /** ✏️ Promptを更新 */
+    updatePrompt: (promptId: string, updates: Partial<Pick<SavedPrompt, 'label' | 'prompt' | 'category'>>) => void;
+
+    /** 🎯 System Commandを実行 */
+    executeSystemCommand: (commandId: string) => Promise<void>;
   };
 
   /** 状態 */
@@ -234,6 +329,18 @@ export interface AIRegisterResult {
 
     /** Multi-Run結果（実行後のみ） */
     multiRunResults: MultiRunResult[] | null;
+
+    /** Token使用量 */
+    tokenUsage: TokenUsage;
+
+    /** Token制限値 */
+    tokenLimits: TokenLimits;
+
+    /** システムコマンド一覧 */
+    systemCommands: SystemCommand[];
+
+    /** 保存されたPrompt一覧 */
+    savedPrompts: SavedPrompt[];
   };
 }
 

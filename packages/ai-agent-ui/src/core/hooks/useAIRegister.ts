@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAIAgentContext } from '../context/AIAgentContext';
 import { useAIUndo } from './useAIUndo';
 import type {
@@ -7,6 +7,10 @@ import type {
   AIActionOptions,
   AIHistoryEntry,
   MultiRunResult,
+  TokenUsage,
+  TokenLimits,
+  SystemCommand,
+  SavedPrompt,
 } from '../types';
 
 /**
@@ -49,7 +53,7 @@ import type {
  */
 export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const { provider } = useAIAgentContext();
-  const { context, getValue, setValue, onError, onSuccess, directions } =
+  const { context, getValue, setValue, onError, onSuccess, directions, systemCommands, tokenLimits } =
     options;
 
   // Undo/Redo管理
@@ -64,6 +68,28 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   // モデル情報
   const availableModels = useMemo(() => provider.getSupportedModels(), [provider]);
   const [currentModel, setCurrentModelState] = useState(() => provider.getCurrentModel());
+
+  // Token管理
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage>(() => provider.getTokenUsage());
+  const limits: TokenLimits = useMemo(() => tokenLimits || {}, [tokenLimits]);
+
+  // Command管理
+  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+
+  // システムコマンド（Developer指定 + デフォルト）
+  const systemCommandsList = useMemo<SystemCommand[]>(() => {
+    const defaultCommands: SystemCommand[] = [];
+    const customCommands = systemCommands || [];
+    return [...defaultCommands, ...customCommands];
+  }, [systemCommands]);
+
+  // Token使用量の定期更新
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTokenUsage(provider.getTokenUsage());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [provider]);
 
   // 方向性オプション（カスタムまたはデフォルト）
   const directionsOptions = useMemo(() => {
@@ -329,6 +355,76 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     [provider, context, availableModels]
   );
 
+  /**
+   * 💾 Promptを保存
+   */
+  const savePrompt = useCallback(
+    (label: string, prompt: string, category?: string) => {
+      const newPrompt: SavedPrompt = {
+        id: `prompt-${Date.now()}-${Math.random()}`,
+        type: 'editable',
+        label,
+        prompt,
+        category,
+        editable: true,
+        visible: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        usageCount: 0,
+      };
+      setSavedPrompts((prev) => [newPrompt, ...prev]);
+    },
+    []
+  );
+
+  /**
+   * 🗑️ Promptを削除
+   */
+  const deletePrompt = useCallback((promptId: string) => {
+    setSavedPrompts((prev) => prev.filter((p) => p.id !== promptId));
+  }, []);
+
+  /**
+   * ✏️ Promptを更新
+   */
+  const updatePrompt = useCallback(
+    (promptId: string, updates: Partial<Pick<SavedPrompt, 'label' | 'prompt' | 'category'>>) => {
+      setSavedPrompts((prev) =>
+        prev.map((p) =>
+          p.id === promptId
+            ? { ...p, ...updates, updatedAt: Date.now() }
+            : p
+        )
+      );
+    },
+    []
+  );
+
+  /**
+   * 🎯 System Commandを実行
+   */
+  const executeSystemCommand = useCallback(
+    async (commandId: string) => {
+      const command = systemCommandsList.find((c) => c.id === commandId);
+      if (!command) {
+        throw new Error(`System command not found: ${commandId}`);
+      }
+
+      // SavedPromptの場合は使用回数をインクリメント
+      if (command.type === 'editable') {
+        setSavedPrompts((prev) =>
+          prev.map((p) =>
+            p.id === commandId ? { ...p, usageCount: p.usageCount + 1 } : p
+          )
+        );
+      }
+
+      // executeCommandを使用してコマンドを実行
+      await executeCommand(command.prompt);
+    },
+    [systemCommandsList, executeCommand]
+  );
+
   return {
     actions: {
       generate,
@@ -339,6 +435,10 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       executeCommand,
       setModel,
       generateMulti,
+      savePrompt,
+      deletePrompt,
+      updatePrompt,
+      executeSystemCommand,
     },
     state: {
       isLoading,
@@ -351,6 +451,10 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       availableModels,
       currentModel,
       multiRunResults,
+      tokenUsage,
+      tokenLimits: limits,
+      systemCommands: systemCommandsList,
+      savedPrompts,
     },
   };
 }

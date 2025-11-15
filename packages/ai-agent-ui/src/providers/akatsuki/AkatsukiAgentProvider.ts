@@ -1,5 +1,5 @@
 import type { IAIAgentProvider } from '../IAIAgentProvider';
-import type { AIAgentContext, AIActionOptions, AIModel } from '../../core/types';
+import type { AIAgentContext, AIActionOptions, AIModel, TokenUsage } from '../../core/types';
 
 // 型定義（app-frontendから実際に参照する際に使用）
 type AIService = {
@@ -53,7 +53,7 @@ function getAIService(): AIService {
 const DEFAULT_MODELS: AIModel[] = [
   {
     id: 'gemini-2.5-flash',
-    provider: 'google',
+    provider: 'gemini',
     name: 'gemini-2.5-flash',
     displayName: 'Gemini 2.5 Flash',
     type: 'fast',
@@ -61,7 +61,7 @@ const DEFAULT_MODELS: AIModel[] = [
   },
   {
     id: 'gemini-2.5-pro',
-    provider: 'google',
+    provider: 'gemini',
     name: 'gemini-2.5-pro',
     displayName: 'Gemini 2.5 Pro',
     type: 'think',
@@ -78,6 +78,12 @@ const DEFAULT_MODELS: AIModel[] = [
 export class AkatsukiAgentProvider implements IAIAgentProvider {
   private currentModelId: string = DEFAULT_MODELS[0].id;
   private models: AIModel[] = DEFAULT_MODELS;
+  private tokenUsage: TokenUsage = {
+    input: 0,
+    output: 0,
+    total: 0,
+    cost: 0,
+  };
   /**
    * コンテンツ生成
    */
@@ -358,5 +364,47 @@ export class AkatsukiAgentProvider implements IAIAgentProvider {
       throw new Error(`Model not found: ${modelId}`);
     }
     this.currentModelId = modelId;
+  }
+
+  /**
+   * 現在のToken使用量を取得
+   */
+  getTokenUsage(): TokenUsage {
+    return { ...this.tokenUsage };
+  }
+
+  /**
+   * Token使用量をリセット
+   */
+  resetTokenUsage(): void {
+    this.tokenUsage = {
+      input: 0,
+      output: 0,
+      total: 0,
+      cost: 0,
+    };
+  }
+
+  /**
+   * Token使用量を更新（内部用）
+   *
+   * 注: 現在のAIServiceはToken使用量を返さないため、
+   * このメソッドは将来的にAIServiceが拡張された際に使用する予定
+   *
+   * @param input - 入力トークン数
+   * @param output - 出力トークン数
+   */
+  updateTokenUsage(input: number, output: number): void {
+    this.tokenUsage.input += input;
+    this.tokenUsage.output += output;
+    this.tokenUsage.total = this.tokenUsage.input + this.tokenUsage.output;
+
+    // コスト計算（モデルのcostPerTokenが設定されている場合）
+    const currentModel = this.getCurrentModel();
+    if (currentModel.costPerToken) {
+      const inputCost = input * currentModel.costPerToken.input;
+      const outputCost = output * currentModel.costPerToken.output;
+      this.tokenUsage.cost = (this.tokenUsage.cost || 0) + inputCost + outputCost;
+    }
   }
 }
