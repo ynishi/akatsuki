@@ -22,6 +22,58 @@ export interface AIAgentContext {
 }
 
 /**
+ * AIモデル定義
+ */
+export interface AIModel {
+  /** モデルID */
+  id: string;
+
+  /** プロバイダー */
+  provider: 'google' | 'anthropic' | 'openai';
+
+  /** モデル名（APIで使用する名前） */
+  name: string;
+
+  /** 表示名 */
+  displayName: string;
+
+  /** モデルタイプ */
+  type: 'fast' | 'think' | 'vision';
+
+  /** 最大トークン数 */
+  maxTokens: number;
+
+  /** トークンあたりのコスト（オプション） */
+  costPerToken?: {
+    input: number;
+    output: number;
+  };
+}
+
+/**
+ * Multi-Run結果
+ */
+export interface MultiRunResult {
+  /** モデルID */
+  modelId: string;
+
+  /** モデル表示名 */
+  modelDisplayName: string;
+
+  /** 生成結果 */
+  result: string;
+
+  /** 実行時間（ミリ秒） */
+  duration: number;
+
+  /** 使用トークン数（オプション） */
+  tokensUsed?: number;
+
+  /** エラー（失敗時） */
+  error?: Error;
+}
+
+/**
  * AIアクションのオプション
  */
 export interface AIActionOptions {
@@ -30,6 +82,9 @@ export interface AIActionOptions {
 
   /** カスタムプロンプト */
   customPrompt?: string;
+
+  /** 使用するモデルID（指定しない場合は現在選択中のモデル） */
+  modelId?: string;
 }
 
 /**
@@ -140,6 +195,12 @@ export interface AIRegisterResult {
 
     /** 💬 コマンド実行 */
     executeCommand: (command: string) => Promise<void>;
+
+    /** 🎛️ モデル切り替え */
+    setModel: (modelId: string) => void;
+
+    /** 🔄 Multi-Run（複数モデルで同時実行） */
+    generateMulti: (modelIds: string[]) => Promise<MultiRunResult[]>;
   };
 
   /** 状態 */
@@ -164,6 +225,15 @@ export interface AIRegisterResult {
 
     /** 現在の履歴インデックス */
     currentIndex: number;
+
+    /** 利用可能なモデル一覧 */
+    availableModels: AIModel[];
+
+    /** 現在選択中のモデル */
+    currentModel: AIModel | null;
+
+    /** Multi-Run結果（実行後のみ） */
+    multiRunResults: MultiRunResult[] | null;
   };
 }
 

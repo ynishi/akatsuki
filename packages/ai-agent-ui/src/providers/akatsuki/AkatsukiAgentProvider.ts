@@ -1,5 +1,5 @@
 import type { IAIAgentProvider } from '../IAIAgentProvider';
-import type { AIAgentContext, AIActionOptions } from '../../core/types';
+import type { AIAgentContext, AIActionOptions, AIModel } from '../../core/types';
 
 // 型定義（app-frontendから実際に参照する際に使用）
 type AIService = {
@@ -48,12 +48,36 @@ function getAIService(): AIService {
 }
 
 /**
+ * デフォルトのモデル定義
+ */
+const DEFAULT_MODELS: AIModel[] = [
+  {
+    id: 'gemini-2.5-flash',
+    provider: 'google',
+    name: 'gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
+    type: 'fast',
+    maxTokens: 65536,
+  },
+  {
+    id: 'gemini-2.5-pro',
+    provider: 'google',
+    name: 'gemini-2.5-pro',
+    displayName: 'Gemini 2.5 Pro',
+    type: 'think',
+    maxTokens: 65536,
+  },
+];
+
+/**
  * Akatsuki AIエージェントプロバイダー
  *
  * 既存のAIServiceをラップして、IAIAgentProviderインターフェースを実装
  * EdgeFunctionService経由でSupabase Edge Functionsを利用
  */
 export class AkatsukiAgentProvider implements IAIAgentProvider {
+  private currentModelId: string = DEFAULT_MODELS[0].id;
+  private models: AIModel[] = DEFAULT_MODELS;
   /**
    * コンテンツ生成
    */
@@ -63,12 +87,15 @@ export class AkatsukiAgentProvider implements IAIAgentProvider {
   ): Promise<string> {
     const prompt = this.buildGeneratePrompt(context, options);
     const AIService = getAIService();
+    const model = options?.modelId
+      ? this.models.find((m) => m.id === options.modelId) || this.getCurrentModel()
+      : this.getCurrentModel();
 
     const response = await AIService.chat(prompt, {
-      provider: 'gemini',
-      model: 'gemini-2.5-flash',
+      provider: model.provider,
+      model: model.name,
       temperature: 0.7,
-      maxTokens: this.getMaxTokens(context),
+      maxTokens: model.maxTokens,
     });
 
     return response.text;
@@ -84,12 +111,15 @@ export class AkatsukiAgentProvider implements IAIAgentProvider {
   ): Promise<string> {
     const prompt = this.buildRefinePrompt(currentValue, context, options);
     const AIService = getAIService();
+    const model = options?.modelId
+      ? this.models.find((m) => m.id === options.modelId) || this.getCurrentModel()
+      : this.getCurrentModel();
 
     const response = await AIService.chat(prompt, {
-      provider: 'gemini',
-      model: 'gemini-2.5-flash',
+      provider: model.provider,
+      model: model.name,
       temperature: 0.7,
-      maxTokens: this.getMaxTokens(context),
+      maxTokens: model.maxTokens,
     });
 
     return response.text;
@@ -242,11 +272,12 @@ export class AkatsukiAgentProvider implements IAIAgentProvider {
   ): Promise<string> {
     const prompt = this.buildCommandPrompt(command, currentValue, context);
     const AIService = getAIService();
+    const model = this.getCurrentModel();
     const response = await AIService.chat(prompt, {
-      provider: 'gemini',
-      model: 'gemini-2.5-flash',
+      provider: model.provider,
+      model: model.name,
       temperature: 0.7,
-      maxTokens: this.getMaxTokens(context),
+      maxTokens: model.maxTokens,
     });
     return response.text;
   }
@@ -298,5 +329,34 @@ export class AkatsukiAgentProvider implements IAIAgentProvider {
   private getMaxTokens(_context: AIAgentContext): number {
     // Gemini 2.5 Flashの上限を使用
     return 65536;
+  }
+
+  /**
+   * 利用可能なモデル一覧を取得
+   */
+  getSupportedModels(): AIModel[] {
+    return this.models;
+  }
+
+  /**
+   * 現在選択中のモデルを取得
+   */
+  getCurrentModel(): AIModel {
+    const model = this.models.find((m) => m.id === this.currentModelId);
+    if (!model) {
+      throw new Error(`Model not found: ${this.currentModelId}`);
+    }
+    return model;
+  }
+
+  /**
+   * モデルを切り替え
+   */
+  setModel(modelId: string): void {
+    const model = this.models.find((m) => m.id === modelId);
+    if (!model) {
+      throw new Error(`Model not found: ${modelId}`);
+    }
+    this.currentModelId = modelId;
   }
 }

@@ -1,4 +1,4 @@
-import type { AIAgentContext, AIActionOptions } from '../core/types';
+import type { AIAgentContext, AIActionOptions, AIModel } from '../core/types';
 
 /**
  * AIエージェントプロバイダーインターフェース
@@ -71,4 +71,25 @@ export interface IAIAgentProvider {
     currentValue: string,
     context: AIAgentContext
   ): Promise<string>;
+
+  /**
+   * 利用可能なモデル一覧を取得
+   *
+   * @returns モデル一覧
+   */
+  getSupportedModels(): AIModel[];
+
+  /**
+   * 現在選択中のモデルを取得
+   *
+   * @returns 現在のモデル
+   */
+  getCurrentModel(): AIModel;
+
+  /**
+   * モデルを切り替え
+   *
+   * @param modelId - 切り替え先のモデルID
+   */
+  setModel(modelId: string): void;
 }

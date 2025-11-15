@@ -6,6 +6,7 @@ import type {
   AIRegisterResult,
   AIActionOptions,
   AIHistoryEntry,
+  MultiRunResult,
 } from '../types';
 
 /**
@@ -58,6 +59,11 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [history, setHistory] = useState<AIHistoryEntry[]>([]);
+  const [multiRunResults, setMultiRunResults] = useState<MultiRunResult[] | null>(null);
+
+  // モデル情報
+  const availableModels = useMemo(() => provider.getSupportedModels(), [provider]);
+  const [currentModel, setCurrentModelState] = useState(() => provider.getCurrentModel());
 
   // 方向性オプション（カスタムまたはデフォルト）
   const directionsOptions = useMemo(() => {
@@ -262,6 +268,67 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     [provider, context, getValue, setValue, undoRedo, addHistoryEntry, onSuccess, onError]
   );
 
+  /**
+   * 🎛️ モデル切り替えアクション
+   */
+  const setModel = useCallback(
+    (modelId: string) => {
+      provider.setModel(modelId);
+      setCurrentModelState(provider.getCurrentModel());
+    },
+    [provider]
+  );
+
+  /**
+   * 🔄 Multi-Run（複数モデルで同時実行）
+   */
+  const generateMulti = useCallback(
+    async (modelIds: string[]): Promise<MultiRunResult[]> => {
+      const results: MultiRunResult[] = [];
+
+      for (const modelId of modelIds) {
+        const startTime = Date.now();
+        const model = availableModels.find((m) => m.id === modelId);
+
+        if (!model) {
+          results.push({
+            modelId,
+            modelDisplayName: modelId,
+            result: '',
+            duration: 0,
+            error: new Error(`Model not found: ${modelId}`),
+          });
+          continue;
+        }
+
+        try {
+          const result = await provider.generate(context, { modelId });
+          const duration = Date.now() - startTime;
+
+          results.push({
+            modelId,
+            modelDisplayName: model.displayName,
+            result,
+            duration,
+          });
+        } catch (err) {
+          const duration = Date.now() - startTime;
+          results.push({
+            modelId,
+            modelDisplayName: model.displayName,
+            result: '',
+            duration,
+            error: err instanceof Error ? err : new Error(String(err)),
+          });
+        }
+      }
+
+      setMultiRunResults(results);
+      return results;
+    },
+    [provider, context, availableModels]
+  );
+
   return {
     actions: {
       generate,
@@ -270,6 +337,8 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       redo,
       jumpToHistory,
       executeCommand,
+      setModel,
+      generateMulti,
     },
     state: {
       isLoading,
@@ -279,6 +348,9 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       canRedo: undoRedo.canRedo,
       directions: directionsOptions,
       currentIndex: undoRedo.currentIndex,
+      availableModels,
+      currentModel,
+      multiRunResults,
     },
   };
 }
