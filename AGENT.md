@@ -1348,6 +1348,217 @@ await fetch('https://your-project.supabase.co/functions/v1/send-email', {
 * `packages/ui-components/` に `shadcn/ui` の主要コンポーネントを導入予定
 * 開発者は即座にコンポーネントを利用・カスタマイズ可能
 
+### 5.5. AI Agent UI Library (`@akatsuki/ai-agent-ui`)
+
+**Location:** `packages/ai-agent-ui/`
+
+テキスト入力フィールドに AI 機能を簡単に追加できる React コンポーネントライブラリです。
+
+#### 特徴
+
+- **Headless Architecture**: Core層（ロジック）とUI層（見た目）を完全分離
+- **Provider Pattern**: 複数のAIプロバイダーをサポート（OpenAI, Anthropic, Gemini等）
+- **i18n対応**: 英語・日本語の完全サポート（デフォルト: 英語）
+- **Type-Safe**: 全コンポーネント・型定義が完全にTypeScript化
+- **Zero Config**: デフォルト設定で即座に動作、必要に応じてカスタマイズ可能
+
+#### 基本的な使い方
+
+```tsx
+import {
+  AIAgentProvider,
+  useAIRegister,
+  useAIUI,
+  AITrigger,
+  AIIconSet,
+  AI_LABELS
+} from '@akatsuki/ai-agent-ui'
+
+function MyEditor() {
+  const [text, setText] = useState('')
+
+  // Core層: AI機能の登録
+  const ai = useAIRegister({
+    text,
+    onUpdate: setText,
+    provider: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+
+  // UI層: メニュー状態管理
+  const uiState = useAIUI()
+
+  return (
+    <div className="relative">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+
+      {/* AIトリガーボタン */}
+      <AITrigger
+        onClick={uiState.handlers.toggleMenu}
+        isActive={uiState.ui.isMenuOpen}
+        labels={AI_LABELS.ja} // 日本語UI
+      />
+
+      {/* AI機能メニュー */}
+      {uiState.ui.isMenuOpen && (
+        <AIIconSet
+          actions={ai.actions}
+          state={ai.state}
+          uiState={uiState.ui}
+          uiHandlers={uiState.handlers}
+          labels={AI_LABELS.ja} // 日本語UI
+        />
+      )}
+    </div>
+  )
+}
+
+// アプリ全体をProviderでラップ
+function App() {
+  return (
+    <AIAgentProvider>
+      <MyEditor />
+    </AIAgentProvider>
+  )
+}
+```
+
+#### コンポーネント一覧
+
+| コンポーネント | 説明 |
+|--------------|------|
+| `AITrigger` | AI機能を開くトリガーボタン（✨アイコン） |
+| `AIIconSet` | AI機能のメインメニュー（💫生成, 🖌️修正, ←戻す等） |
+| `AIDirectionMenu` | 生成方向性の選択パネル（フォーマル、カジュアル等） |
+| `AIModelSelector` | AIモデル選択パネル（Fast/Think、Multi-Run対応） |
+| `AICommandPanel` | カスタムコマンド入力・保存パネル |
+| `AIHistoryList` | 履歴表示・ジャンプパネル |
+| `AITokenUsagePanel` | Token使用量・コスト表示パネル |
+
+#### i18n（多言語対応）
+
+全UIコンポーネントは `labels` prop で言語を切り替え可能：
+
+```tsx
+// 英語（デフォルト）
+<AIIconSet
+  {...props}
+  // labels不要、デフォルトで英語
+/>
+
+// 日本語
+<AIIconSet
+  {...props}
+  labels={AI_LABELS.ja}
+/>
+
+// カスタムラベル
+<AIIconSet
+  {...props}
+  labels={{
+    generate: 'Crear',
+    refine: 'Refinar',
+    // ... スペイン語など
+  }}
+/>
+```
+
+**提供されるラベル:**
+- `AI_LABELS.en` - 英語ラベル（デフォルト）
+- `AI_LABELS.ja` - 日本語ラベル
+
+#### Headless Architecture（2層構造）
+
+**CORE層（ロジック）:**
+- `useAIRegister()` - AI機能の登録・実行
+- `useAIUI()` - UIメニュー状態管理
+- プロバイダー非依存の抽象化層
+
+**UI層（見た目）:**
+- 全UIコンポーネント（`AIIconSet`, `AITrigger`等）
+- デフォルトスタイル提供（カスタマイズ可能）
+- Radix UI ベース（アクセシビリティ対応）
+
+**利点:**
+- UIを自前実装してCore層のみ使用可能
+- デザインシステムに合わせたカスタマイズが容易
+- ロジックとUIの完全分離でテストが容易
+
+#### 高度な機能
+
+**方向性指定（Direction）:**
+```tsx
+const ai = useAIRegister({
+  // ...
+  directions: [
+    { id: 'formal', label: 'フォーマルに', description: 'ビジネス向け' },
+    { id: 'casual', label: 'カジュアルに', description: '親しみやすく' },
+  ]
+})
+```
+
+**システムコマンド:**
+```tsx
+const ai = useAIRegister({
+  // ...
+  systemCommands: [
+    { id: 'summarize', label: '要約', prompt: 'Summarize this text' },
+    { id: 'translate', label: '翻訳', prompt: 'Translate to English' },
+  ]
+})
+```
+
+**Multi-Model実行:**
+```tsx
+// 複数のモデルで並列実行し、結果を比較
+await ai.actions.generateMulti(['gpt-4', 'claude-sonnet-4'])
+```
+
+**Token使用量追跡:**
+```tsx
+// 使用量とコストを自動計算
+console.log(ai.state.tokenUsageDetails)
+// → { usage: { total, input, output, cost }, limits: {...}, warningLevel: 'normal' }
+```
+
+#### 依存関係
+
+**Peer Dependencies（プロジェクト側で提供）:**
+- `react` ^18.0.0
+- `react-dom` ^18.0.0
+- `@radix-ui/react-tooltip` ^1.0.0
+
+**重要:** ライブラリ自体は軽量で、Akatsuki固有の依存なし（他プロジェクトでも利用可能）
+
+#### エクスポート構造
+
+```tsx
+// 全部入り
+import { ... } from '@akatsuki/ai-agent-ui'
+
+// Core層のみ
+import { useAIRegister, useAIUI } from '@akatsuki/ai-agent-ui/core'
+
+// Providers層のみ
+import { OpenAIProvider } from '@akatsuki/ai-agent-ui/providers'
+
+// UI層のみ
+import { AIIconSet, AITrigger } from '@akatsuki/ai-agent-ui/ui'
+```
+
+#### 設計ドキュメント
+
+詳細は以下を参照：
+- `packages/ai-agent-ui/README.md` - セットアップ・基本的な使い方
+- `packages/ai-agent-ui/CORE_LOGIC_CONSOLIDATION.md` - Core層の設計思想
+- `packages/ai-agent-ui/TOKEN_LOGIC_CONSOLIDATION.md` - Token計算ロジック
+- `packages/ai-agent-ui/STORAGE_SCOPE_DESIGN.md` - ストレージスコープ設計
+
+---
+
 ## 6. 開発ルール (Rules)
 
 ここが最も重要です。「安定性」と「スピード」を維持するため、以下のルールを必ず遵守してください。
