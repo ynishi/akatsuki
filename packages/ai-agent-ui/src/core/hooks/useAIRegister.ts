@@ -13,6 +13,7 @@ import type {
   SystemCommand,
   SavedPrompt,
 } from '../types';
+import { calculateTokenUsageDetails } from '../utils/tokenCalculations';
 
 /**
  * AIエージェント機能のコアロジックフック（純粋なロジックのみ）
@@ -447,6 +448,12 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     [systemCommandsList, executeCommand]
   );
 
+  // Token使用量の詳細を計算（useMemoで最適化）
+  const tokenUsageDetails = useMemo(
+    () => calculateTokenUsageDetails(tokenUsage, limits),
+    [tokenUsage, limits]
+  );
+
   return {
     actions: {
       generate,
@@ -478,6 +485,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
       multiRunResults,
       tokenUsage,
       tokenLimits: limits,
+      tokenUsageDetails,
       systemCommands: systemCommandsList,
       savedPrompts,
     },

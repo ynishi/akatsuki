@@ -304,8 +304,7 @@ export function AIIconSet({
           {/* Token使用量パネル */}
           {uiState.openSubMenu === 'token' && (
             <AITokenUsagePanel
-              tokenUsage={state.tokenUsage}
-              tokenLimits={state.tokenLimits}
+              tokenUsageDetails={state.tokenUsageDetails}
               onClose={() => uiHandlers.toggleSubMenu('token')}
               position="left"
             />

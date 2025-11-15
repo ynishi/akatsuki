@@ -1,3 +1,6 @@
+// Token計算関連の型をre-export
+export type { TokenWarningLevel, TokenUsageDetails } from './utils/tokenCalculations';
+
 /**
  * AIエージェントのコンテキスト情報
  */
@@ -352,6 +355,9 @@ export interface AIRegisterResult {
 
     /** Token制限値 */
     tokenLimits: TokenLimits;
+
+    /** Token使用量の詳細情報（計算済み） */
+    tokenUsageDetails: import('./utils/tokenCalculations').TokenUsageDetails;
 
     /** システムコマンド一覧 */
     systemCommands: SystemCommand[];
