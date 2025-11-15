@@ -2,7 +2,7 @@
  * Providers module exports
  */
 
-// New Provider Architecture
+// Provider Architecture
 export * from './IAIProvider';
 export * from './ProviderRegistry';
 
@@ -10,9 +10,3 @@ export * from './ProviderRegistry';
 export * from './gemini/GeminiProvider';
 export * from './anthropic/AnthropicProvider';
 export * from './openai/OpenAIProvider';
-
-// Legacy Interface (will be deprecated)
-export * from './IAIAgentProvider';
-
-// Akatsuki implementation (legacy, will be deprecated)
-export { AkatsukiAgentProvider, setAIService } from './akatsuki/AkatsukiAgentProvider';

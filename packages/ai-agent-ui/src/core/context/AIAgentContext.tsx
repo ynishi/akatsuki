@@ -1,7 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { ProviderRegistry } from '../../providers/ProviderRegistry';
 import type { IAIProvider } from '../../providers/IAIProvider';
-import type { IAIAgentProvider } from '../../providers/IAIAgentProvider';
 
 /**
  * AIエージェントコンテキストの型定義
@@ -9,8 +8,6 @@ import type { IAIAgentProvider } from '../../providers/IAIAgentProvider';
 interface AIAgentContextValue {
   /** プロバイダーレジストリ */
   registry: ProviderRegistry;
-  /** レガシー: 単一プロバイダー（後方互換性のため残す） */
-  provider?: IAIAgentProvider;
 }
 
 /**
@@ -26,8 +23,6 @@ export interface AIAgentProviderProps {
   registry?: ProviderRegistry;
   /** または、プロバイダー配列（内部でRegistryを自動生成） */
   providers?: IAIProvider[];
-  /** レガシー: 単一プロバイダー（後方互換性のため残す、非推奨） */
-  provider?: IAIAgentProvider;
   /** 子要素 */
   children: ReactNode;
 }
@@ -73,7 +68,6 @@ export interface AIAgentProviderProps {
 export function AIAgentProvider({
   registry: providedRegistry,
   providers,
-  provider: legacyProvider,
   children,
 }: AIAgentProviderProps) {
   // Registryを作成または受け取る
@@ -93,9 +87,8 @@ export function AIAgentProvider({
   const value = useMemo(
     () => ({
       registry,
-      provider: legacyProvider, // 後方互換性のため残す
     }),
-    [registry, legacyProvider]
+    [registry]
   );
 
   return (
