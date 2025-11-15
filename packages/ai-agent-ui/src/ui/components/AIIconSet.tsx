@@ -231,6 +231,7 @@ export function AIIconSet({
                 }}
                 onClose={() => uiHandlers.toggleSubMenu('direction')}
                 isLoading={state.isLoading}
+                labels={labels}
               />
             )}
           </div>
@@ -266,6 +267,7 @@ export function AIIconSet({
               onClose={() => uiHandlers.toggleSubMenu('model')}
               isLoading={state.isLoading}
               position="left"
+              labels={labels}
             />
           )}
           </div>
@@ -300,6 +302,7 @@ export function AIIconSet({
               onClose={() => uiHandlers.toggleCommandPanel()}
               isLoading={state.isLoading}
               position="left"
+              labels={labels}
             />
           )}
           </div>
@@ -328,6 +331,7 @@ export function AIIconSet({
               onClose={() => uiHandlers.toggleHistoryPanel()}
               isLoading={state.isLoading}
               position="left"
+              labels={labels}
             />
           )}
           </div>
@@ -351,6 +355,7 @@ export function AIIconSet({
               tokenUsageDetails={state.tokenUsageDetails}
               onClose={() => uiHandlers.toggleSubMenu('token')}
               position="left"
+              labels={labels}
             />
           )}
           </div>

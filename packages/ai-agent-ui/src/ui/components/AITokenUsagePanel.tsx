@@ -1,4 +1,5 @@
-import type { TokenUsageDetails, AIPanelPosition } from '../../core/types';
+import type { TokenUsageDetails, AIPanelPosition, AILabels } from '../../core/types';
+import { AI_LABELS } from '../../core/types';
 
 /**
  * AITokenUsagePanelコンポーネントのProps
@@ -12,6 +13,8 @@ export interface AITokenUsagePanelProps {
   onClose: () => void;
   /** パネルの位置 */
   position?: AIPanelPosition;
+  /** UIラベル（i18n対応） */
+  labels?: AILabels;
 }
 
 /**
@@ -34,7 +37,11 @@ export function AITokenUsagePanel({
   onReset,
   onClose,
   position = 'center',
+  labels,
 }: AITokenUsagePanelProps) {
+  // ラベルをマージ（ユーザー提供のラベル > デフォルト英語ラベル）
+  const l = { ...AI_LABELS.en, ...labels };
+
   // UI層は計算結果を使うだけ
   const { usage, limits, warningLevel, tokenPercentage, costPercentage } = tokenUsageDetails;
 
@@ -75,13 +82,13 @@ export function AITokenUsagePanel({
         <div className={`px-4 py-3 border-b border-gray-200 ${levelBgColors[warningLevel]}`}>
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">
-              📊 Token使用量
+              {l.tokenTitle}
             </h3>
             <button
               type="button"
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="閉じる"
+              aria-label={l.close}
             >
               <span className="text-lg">✕</span>
             </button>
@@ -93,7 +100,7 @@ export function AITokenUsagePanel({
           {/* 合計トークン数 */}
           <div>
             <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-gray-600 font-semibold">合計</span>
+              <span className="text-gray-600 font-semibold">{l.tokenTotal}</span>
               <span className={`font-semibold ${levelColors[warningLevel]}`}>
                 {usage.total.toLocaleString()}
               </span>
@@ -116,13 +123,13 @@ export function AITokenUsagePanel({
             )}
             <div className="space-y-1 mt-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 pl-2">入力</span>
+                <span className="text-gray-500 pl-2">{l.tokenInput}</span>
                 <span className="text-gray-700">
                   {usage.input.toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 pl-2">出力</span>
+                <span className="text-gray-500 pl-2">{l.tokenOutput}</span>
                 <span className="text-gray-700">
                   {usage.output.toLocaleString()}
                 </span>
@@ -134,7 +141,7 @@ export function AITokenUsagePanel({
           {usage.byProvider && Object.keys(usage.byProvider).length > 0 && (
             <div className="space-y-3">
               <div className="text-xs font-semibold text-gray-600 border-b border-gray-200 pb-1">
-                プロバイダー別
+                {l.tokenByProvider}
               </div>
               {Object.entries(usage.byProvider).map(([provider, providerUsage]) => (
                 <div key={provider} className="space-y-1">
@@ -142,20 +149,20 @@ export function AITokenUsagePanel({
                     {provider}
                   </div>
                   <div className="flex items-center justify-between text-xs pl-2">
-                    <span className="text-gray-500">入力</span>
+                    <span className="text-gray-500">{l.tokenInput}</span>
                     <span className="text-gray-700">
                       {providerUsage.input.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs pl-2">
-                    <span className="text-gray-500">出力</span>
+                    <span className="text-gray-500">{l.tokenOutput}</span>
                     <span className="text-gray-700">
                       {providerUsage.output.toLocaleString()}
                     </span>
                   </div>
                   {providerUsage.cost !== undefined && providerUsage.cost > 0 && (
                     <div className="flex items-center justify-between text-xs pl-2">
-                      <span className="text-gray-500">コスト</span>
+                      <span className="text-gray-500">{l.tokenCost}</span>
                       <span className="text-gray-700">
                         ${providerUsage.cost.toFixed(4)}
                       </span>
@@ -170,7 +177,7 @@ export function AITokenUsagePanel({
           {usage.cost !== undefined && usage.cost > 0 && (
             <div className="pt-3 border-t border-gray-200">
               <div className="flex items-center justify-between text-sm mb-1">
-                <span className="text-gray-600">コスト</span>
+                <span className="text-gray-600">{l.tokenCost}</span>
                 <span className={`font-semibold ${levelColors[warningLevel]}`}>
                   ${usage.cost.toFixed(4)}
                 </span>
@@ -204,7 +211,7 @@ export function AITokenUsagePanel({
               }}
               className="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
             >
-              リセット
+              {l.tokenReset}
             </button>
           )}
         </div>
@@ -214,8 +221,8 @@ export function AITokenUsagePanel({
           <div className={`px-4 py-2 ${levelBgColors[warningLevel]} border-t border-gray-200`}>
             <p className={`text-xs ${levelColors[warningLevel]}`}>
               {warningLevel === 'danger'
-                ? '⚠️ 制限に達しました'
-                : '⚠️ 制限値に近づいています'}
+                ? l.tokenWarningDanger
+                : l.tokenWarningWarning}
             </p>
           </div>
         )}

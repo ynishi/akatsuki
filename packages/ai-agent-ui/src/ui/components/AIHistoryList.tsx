@@ -1,4 +1,5 @@
-import type { AIHistoryEntry, AIPanelPosition } from '../../core/types';
+import type { AIHistoryEntry, AIPanelPosition, AILabels } from '../../core/types';
+import { AI_LABELS } from '../../core/types';
 
 /**
  * AIHistoryListコンポーネントのProps
@@ -16,6 +17,8 @@ export interface AIHistoryListProps {
   isLoading?: boolean;
   /** パネルの位置 */
   position?: AIPanelPosition;
+  /** UIラベル（i18n対応） */
+  labels?: AILabels;
 }
 
 /**
@@ -40,7 +43,11 @@ export function AIHistoryList({
   onClose,
   isLoading = false,
   position = 'center',
+  labels,
 }: AIHistoryListProps) {
+  // ラベルをマージ（ユーザー提供のラベル > デフォルト英語ラベル）
+  const l = { ...AI_LABELS.en, ...labels };
+
   // 位置に応じたクラス
   const positionClasses = {
     left: 'left-0',
@@ -63,19 +70,19 @@ export function AIHistoryList({
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">
-              履歴
+              {l.historyTitle}
             </h3>
             <button
               type="button"
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="閉じる"
+              aria-label={l.close}
             >
               <span className="text-lg">✕</span>
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            {history.length}件の履歴 • 現在: {currentIndex + 1}
+            {l.historyCount(history.length, currentIndex + 1)}
           </p>
         </div>
 
@@ -83,15 +90,15 @@ export function AIHistoryList({
         <div className="overflow-y-auto flex-1">
           {history.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-sm">
-              履歴がありません
+              {l.historyEmpty}
             </div>
           ) : (
             <div className="p-2">
               {history.map((entry, index) => {
                 const isCurrent = index === currentIndex;
-                const actionLabel = entry.action === 'generate' ? '💫 生成' :
-                                   entry.action === 'refine' ? '🖌️ 修正' :
-                                   '💬 チャット';
+                const actionLabel = entry.action === 'generate' ? l.historyGenerate :
+                                   entry.action === 'refine' ? l.historyRefine :
+                                   l.historyChat;
 
                 return (
                   <button

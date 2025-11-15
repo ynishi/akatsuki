@@ -1,4 +1,5 @@
-import type { AITriggerSize, AITriggerPosition } from '../../core/types';
+import type { AITriggerSize, AITriggerPosition, AILabels } from '../../core/types';
+import { AI_LABELS } from '../../core/types';
 
 /**
  * AITriggerコンポーネントのProps
@@ -14,6 +15,8 @@ export interface AITriggerProps {
   position?: AITriggerPosition;
   /** アクティブ状態（メニューが開いているか） */
   isActive?: boolean;
+  /** UIラベル（i18n対応） */
+  labels?: AILabels;
 }
 
 /**
@@ -41,7 +44,11 @@ export function AITrigger({
   className = '',
   size = 'md',
   position = 'top-right',
+  labels,
 }: AITriggerProps) {
+  // ラベルをマージ（ユーザー提供のラベル > デフォルト英語ラベル）
+  const l = { ...AI_LABELS.en, ...labels };
+
   const sizeClasses = {
     sm: 'w-6 h-6 text-sm',
     md: 'w-8 h-8 text-base',
@@ -59,7 +66,7 @@ export function AITrigger({
     <button
       type="button"
       onClick={onClick}
-      aria-label={isActive ? 'AI機能を閉じる' : 'AI機能を開く'}
+      aria-label={isActive ? l.triggerClose : l.triggerOpen}
       className={`
         absolute ${positionClasses[position]} ${sizeClasses[size]}
         flex items-center justify-center

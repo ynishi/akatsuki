@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SystemCommand, SavedPrompt, AIPanelPosition } from '../../core/types';
+import type { SystemCommand, SavedPrompt, AIPanelPosition, AILabels } from '../../core/types';
 
 /**
  * AICommandPanelコンポーネントのProps
@@ -25,6 +25,8 @@ export interface AICommandPanelProps {
   isLoading?: boolean;
   /** パネルの位置 */
   position?: AIPanelPosition;
+  /** UIラベル（i18n対応） - 現在未実装だがinterfaceに含める */
+  labels?: AILabels;
 }
 
 /**

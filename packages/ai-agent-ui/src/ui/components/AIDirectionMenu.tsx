@@ -1,4 +1,5 @@
-import type { DirectionOption } from '../../core/types';
+import type { DirectionOption, AILabels } from '../../core/types';
+import { AI_LABELS } from '../../core/types';
 
 /**
  * AIDirectionMenuコンポーネントのProps
@@ -14,6 +15,8 @@ export interface AIDirectionMenuProps {
   onClose: () => void;
   /** ローディング中 */
   isLoading?: boolean;
+  /** UIラベル（i18n対応） */
+  labels?: AILabels;
 }
 
 /**
@@ -38,7 +41,11 @@ export function AIDirectionMenu({
   onRefine,
   onClose,
   isLoading = false,
+  labels,
 }: AIDirectionMenuProps) {
+  // ラベルをマージ（ユーザー提供のラベル > デフォルト英語ラベル）
+  const l = { ...AI_LABELS.en, ...labels };
+
   return (
     <>
       {/* オーバーレイ（クリックで閉じる） */}
@@ -54,19 +61,19 @@ export function AIDirectionMenu({
         <div className="px-4 py-2 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">
-              方向性を選択
+              {l.directionMenuTitle}
             </h3>
             <button
               type="button"
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="閉じる"
+              aria-label={l.close}
             >
               <span className="text-lg">✕</span>
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-0.5">
-            生成💫または修正🖌️を選んでください
+            {l.directionMenuDescription}
           </p>
         </div>
 
@@ -109,10 +116,10 @@ export function AIDirectionMenu({
                     disabled:opacity-50
                     disabled:cursor-not-allowed
                   "
-                  aria-label={`${direction.label}で生成`}
+                  aria-label={`${direction.label} - ${l.directionGenerate}`}
                 >
                   <span>💫</span>
-                  <span>生成</span>
+                  <span>{l.directionGenerate}</span>
                 </button>
 
                 {/* 🖌️ 修正 */}
@@ -133,10 +140,10 @@ export function AIDirectionMenu({
                     disabled:opacity-50
                     disabled:cursor-not-allowed
                   "
-                  aria-label={`${direction.label}で修正`}
+                  aria-label={`${direction.label} - ${l.directionRefine}`}
                 >
                   <span>🖌️</span>
-                  <span>修正</span>
+                  <span>{l.directionRefine}</span>
                 </button>
               </div>
             </div>
