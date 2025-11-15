@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { SystemCommand, SavedPrompt, AIPanelPosition, AILabels } from '../../core/types';
+import { AI_LABELS } from '../../core/types';
 
 /**
  * AICommandPanelコンポーネントのProps
@@ -62,7 +63,11 @@ export function AICommandPanel({
   onClose,
   isLoading = false,
   position = 'center',
+  labels,
 }: AICommandPanelProps) {
+  // ラベルをマージ（ユーザー提供のラベル > デフォルト英語ラベル）
+  const l = { ...AI_LABELS.en, ...labels };
+
   const [tab, setTab] = useState<'free' | 'system' | 'saved'>('free');
   const [command, setCommand] = useState('');
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
@@ -87,7 +92,7 @@ export function AICommandPanel({
 
   const handleSaveCurrentCommand = () => {
     if (!command.trim() || !onSavePrompt) return;
-    const inputLabel = prompt('Promptの名前を入力してください（空欄の場合は自動生成）:');
+    const inputLabel = prompt(l.commandSavePromptDialog);
 
     // キャンセルの場合は何もしない
     if (inputLabel === null) return;
@@ -135,13 +140,13 @@ export function AICommandPanel({
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-gray-700">
-              💬 AIコマンド
+              {l.commandTitle}
             </h3>
             <button
               type="button"
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="閉じる"
+              aria-label={l.close}
             >
               <span className="text-lg">✕</span>
             </button>
@@ -159,7 +164,7 @@ export function AICommandPanel({
                 }
               `}
             >
-              ✍️ フリー
+              {l.commandTabFree}
             </button>
             <button
               onClick={() => setTab('system')}
@@ -171,7 +176,7 @@ export function AICommandPanel({
                 }
               `}
             >
-              🎯 システム
+              {l.commandTabSystem}
             </button>
             <button
               onClick={() => setTab('saved')}
@@ -183,7 +188,7 @@ export function AICommandPanel({
                 }
               `}
             >
-              💾 保存済み ({savedPrompts.length})
+              {l.commandTabSaved(savedPrompts.length)}
             </button>
           </div>
         </div>
@@ -194,7 +199,7 @@ export function AICommandPanel({
             <textarea
               value={command}
               onChange={(e) => setCommand(e.target.value)}
-              placeholder="例: もっとフォーマルに書き直して"
+              placeholder={l.commandPlaceholder}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               rows={4}
               disabled={isLoading}
@@ -208,7 +213,7 @@ export function AICommandPanel({
                 disabled={!command.trim() || !onSavePrompt}
                 className="text-xs text-purple-600 hover:text-purple-700 disabled:opacity-50"
               >
-                💾 このコマンドを保存
+                {l.commandSaveCurrent}
               </button>
               <div className="flex gap-2">
                 <button
@@ -217,14 +222,14 @@ export function AICommandPanel({
                   className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   disabled={isLoading}
                 >
-                  キャンセル
+                  {l.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={!command.trim() || isLoading}
                   className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isLoading ? '実行中...' : '実行'}
+                  {isLoading ? l.commandExecuting : l.execute}
                 </button>
               </div>
             </div>
@@ -236,7 +241,7 @@ export function AICommandPanel({
           <div className="max-h-80 overflow-y-auto p-2">
             {visibleSystemCommands.length === 0 ? (
               <div className="p-8 text-center text-gray-400 text-sm">
-                システムコマンドがありません
+                {l.commandNoSystemCommands}
               </div>
             ) : (
               visibleSystemCommands.map((cmd) => (
@@ -270,9 +275,9 @@ export function AICommandPanel({
           <div className="max-h-80 overflow-y-auto p-2">
             {savedPrompts.length === 0 ? (
               <div className="p-8 text-center text-gray-400 text-sm">
-                保存されたPromptがありません
+                {l.commandNoSavedPrompts}
                 <br />
-                フリータブでコマンドを入力して保存してください
+                {l.commandNoSavedPromptsHint}
               </div>
             ) : (
               savedPrompts.map((p) => (
@@ -288,7 +293,7 @@ export function AICommandPanel({
                         value={editLabel}
                         onChange={(e) => setEditLabel(e.target.value)}
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        placeholder="ラベル"
+                        placeholder={l.commandLabelPlaceholder}
                       />
                       <textarea
                         value={editPrompt}
@@ -301,13 +306,13 @@ export function AICommandPanel({
                           onClick={handleUpdatePrompt}
                           className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
                         >
-                          保存
+                          {l.save}
                         </button>
                         <button
                           onClick={() => setEditingPromptId(null)}
                           className="px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 rounded"
                         >
-                          キャンセル
+                          {l.cancel}
                         </button>
                       </div>
                     </div>
@@ -323,7 +328,7 @@ export function AICommandPanel({
                             {p.prompt}
                           </div>
                           <div className="text-xs text-gray-400 mt-1">
-                            使用回数: {p.usageCount}回
+                            {l.commandUsageCount(p.usageCount)}
                           </div>
                         </div>
                         <div className="flex gap-1 ml-2">
@@ -337,14 +342,14 @@ export function AICommandPanel({
                             disabled={isLoading}
                             className="px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded"
                           >
-                            実行
+                            {l.execute}
                           </button>
                           {p.editable && onUpdatePrompt && (
                             <button
                               onClick={() => handleEditPrompt(p)}
                               className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
                             >
-                              編集
+                              {l.edit}
                             </button>
                           )}
                           {p.editable && onDeletePrompt && (
@@ -352,7 +357,7 @@ export function AICommandPanel({
                               onClick={() => onDeletePrompt(p.id)}
                               className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
                             >
-                              削除
+                              {l.delete}
                             </button>
                           )}
                         </div>

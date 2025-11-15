@@ -687,16 +687,34 @@ export interface AILabels {
   modelSelected?: string;
 
   // === AICommandPanel ===
-  /** Free command tab (default: "フリーコマンド") */
-  commandFree?: string;
-  /** System command tab (default: "システムコマンド") */
-  commandSystem?: string;
-  /** Saved prompts tab (default: "保存済みPrompt") */
-  commandSaved?: string;
-  /** Command input placeholder (default: "コマンドを入力") */
+  /** Command panel title (default: "💬 AIコマンド") */
+  commandTitle?: string;
+  /** Free command tab (default: "✍️ フリー") */
+  commandTabFree?: string;
+  /** System command tab (default: "🎯 システム") */
+  commandTabSystem?: string;
+  /** Saved prompts tab (default: "💾 保存済み") */
+  commandTabSaved?: (count: number) => string;
+  /** Command input placeholder (default: "例: もっとフォーマルに書き直して") */
   commandPlaceholder?: string;
+  /** Save current command button (default: "💾 このコマンドを保存") */
+  commandSaveCurrent?: string;
   /** Execute button (default: "実行") */
   execute?: string;
+  /** Executing state (default: "実行中...") */
+  commandExecuting?: string;
+  /** No system commands message (default: "システムコマンドがありません") */
+  commandNoSystemCommands?: string;
+  /** No saved prompts message (default: "保存されたPromptがありません") */
+  commandNoSavedPrompts?: string;
+  /** No saved prompts hint (default: "フリータブでコマンドを入力して保存してください") */
+  commandNoSavedPromptsHint?: string;
+  /** Label input placeholder (default: "ラベル") */
+  commandLabelPlaceholder?: string;
+  /** Usage count display (default: "使用回数: {count}回") */
+  commandUsageCount?: (count: number) => string;
+  /** Save prompt dialog message (default: "Promptの名前を入力してください（空欄の場合は自動生成）:") */
+  commandSavePromptDialog?: string;
   /** Save button (default: "保存") */
   save?: string;
   /** Edit button (default: "編集") */
@@ -782,11 +800,20 @@ export const AI_LABELS = {
     modelSelected: '選択中:',
 
     // AICommandPanel
-    commandFree: 'フリーコマンド',
-    commandSystem: 'システムコマンド',
-    commandSaved: '保存済みPrompt',
-    commandPlaceholder: 'コマンドを入力',
+    commandTitle: '💬 AIコマンド',
+    commandTabFree: '✍️ フリー',
+    commandTabSystem: '🎯 システム',
+    commandTabSaved: (count: number) => `💾 保存済み (${count})`,
+    commandPlaceholder: '例: もっとフォーマルに書き直して',
+    commandSaveCurrent: '💾 このコマンドを保存',
     execute: '実行',
+    commandExecuting: '実行中...',
+    commandNoSystemCommands: 'システムコマンドがありません',
+    commandNoSavedPrompts: '保存されたPromptがありません',
+    commandNoSavedPromptsHint: 'フリータブでコマンドを入力して保存してください',
+    commandLabelPlaceholder: 'ラベル',
+    commandUsageCount: (count: number) => `使用回数: ${count}回`,
+    commandSavePromptDialog: 'Promptの名前を入力してください（空欄の場合は自動生成）:',
     save: '保存',
     edit: '編集',
     delete: '削除',
@@ -847,11 +874,20 @@ export const AI_LABELS = {
     modelSelected: 'Selected:',
 
     // AICommandPanel
-    commandFree: 'Free Command',
-    commandSystem: 'System Command',
-    commandSaved: 'Saved Prompts',
-    commandPlaceholder: 'Enter command',
+    commandTitle: '💬 AI Command',
+    commandTabFree: '✍️ Free',
+    commandTabSystem: '🎯 System',
+    commandTabSaved: (count: number) => `💾 Saved (${count})`,
+    commandPlaceholder: 'e.g., Rewrite this more formally',
+    commandSaveCurrent: '💾 Save this command',
     execute: 'Execute',
+    commandExecuting: 'Executing...',
+    commandNoSystemCommands: 'No system commands',
+    commandNoSavedPrompts: 'No saved prompts',
+    commandNoSavedPromptsHint: 'Enter a command in the Free tab and save it',
+    commandLabelPlaceholder: 'Label',
+    commandUsageCount: (count: number) => `Used ${count} time${count !== 1 ? 's' : ''}`,
+    commandSavePromptDialog: 'Enter a name for the prompt (leave blank for auto-generation):',
     save: 'Save',
     edit: 'Edit',
     delete: 'Delete',
