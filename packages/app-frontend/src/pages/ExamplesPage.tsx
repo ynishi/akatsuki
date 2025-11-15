@@ -105,8 +105,8 @@ const ai = useAIRegister({
             </label>
             <button
               type="button"
-              onClick={bioUI.handlers.openMenu}
-              aria-label="AI機能を開く"
+              onClick={bioUI.handlers.toggleMenu}
+              aria-label={bioUI.ui.isMenuOpen ? 'AI機能を閉じる' : 'AI機能を開く'}
               className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <span className="text-sm animate-pulse">✨</span>
@@ -146,8 +146,8 @@ const ai = useAIRegister({
             </label>
             <button
               type="button"
-              onClick={titleUI.handlers.openMenu}
-              aria-label="AI機能を開く"
+              onClick={titleUI.handlers.toggleMenu}
+              aria-label={titleUI.ui.isMenuOpen ? 'AI機能を閉じる' : 'AI機能を開く'}
               className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <span className="text-sm animate-pulse">✨</span>
