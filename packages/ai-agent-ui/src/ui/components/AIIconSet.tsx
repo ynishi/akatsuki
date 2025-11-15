@@ -4,8 +4,7 @@ import { AIHistoryList } from './AIHistoryList';
 import { AICommandPanel } from './AICommandPanel';
 import { AIModelSelector } from './AIModelSelector';
 import { AITokenUsagePanel } from './AITokenUsagePanel';
-// @ts-ignore - Akatsuki専用パッケージなのでapp-frontendのコンポーネントを直接参照
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../app-frontend/src/components/ui/tooltip';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
 /**
  * AIIconSetコンポーネントのProps
@@ -26,7 +25,7 @@ export interface AIIconSetProps {
 }
 
 /**
- * Tooltipボタンコンポーネント（shadcn/ui Tooltip使用）
+ * Tooltipボタンコンポーネント（Radix UI Tooltip使用）
  */
 function TooltipButton({
   onClick,
@@ -42,22 +41,36 @@ function TooltipButton({
   className?: string;
 }) {
   return (
-    <Tooltip delayDuration={100}>
-      <TooltipTrigger asChild>
+    <Tooltip.Root delayDuration={300}>
+      <Tooltip.Trigger asChild>
         <button
           type="button"
           onClick={onClick}
           disabled={disabled}
-          className={className}
           aria-label={label}
+          className={className}
         >
           {children}
         </button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{label}</p>
-      </TooltipContent>
-    </Tooltip>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content
+          className="select-none rounded shadow-lg"
+          sideOffset={5}
+          style={{
+            zIndex: 9999,
+            backgroundColor: '#1f2937',
+            color: 'white',
+            padding: '0.5rem 0.75rem',
+            fontSize: '0.75rem',
+            fontWeight: 500,
+          }}
+        >
+          {label}
+          <Tooltip.Arrow style={{ fill: '#1f2937' }} />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
   );
 }
 
@@ -115,7 +128,7 @@ export function AIIconSet({
   `;
 
   return (
-    <TooltipProvider delayDuration={100}>
+    <Tooltip.Provider delayDuration={300}>
       <div
         className={`
           absolute ${positionClasses[position]}
@@ -336,6 +349,6 @@ export function AIIconSet({
         </div>
       )}
       </div>
-    </TooltipProvider>
+    </Tooltip.Provider>
   );
 }
