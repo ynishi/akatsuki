@@ -12,3 +12,7 @@ export * from './hooks/useAIUI';
 
 // Context
 export * from './context/AIAgentContext';
+
+// Storage
+export * from './storage/PromptStorage';
+export * from './storage/HistoryStorage';

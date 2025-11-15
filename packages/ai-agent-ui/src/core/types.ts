@@ -1,6 +1,27 @@
 // Token計算関連の型をre-export
 export type { TokenWarningLevel, TokenUsageDetails } from './utils/tokenCalculations';
 
+// Storage関連の型をre-export
+export type { PromptStorage } from './storage/PromptStorage';
+export type { HistoryStorage } from './storage/HistoryStorage';
+
+/**
+ * よく使われるプロバイダー名の定数
+ *
+ * Developerは独自のプロバイダー名を自由に定義できますが、
+ * 一般的なプロバイダーについては以下の定数を使用することを推奨します。
+ */
+export const COMMON_PROVIDERS = {
+  GEMINI: 'gemini',
+  ANTHROPIC: 'anthropic',
+  OPENAI: 'openai',
+} as const;
+
+/**
+ * よく使われるプロバイダー名の型
+ */
+export type CommonProvider = typeof COMMON_PROVIDERS[keyof typeof COMMON_PROVIDERS];
+
 /**
  * AIエージェントのコンテキスト情報
  */
@@ -31,8 +52,8 @@ export interface AIModel {
   /** モデルID */
   id: string;
 
-  /** プロバイダー（AIServiceのprovider名と一致させる） */
-  provider: 'gemini' | 'anthropic' | 'openai';
+  /** プロバイダー名（任意の文字列、COMMON_PROVIDERS推奨） */
+  provider: string;
 
   /** モデル名（APIで使用する名前） */
   name: string;
@@ -194,6 +215,23 @@ export interface AIHistoryEntry {
   direction?: string;
   value: string;
   context: AIAgentContext;
+
+  /** 使用したモデルID */
+  modelId: string;
+
+  /** 使用したプロバイダー名 */
+  provider: string;
+
+  /** カスタムプロンプト（指定された場合） */
+  customPrompt?: string;
+
+  /** 使用トークン数（取得できた場合） */
+  tokensUsed?: number;
+
+  /** 実行時間（ミリ秒） */
+  duration?: number;
+
+  /** その他のメタデータ */
   metadata?: Record<string, unknown>;
 }
 
@@ -264,6 +302,77 @@ export interface AIRegisterOptions {
 
   /** Token制限値 */
   tokenLimits?: TokenLimits;
+
+  /**
+   * Prompt永続化ストレージ（オプション）
+   *
+   * 提供しない場合、デフォルトのメモリ内ストレージを使用（リロードで消える）
+   *
+   * @example
+   * ```typescript
+   * // LocalStorage実装を使用
+   * promptStorage: new LocalStoragePromptStorage('ai-prompts')
+   *
+   * // API実装を使用
+   * promptStorage: new ApiPromptStorage('/api/prompts')
+   * ```
+   */
+  promptStorage?: import('./storage/PromptStorage').PromptStorage;
+
+  /**
+   * ストレージのスコープ（オプション）
+   *
+   * Developer側でスコープを自由に定義可能。
+   *
+   * @example
+   * ```typescript
+   * // フォーム単位で保存
+   * promptStorageScope: `form-${formId}`
+   *
+   * // ユーザー単位で保存
+   * promptStorageScope: `user-${userId}`
+   *
+   * // サービス単位で保存
+   * promptStorageScope: 'service-blog'
+   *
+   * // グローバルで保存
+   * promptStorageScope: 'global'
+   * ```
+   */
+  promptStorageScope?: string;
+
+  /**
+   * 履歴永続化ストレージ（オプション）
+   *
+   * 提供しない場合、デフォルトのメモリ内ストレージを使用（リロードで消える）
+   *
+   * @example
+   * ```typescript
+   * // LocalStorage実装を使用
+   * historyStorage: new LocalStorageHistoryStorage('ai-history')
+   *
+   * // API実装を使用
+   * historyStorage: new ApiHistoryStorage('/api/history')
+   * ```
+   */
+  historyStorage?: import('./storage/HistoryStorage').HistoryStorage;
+
+  /**
+   * 履歴ストレージのスコープ（オプション）
+   *
+   * Developer側でスコープを自由に定義可能。
+   * 基本的には履歴はForm限定が多いが、インターフェース自体は開けておく。
+   *
+   * @example
+   * ```typescript
+   * // フォーム単位で保存（推奨）
+   * historyStorageScope: `form-${formId}`
+   *
+   * // User + Form単位で保存
+   * historyStorageScope: `user-${userId}:form-${formId}`
+   * ```
+   */
+  historyStorageScope?: string;
 }
 
 /**
@@ -319,6 +428,12 @@ export interface AIRegisterResult {
   state: {
     /** ローディング中 */
     isLoading: boolean;
+
+    /** Promptsローディング中 */
+    isLoadingPrompts: boolean;
+
+    /** 履歴ローディング中 */
+    isLoadingHistory: boolean;
 
     /** エラー */
     error: Error | null;

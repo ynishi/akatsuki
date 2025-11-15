@@ -14,6 +14,8 @@ import type {
   SavedPrompt,
 } from '../types';
 import { calculateTokenUsageDetails } from '../utils/tokenCalculations';
+import { InMemoryPromptStorage } from '../storage/PromptStorage';
+import { InMemoryHistoryStorage } from '../storage/HistoryStorage';
 
 /**
  * AIエージェント機能のコアロジックフック（純粋なロジックのみ）
@@ -55,8 +57,20 @@ import { calculateTokenUsageDetails } from '../utils/tokenCalculations';
  */
 export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const { registry } = useAIAgentContext();
-  const { context, getValue, setValue, onError, onSuccess, directions, systemCommands, tokenLimits } =
-    options;
+  const {
+    context,
+    getValue,
+    setValue,
+    onError,
+    onSuccess,
+    directions,
+    systemCommands,
+    tokenLimits,
+    promptStorage,
+    promptStorageScope,
+    historyStorage,
+    historyStorageScope,
+  } = options;
 
   // Undo/Redo管理
   const undoRedo = useAIUndo<string>(getValue());
@@ -92,15 +106,82 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   const [tokenUsage, setTokenUsage] = useState<TokenUsage>(() => registry.getTotalTokenUsage());
   const limits: TokenLimits = useMemo(() => tokenLimits || {}, [tokenLimits]);
 
-  // Command管理
-  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+  // Promptストレージ（提供されない場合はメモリ内ストレージ）
+  const promptStorageInstance = useMemo(
+    () => promptStorage || new InMemoryPromptStorage(),
+    [promptStorage]
+  );
 
-  // システムコマンド（Developer指定 + デフォルト）
+  // 履歴ストレージ（提供されない場合はメモリ内ストレージ）
+  const historyStorageInstance = useMemo(
+    () => historyStorage || new InMemoryHistoryStorage(),
+    [historyStorage]
+  );
+
+  // Promptをストレージから読み込み
+  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+  const [isLoadingPrompts, setIsLoadingPrompts] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPrompts = async () => {
+      try {
+        const prompts = await promptStorageInstance.load(promptStorageScope);
+        if (!cancelled) {
+          setSavedPrompts(prompts);
+          setIsLoadingPrompts(false);
+        }
+      } catch (error) {
+        console.error('Failed to load prompts:', error);
+        if (!cancelled) {
+          setIsLoadingPrompts(false);
+        }
+      }
+    };
+
+    loadPrompts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [promptStorageInstance, promptStorageScope]);
+
+  // 履歴をストレージから読み込み
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        const loadedHistory = await historyStorageInstance.load(historyStorageScope);
+        if (!cancelled) {
+          setHistory(loadedHistory);
+          setIsLoadingHistory(false);
+        }
+      } catch (error) {
+        console.error('Failed to load history:', error);
+        if (!cancelled) {
+          setIsLoadingHistory(false);
+        }
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [historyStorageInstance, historyStorageScope]);
+
+  // システムコマンド（Developer指定 + デフォルト + 保存されたPrompt）
   const systemCommandsList = useMemo<SystemCommand[]>(() => {
     const defaultCommands: SystemCommand[] = [];
     const customCommands = systemCommands || [];
-    return [...defaultCommands, ...customCommands];
-  }, [systemCommands]);
+    // SavedPromptもSystemCommandとして扱う（editableタイプ）
+    return [...defaultCommands, ...customCommands, ...savedPrompts];
+  }, [systemCommands, savedPrompts]);
 
   // Token使用量の定期更新
   useEffect(() => {
@@ -151,25 +232,46 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
   }, [directions]);
 
   /**
-   * 履歴にエントリを追加
+   * 履歴にエントリを追加（非同期・ストレージに保存）
    */
   const addHistoryEntry = useCallback(
-    (
-      action: 'generate' | 'refine' | 'chat',
-      value: string,
-      direction?: string
-    ) => {
+    async (params: {
+      action: 'generate' | 'refine' | 'chat';
+      value: string;
+      modelId: string;
+      provider: string;
+      direction?: string;
+      customPrompt?: string;
+      tokensUsed?: number;
+      duration?: number;
+    }) => {
       const entry: AIHistoryEntry = {
         id: `${Date.now()}-${Math.random()}`,
         timestamp: Date.now(),
-        action,
-        direction,
-        value,
+        action: params.action,
+        direction: params.direction,
+        value: params.value,
         context,
+        modelId: params.modelId,
+        provider: params.provider,
+        customPrompt: params.customPrompt,
+        tokensUsed: params.tokensUsed,
+        duration: params.duration,
       };
-      setHistory((prev) => [entry, ...prev].slice(0, 50)); // 最大50件
+
+      const updatedHistory = [entry, ...history].slice(0, 50); // 最大50件
+      setHistory(updatedHistory);
+
+      // ストレージに保存（非同期）
+      try {
+        await historyStorageInstance.save(updatedHistory, historyStorageScope);
+      } catch (error) {
+        console.error('Failed to save history:', error);
+        // エラー時はロールバック
+        setHistory(history);
+      }
     },
-    [context]
+    [context, history, historyStorageInstance, historyStorageScope]
   );
 
   /**
@@ -185,23 +287,37 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         return;
       }
 
+      const startTime = Date.now();
+
       try {
         setIsLoading(true);
         setError(null);
 
-        const { provider } = registry.findProviderAndModel(modelId);
-        if (!provider) {
+        const { provider, model } = registry.findProviderAndModel(modelId);
+        if (!provider || !model) {
           throw new Error(`Provider not found for model: ${modelId}`);
         }
 
         const result = await provider.generate(modelId, context, actionOptions);
+        const duration = Date.now() - startTime;
 
         // 値を設定
         setValue(result.text);
         undoRedo.setValue(result.text);
 
-        // 履歴に追加
-        addHistoryEntry('generate', result.text, actionOptions?.direction);
+        // 履歴に追加（詳細情報付き）
+        await addHistoryEntry({
+          action: 'generate',
+          value: result.text,
+          modelId,
+          provider: model.provider,
+          direction: actionOptions?.direction,
+          customPrompt: actionOptions?.customPrompt,
+          tokensUsed: result.usage
+            ? result.usage.inputTokens + result.usage.outputTokens
+            : undefined,
+          duration,
+        });
 
         // 成功コールバック
         onSuccess?.(result.text, 'generate');
@@ -229,24 +345,38 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         return;
       }
 
+      const startTime = Date.now();
+
       try {
         setIsLoading(true);
         setError(null);
 
-        const { provider } = registry.findProviderAndModel(modelId);
-        if (!provider) {
+        const { provider, model } = registry.findProviderAndModel(modelId);
+        if (!provider || !model) {
           throw new Error(`Provider not found for model: ${modelId}`);
         }
 
         const currentValue = getValue();
         const result = await provider.refine(modelId, currentValue, context, actionOptions);
+        const duration = Date.now() - startTime;
 
         // 値を設定
         setValue(result.text);
         undoRedo.setValue(result.text);
 
-        // 履歴に追加
-        addHistoryEntry('refine', result.text, actionOptions?.direction);
+        // 履歴に追加（詳細情報付き）
+        await addHistoryEntry({
+          action: 'refine',
+          value: result.text,
+          modelId,
+          provider: model.provider,
+          direction: actionOptions?.direction,
+          customPrompt: actionOptions?.customPrompt,
+          tokensUsed: result.usage
+            ? result.usage.inputTokens + result.usage.outputTokens
+            : undefined,
+          duration,
+        });
 
         // 成功コールバック
         onSuccess?.(result.text, 'refine');
@@ -311,24 +441,37 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         return;
       }
 
+      const startTime = Date.now();
+
       try {
         setIsLoading(true);
         setError(null);
 
-        const { provider } = registry.findProviderAndModel(modelId);
-        if (!provider) {
+        const { provider, model } = registry.findProviderAndModel(modelId);
+        if (!provider || !model) {
           throw new Error(`Provider not found for model: ${modelId}`);
         }
 
         const currentValue = getValue();
         const result = await provider.executeCommand(modelId, command, currentValue, context);
+        const duration = Date.now() - startTime;
 
         // 値を設定
         setValue(result.text);
         undoRedo.setValue(result.text);
 
-        // 履歴に追加
-        addHistoryEntry('chat', result.text);
+        // 履歴に追加（詳細情報付き）
+        await addHistoryEntry({
+          action: 'chat',
+          value: result.text,
+          modelId,
+          provider: model.provider,
+          customPrompt: command,
+          tokensUsed: result.usage
+            ? result.usage.inputTokens + result.usage.outputTokens
+            : undefined,
+          duration,
+        });
 
         // 成功コールバック
         onSuccess?.(result.text, 'chat');
@@ -382,7 +525,7 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
    * 💾 Promptを保存
    */
   const savePrompt = useCallback(
-    (label: string, prompt: string, category?: string) => {
+    async (label: string, prompt: string, category?: string) => {
       const newPrompt: SavedPrompt = {
         id: `prompt-${Date.now()}-${Math.random()}`,
         type: 'editable',
@@ -395,32 +538,69 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         updatedAt: Date.now(),
         usageCount: 0,
       };
-      setSavedPrompts((prev) => [newPrompt, ...prev]);
+
+      const updatedPrompts = [newPrompt, ...savedPrompts];
+      setSavedPrompts(updatedPrompts);
+
+      // ストレージに保存（非同期）
+      try {
+        await promptStorageInstance.save(updatedPrompts, promptStorageScope);
+      } catch (error) {
+        console.error('Failed to save prompt:', error);
+        // エラー時はロールバック
+        setSavedPrompts(savedPrompts);
+      }
     },
-    []
+    [savedPrompts, promptStorageInstance, promptStorageScope]
   );
 
   /**
    * 🗑️ Promptを削除
    */
-  const deletePrompt = useCallback((promptId: string) => {
-    setSavedPrompts((prev) => prev.filter((p) => p.id !== promptId));
-  }, []);
+  const deletePrompt = useCallback(
+    async (promptId: string) => {
+      const updatedPrompts = savedPrompts.filter((p) => p.id !== promptId);
+      setSavedPrompts(updatedPrompts);
+
+      try {
+        // deleteメソッドがある場合は使用
+        if (promptStorageInstance.delete) {
+          await promptStorageInstance.delete(promptId, promptStorageScope);
+        } else {
+          // ない場合はsaveで上書き
+          await promptStorageInstance.save(updatedPrompts, promptStorageScope);
+        }
+      } catch (error) {
+        console.error('Failed to delete prompt:', error);
+        // エラー時はロールバック
+        setSavedPrompts(savedPrompts);
+      }
+    },
+    [savedPrompts, promptStorageInstance, promptStorageScope]
+  );
 
   /**
    * ✏️ Promptを更新
    */
   const updatePrompt = useCallback(
-    (promptId: string, updates: Partial<Pick<SavedPrompt, 'label' | 'prompt' | 'category'>>) => {
-      setSavedPrompts((prev) =>
-        prev.map((p) =>
-          p.id === promptId
-            ? { ...p, ...updates, updatedAt: Date.now() }
-            : p
-        )
+    async (
+      promptId: string,
+      updates: Partial<Pick<SavedPrompt, 'label' | 'prompt' | 'category'>>
+    ) => {
+      const updatedPrompts = savedPrompts.map((p) =>
+        p.id === promptId ? { ...p, ...updates, updatedAt: Date.now() } : p
       );
+      setSavedPrompts(updatedPrompts);
+
+      try {
+        await promptStorageInstance.save(updatedPrompts, promptStorageScope);
+      } catch (error) {
+        console.error('Failed to update prompt:', error);
+        // エラー時はロールバック
+        setSavedPrompts(savedPrompts);
+      }
     },
-    []
+    [savedPrompts, promptStorageInstance, promptStorageScope]
   );
 
   /**
@@ -433,19 +613,27 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
         throw new Error(`System command not found: ${commandId}`);
       }
 
-      // SavedPromptの場合は使用回数をインクリメント
+      // SavedPromptの場合は使用回数をインクリメント＋ストレージに保存
       if (command.type === 'editable') {
-        setSavedPrompts((prev) =>
-          prev.map((p) =>
-            p.id === commandId ? { ...p, usageCount: p.usageCount + 1 } : p
-          )
+        const updatedPrompts = savedPrompts.map((p) =>
+          p.id === commandId ? { ...p, usageCount: p.usageCount + 1 } : p
         );
+        setSavedPrompts(updatedPrompts);
+
+        // ストレージに保存（非同期）
+        try {
+          await promptStorageInstance.save(updatedPrompts, promptStorageScope);
+        } catch (error) {
+          console.error('Failed to save usage count:', error);
+          // エラー時はロールバック
+          setSavedPrompts(savedPrompts);
+        }
       }
 
       // executeCommandを使用してコマンドを実行
       await executeCommand(command.prompt);
     },
-    [systemCommandsList, executeCommand]
+    [systemCommandsList, executeCommand, savedPrompts, promptStorageInstance, promptStorageScope]
   );
 
   // Token使用量の詳細を計算（useMemoで最適化）
@@ -473,6 +661,8 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     },
     state: {
       isLoading,
+      isLoadingPrompts,
+      isLoadingHistory,
       error,
       history,
       canUndo: undoRedo.canUndo,
