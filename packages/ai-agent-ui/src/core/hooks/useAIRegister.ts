@@ -200,33 +200,33 @@ export function useAIRegister(options: AIRegisterOptions): AIRegisterResult {
     return [
       {
         id: 'formal',
-        label: 'フォーマルに',
-        description: 'ビジネスや公式な場面に適した丁寧な表現',
+        label: 'Formal',
+        description: 'Polite expression suitable for business or official situations',
       },
       {
         id: 'casual',
-        label: 'カジュアルに',
-        description: '親しみやすく、リラックスした表現',
+        label: 'Casual',
+        description: 'Friendly and relaxed expression',
       },
       {
         id: 'concise',
-        label: '簡潔に',
-        description: '要点を絞った短い表現',
+        label: 'Concise',
+        description: 'Brief expression focused on key points',
       },
       {
         id: 'detailed',
-        label: '詳しく',
-        description: '詳細な説明と具体例を含む表現',
+        label: 'Detailed',
+        description: 'Expression with detailed explanations and examples',
       },
       {
         id: 'professional',
-        label: '専門的に',
-        description: '専門用語を使った技術的な表現',
+        label: 'Professional',
+        description: 'Technical expression using professional terminology',
       },
       {
         id: 'friendly',
-        label: '友好的に',
-        description: '温かみがあり、親しみやすい表現',
+        label: 'Friendly',
+        description: 'Warm and approachable expression',
       },
     ];
   }, [directions]);

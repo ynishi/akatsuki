@@ -1,4 +1,5 @@
-import type { AIRegisterResult, AIUIResult } from '../../core/types';
+import type { AIRegisterResult, AIUIResult, AILabels, AIButtonId, AIIconSetPosition } from '../../core/types';
+import { AI_LABELS } from '../../core/types';
 import { AIDirectionMenu } from './AIDirectionMenu';
 import { AIHistoryList } from './AIHistoryList';
 import { AICommandPanel } from './AICommandPanel';
@@ -21,7 +22,11 @@ export interface AIIconSetProps {
   /** カスタムクラス名 */
   className?: string;
   /** 位置 */
-  position?: 'top' | 'bottom' | 'left' | 'right';
+  position?: AIIconSetPosition;
+  /** 非表示にするボタン */
+  hideButtons?: AIButtonId[];
+  /** UIラベル（i18n対応） */
+  labels?: AILabels;
 }
 
 /**
@@ -97,6 +102,8 @@ export function AIIconSet({
   uiHandlers,
   className = '',
   position = 'bottom',
+  hideButtons = [],
+  labels,
 }: AIIconSetProps) {
   // サブメニュー状態はCore層（useAIUI）で管理
 
@@ -106,6 +113,12 @@ export function AIIconSet({
     left: 'right-full mr-2',
     right: 'left-full ml-2',
   };
+
+  // ボタン表示判定ヘルパー
+  const shouldShow = (buttonId: string) => !hideButtons.includes(buttonId as any);
+
+  // ラベルをマージ（ユーザー提供のラベル > デフォルト英語ラベル）
+  const l = { ...AI_LABELS.en, ...labels };
 
   /**
    * アイコンボタンの共通スタイル
@@ -140,84 +153,96 @@ export function AIIconSet({
         <div className="flex items-center gap-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200">
         {/* === 左半分: シンプル系 === */}
         {/* 💫 生成 */}
-        <TooltipButton
-          onClick={() => {
-            actions.generate();
-            uiHandlers.closeMenu();
-          }}
-          disabled={state.isLoading}
-          label="生成"
-          className={iconButtonClass}
-        >
-          <span className="text-xl">💫</span>
-        </TooltipButton>
+        {shouldShow('generate') && (
+          <TooltipButton
+            onClick={() => {
+              actions.generate();
+              uiHandlers.closeMenu();
+            }}
+            disabled={state.isLoading}
+            label={l.generate}
+            className={iconButtonClass}
+          >
+            <span className="text-xl">💫</span>
+          </TooltipButton>
+        )}
 
         {/* 🖌️ 修正 */}
-        <TooltipButton
-          onClick={() => {
-            actions.refine();
-            uiHandlers.closeMenu();
-          }}
-          disabled={state.isLoading}
-          label="修正"
-          className={iconButtonClass}
-        >
-          <span className="text-xl">🖌️</span>
-        </TooltipButton>
+        {shouldShow('refine') && (
+          <TooltipButton
+            onClick={() => {
+              actions.refine();
+              uiHandlers.closeMenu();
+            }}
+            disabled={state.isLoading}
+            label={l.refine}
+            className={iconButtonClass}
+          >
+            <span className="text-xl">🖌️</span>
+          </TooltipButton>
+        )}
 
         {/* ← 元に戻す */}
-        <TooltipButton
-          onClick={() => {
-            actions.undo();
-          }}
-          disabled={!state.canUndo || state.isLoading}
-          label="元に戻す"
-          className={iconButtonClass}
-        >
-          <span className="text-xl">←</span>
-        </TooltipButton>
+        {shouldShow('undo') && (
+          <TooltipButton
+            onClick={() => {
+              actions.undo();
+            }}
+            disabled={!state.canUndo || state.isLoading}
+            label={l.undo}
+            className={iconButtonClass}
+          >
+            <span className="text-xl">←</span>
+          </TooltipButton>
+        )}
 
-        {/* 区切り線 */}
-        <div className="w-px h-8 bg-gray-200" />
+        {/* 区切り線（左側にボタンがあり、右側にもボタンがある場合のみ） */}
+        {(shouldShow('generate') || shouldShow('refine') || shouldShow('undo')) &&
+         (shouldShow('direction') || shouldShow('model') || shouldShow('command') || shouldShow('history') || shouldShow('token')) && (
+          <div className="w-px h-8 bg-gray-200" />
+        )}
 
         {/* === 右半分: 詳細指定系 === */}
         {/* 🎚️ 方向性指定 */}
-        <div className="relative">
-          <TooltipButton
-            onClick={() => uiHandlers.toggleSubMenu('direction')}
-            disabled={state.isLoading}
-            label="方向性を指定"
-            className={iconButtonClass}
-          >
-            <span className="text-xl">🎚️</span>
-          </TooltipButton>
+        {shouldShow('direction') && (
+          <div className="relative">
+            <TooltipButton
+              onClick={() => uiHandlers.toggleSubMenu('direction')}
+              disabled={state.isLoading}
+              label={l.direction}
+              className={iconButtonClass}
+            >
+              <span className="text-xl">🎚️</span>
+            </TooltipButton>
 
-          {/* 方向性メニュー */}
-          {uiState.openSubMenu === 'direction' && (
-            <AIDirectionMenu
-              directions={state.directions}
-              onGenerate={(direction) => {
-                actions.generate({ direction });
-                uiHandlers.closeAllMenus();
-                uiHandlers.closeMenu();
-              }}
-              onRefine={(direction) => {
-                actions.refine({ direction });
-                uiHandlers.closeAllMenus();
-                uiHandlers.closeMenu();
-              }}
-              onClose={() => uiHandlers.toggleSubMenu('direction')}
-              isLoading={state.isLoading}
-            />
-          )}
-        </div>
+            {/* 方向性メニュー */}
+            {uiState.openSubMenu === 'direction' && (
+              <AIDirectionMenu
+                directions={state.directions}
+                onGenerate={(direction) => {
+                  actions.generate({ direction });
+                  uiHandlers.closeAllMenus();
+                  uiHandlers.closeMenu();
+                }}
+                onRefine={(direction) => {
+                  actions.refine({ direction });
+                  uiHandlers.closeAllMenus();
+                  uiHandlers.closeMenu();
+                }}
+                onClose={() => uiHandlers.toggleSubMenu('direction')}
+                isLoading={state.isLoading}
+              />
+            )}
+          </div>
+        )}
 
         {/* 🎛️ モデル選択 */}
-        <div className="relative">
+        {shouldShow('model') && (
+          <div className="relative">
           <TooltipButton
             onClick={() => uiHandlers.toggleSubMenu('model')}
             disabled={state.isLoading}
-            label="モデルを選択"
+            label={l.model}
             className={iconButtonClass}
           >
             <span className="text-xl">🎛️</span>
@@ -243,14 +268,16 @@ export function AIIconSet({
               position="left"
             />
           )}
-        </div>
+          </div>
+        )}
 
         {/* 💬 コマンド */}
-        <div className="relative">
+        {shouldShow('command') && (
+          <div className="relative">
           <TooltipButton
             onClick={() => uiHandlers.toggleCommandPanel()}
             disabled={state.isLoading}
-            label="コマンド"
+            label={l.command}
             className={iconButtonClass}
           >
             <span className="text-xl">💬</span>
@@ -275,14 +302,16 @@ export function AIIconSet({
               position="left"
             />
           )}
-        </div>
+          </div>
+        )}
 
         {/* 🗒️ 履歴 */}
-        <div className="relative">
+        {shouldShow('history') && (
+          <div className="relative">
           <TooltipButton
             onClick={() => uiHandlers.toggleHistoryPanel()}
             disabled={state.isLoading}
-            label="履歴"
+            label={l.history}
             className={iconButtonClass}
           >
             <span className="text-xl">🗒️</span>
@@ -301,14 +330,16 @@ export function AIIconSet({
               position="left"
             />
           )}
-        </div>
+          </div>
+        )}
 
         {/* 📊 Token使用量 */}
-        <div className="relative">
+        {shouldShow('token') && (
+          <div className="relative">
           <TooltipButton
             onClick={() => uiHandlers.toggleSubMenu('token')}
             disabled={state.isLoading}
-            label="Token使用量"
+            label={l.token}
             className={iconButtonClass}
           >
             <span className="text-xl">📊</span>
@@ -322,17 +353,22 @@ export function AIIconSet({
               position="left"
             />
           )}
-        </div>
+          </div>
+        )}
 
         {/* 閉じるボタン */}
-        <div className="w-px h-8 bg-gray-200" />
-        <TooltipButton
-          onClick={uiHandlers.closeMenu}
-          label="閉じる"
-          className={`${iconButtonClass} text-gray-400 hover:text-gray-600`}
-        >
-          <span className="text-sm">✕</span>
-        </TooltipButton>
+        {shouldShow('close') && (
+          <>
+            <div className="w-px h-8 bg-gray-200" />
+            <TooltipButton
+              onClick={uiHandlers.closeMenu}
+              label={l.close}
+              className={`${iconButtonClass} text-gray-400 hover:text-gray-600`}
+            >
+              <span className="text-sm">✕</span>
+            </TooltipButton>
+          </>
+        )}
       </div>
 
       {/* ローディング表示 */}

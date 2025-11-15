@@ -22,6 +22,58 @@ export const COMMON_PROVIDERS = {
  */
 export type CommonProvider = typeof COMMON_PROVIDERS[keyof typeof COMMON_PROVIDERS];
 
+// ============================================================================
+// Type Definitions / Enums
+// ============================================================================
+
+/**
+ * AI action types
+ */
+export type AIAction = 'generate' | 'refine' | 'chat';
+
+/**
+ * AI button identifiers for hideButtons prop
+ */
+export type AIButtonId =
+  | 'generate'
+  | 'refine'
+  | 'undo'
+  | 'direction'
+  | 'model'
+  | 'command'
+  | 'history'
+  | 'token'
+  | 'close';
+
+/**
+ * Position for AIIconSet component
+ */
+export type AIIconSetPosition = 'top' | 'bottom' | 'left' | 'right';
+
+/**
+ * Position for panel components (AIModelSelector, AIHistoryList, etc.)
+ */
+export type AIPanelPosition = 'left' | 'right' | 'center';
+
+/**
+ * Position for AITrigger component
+ */
+export type AITriggerPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+
+/**
+ * AI model types
+ */
+export type AIModelType = 'fast' | 'think' | 'vision';
+
+/**
+ * Trigger size variants
+ */
+export type AITriggerSize = 'sm' | 'md' | 'lg';
+
+// ============================================================================
+// Context and Configuration
+// ============================================================================
+
 /**
  * AIエージェントのコンテキスト情報
  */
@@ -62,7 +114,7 @@ export interface AIModel {
   displayName: string;
 
   /** モデルタイプ */
-  type: 'fast' | 'think' | 'vision';
+  type: AIModelType;
 
   /** 最大トークン数 */
   maxTokens: number;
@@ -211,7 +263,7 @@ export interface DirectionOption {
 export interface AIHistoryEntry {
   id: string;
   timestamp: number;
-  action: 'generate' | 'refine' | 'chat';
+  action: AIAction;
   direction?: string;
   value: string;
   context: AIAgentContext;
@@ -236,9 +288,45 @@ export interface AIHistoryEntry {
 }
 
 /**
- * デフォルトの方向性オプション
+ * Default direction options (English)
  */
 export const DEFAULT_DIRECTIONS: DirectionOption[] = [
+  {
+    id: 'formal',
+    label: 'Formal',
+    description: 'Polite expression suitable for business or official situations',
+  },
+  {
+    id: 'casual',
+    label: 'Casual',
+    description: 'Friendly and relaxed expression',
+  },
+  {
+    id: 'concise',
+    label: 'Concise',
+    description: 'Brief expression focused on key points',
+  },
+  {
+    id: 'detailed',
+    label: 'Detailed',
+    description: 'Expression with detailed explanations and examples',
+  },
+  {
+    id: 'professional',
+    label: 'Professional',
+    description: 'Technical expression using professional terminology',
+  },
+  {
+    id: 'friendly',
+    label: 'Friendly',
+    description: 'Warm and approachable expression',
+  },
+];
+
+/**
+ * Default direction options (Japanese)
+ */
+export const DEFAULT_DIRECTIONS_JA: DirectionOption[] = [
   {
     id: 'formal',
     label: 'フォーマルに',
@@ -292,7 +380,7 @@ export interface AIRegisterOptions {
   onError?: (error: Error) => void;
 
   /** 成功時のコールバック */
-  onSuccess?: (result: string, action: 'generate' | 'refine' | 'chat') => void;
+  onSuccess?: (result: string, action: AIAction) => void;
 
   /** カスタム方向性オプション */
   directions?: DirectionOption[];
@@ -537,3 +625,259 @@ export interface AIUIResult {
     closeAllMenus: () => void;
   };
 }
+
+// ============================================================================
+// i18n / Localization
+// ============================================================================
+
+/**
+ * UI labels for internationalization
+ *
+ * All labels are optional - if not provided, the default (Japanese) labels will be used.
+ */
+export interface AILabels {
+  // === AIIconSet Button Labels ===
+  /** "生成" button (default: "生成") */
+  generate?: string;
+  /** "修正" button (default: "修正") */
+  refine?: string;
+  /** "元に戻す" button (default: "元に戻す") */
+  undo?: string;
+  /** "方向性を指定" button (default: "方向性を指定") */
+  direction?: string;
+  /** "モデルを選択" button (default: "モデルを選択") */
+  model?: string;
+  /** "コマンド" button (default: "コマンド") */
+  command?: string;
+  /** "履歴" button (default: "履歴") */
+  history?: string;
+  /** "Token使用量" button (default: "Token使用量") */
+  token?: string;
+  /** "閉じる" button (default: "閉じる") */
+  close?: string;
+
+  // === AIDirectionMenu ===
+  /** Direction menu title (default: "方向性を選択") */
+  directionMenuTitle?: string;
+  /** Direction menu description (default: "生成💫または修正🖌️を選んでください") */
+  directionMenuDescription?: string;
+  /** Direction "生成" button (default: "生成") */
+  directionGenerate?: string;
+  /** Direction "修正" button (default: "修正") */
+  directionRefine?: string;
+
+  // === AIModelSelector ===
+  /** Model selector title (default: "モデル選択") */
+  modelSelectorTitle?: string;
+  /** Single mode tab (default: "🎯 単一") */
+  modelSingle?: string;
+  /** Multi mode tab (default: "🔄 Multi") */
+  modelMulti?: string;
+  /** Fast model button (default: "⚡ Fast") */
+  modelFast?: string;
+  /** Think model button (default: "🧠 Think") */
+  modelThink?: string;
+  /** Current model label (default: "現在:") */
+  modelCurrent?: string;
+  /** Multi-run button (default: "🔄 {count}個のモデルで実行") */
+  modelMultiRun?: (count: number) => string;
+  /** Running state (default: "実行中...") */
+  modelRunning?: string;
+  /** Selected models label (default: "選択中:") */
+  modelSelected?: string;
+
+  // === AICommandPanel ===
+  /** Free command tab (default: "フリーコマンド") */
+  commandFree?: string;
+  /** System command tab (default: "システムコマンド") */
+  commandSystem?: string;
+  /** Saved prompts tab (default: "保存済みPrompt") */
+  commandSaved?: string;
+  /** Command input placeholder (default: "コマンドを入力") */
+  commandPlaceholder?: string;
+  /** Execute button (default: "実行") */
+  execute?: string;
+  /** Save button (default: "保存") */
+  save?: string;
+  /** Edit button (default: "編集") */
+  edit?: string;
+  /** Delete button (default: "削除") */
+  delete?: string;
+  /** Cancel button (default: "キャンセル") */
+  cancel?: string;
+
+  // === AIHistoryList ===
+  /** History panel title (default: "履歴") */
+  historyTitle?: string;
+  /** History entry count (default: "{count}件の履歴 • 現在: {index}") */
+  historyCount?: (count: number, index: number) => string;
+  /** No history message (default: "履歴がありません") */
+  historyEmpty?: string;
+  /** Generate action label (default: "💫 生成") */
+  historyGenerate?: string;
+  /** Refine action label (default: "🖌️ 修正") */
+  historyRefine?: string;
+  /** Chat action label (default: "💬 チャット") */
+  historyChat?: string;
+
+  // === AITokenUsagePanel ===
+  /** Token panel title (default: "📊 Token使用量") */
+  tokenTitle?: string;
+  /** Total label (default: "合計") */
+  tokenTotal?: string;
+  /** Input label (default: "入力") */
+  tokenInput?: string;
+  /** Output label (default: "出力") */
+  tokenOutput?: string;
+  /** By provider label (default: "プロバイダー別") */
+  tokenByProvider?: string;
+  /** Cost label (default: "コスト") */
+  tokenCost?: string;
+  /** Reset button (default: "リセット") */
+  tokenReset?: string;
+  /** Danger warning (default: "⚠️ 制限に達しました") */
+  tokenWarningDanger?: string;
+  /** Warning message (default: "⚠️ 制限値に近づいています") */
+  tokenWarningWarning?: string;
+
+  // === AITrigger ===
+  /** Open AI features aria-label (default: "AI機能を開く") */
+  triggerOpen?: string;
+  /** Close AI features aria-label (default: "AI機能を閉じる") */
+  triggerClose?: string;
+}
+
+/**
+ * Predefined label sets
+ */
+export const AI_LABELS = {
+  /** Japanese labels (default) */
+  ja: {
+    // AIIconSet
+    generate: '生成',
+    refine: '修正',
+    undo: '元に戻す',
+    direction: '方向性を指定',
+    model: 'モデルを選択',
+    command: 'コマンド',
+    history: '履歴',
+    token: 'Token使用量',
+    close: '閉じる',
+
+    // AIDirectionMenu
+    directionMenuTitle: '方向性を選択',
+    directionMenuDescription: '生成💫または修正🖌️を選んでください',
+    directionGenerate: '生成',
+    directionRefine: '修正',
+
+    // AIModelSelector
+    modelSelectorTitle: 'モデル選択',
+    modelSingle: '🎯 単一',
+    modelMulti: '🔄 Multi',
+    modelFast: '⚡ Fast',
+    modelThink: '🧠 Think',
+    modelCurrent: '現在:',
+    modelMultiRun: (count: number) => `🔄 ${count}個のモデルで実行`,
+    modelRunning: '実行中...',
+    modelSelected: '選択中:',
+
+    // AICommandPanel
+    commandFree: 'フリーコマンド',
+    commandSystem: 'システムコマンド',
+    commandSaved: '保存済みPrompt',
+    commandPlaceholder: 'コマンドを入力',
+    execute: '実行',
+    save: '保存',
+    edit: '編集',
+    delete: '削除',
+    cancel: 'キャンセル',
+
+    // AIHistoryList
+    historyTitle: '履歴',
+    historyCount: (count: number, index: number) => `${count}件の履歴 • 現在: ${index}`,
+    historyEmpty: '履歴がありません',
+    historyGenerate: '💫 生成',
+    historyRefine: '🖌️ 修正',
+    historyChat: '💬 チャット',
+
+    // AITokenUsagePanel
+    tokenTitle: '📊 Token使用量',
+    tokenTotal: '合計',
+    tokenInput: '入力',
+    tokenOutput: '出力',
+    tokenByProvider: 'プロバイダー別',
+    tokenCost: 'コスト',
+    tokenReset: 'リセット',
+    tokenWarningDanger: '⚠️ 制限に達しました',
+    tokenWarningWarning: '⚠️ 制限値に近づいています',
+
+    // AITrigger
+    triggerOpen: 'AI機能を開く',
+    triggerClose: 'AI機能を閉じる',
+  } as const satisfies AILabels,
+
+  /** English labels */
+  en: {
+    // AIIconSet
+    generate: 'Generate',
+    refine: 'Refine',
+    undo: 'Undo',
+    direction: 'Direction',
+    model: 'Model',
+    command: 'Command',
+    history: 'History',
+    token: 'Token Usage',
+    close: 'Close',
+
+    // AIDirectionMenu
+    directionMenuTitle: 'Select Direction',
+    directionMenuDescription: 'Choose Generate 💫 or Refine 🖌️',
+    directionGenerate: 'Generate',
+    directionRefine: 'Refine',
+
+    // AIModelSelector
+    modelSelectorTitle: 'Model Selection',
+    modelSingle: '🎯 Single',
+    modelMulti: '🔄 Multi',
+    modelFast: '⚡ Fast',
+    modelThink: '🧠 Think',
+    modelCurrent: 'Current:',
+    modelMultiRun: (count: number) => `🔄 Run with ${count} model${count > 1 ? 's' : ''}`,
+    modelRunning: 'Running...',
+    modelSelected: 'Selected:',
+
+    // AICommandPanel
+    commandFree: 'Free Command',
+    commandSystem: 'System Command',
+    commandSaved: 'Saved Prompts',
+    commandPlaceholder: 'Enter command',
+    execute: 'Execute',
+    save: 'Save',
+    edit: 'Edit',
+    delete: 'Delete',
+    cancel: 'Cancel',
+
+    // AIHistoryList
+    historyTitle: 'History',
+    historyCount: (count: number, index: number) => `${count} ${count > 1 ? 'entries' : 'entry'} • Current: ${index}`,
+    historyEmpty: 'No history',
+    historyGenerate: '💫 Generate',
+    historyRefine: '🖌️ Refine',
+    historyChat: '💬 Chat',
+
+    // AITokenUsagePanel
+    tokenTitle: '📊 Token Usage',
+    tokenTotal: 'Total',
+    tokenInput: 'Input',
+    tokenOutput: 'Output',
+    tokenByProvider: 'By Provider',
+    tokenCost: 'Cost',
+    tokenReset: 'Reset',
+    tokenWarningDanger: '⚠️ Limit reached',
+    tokenWarningWarning: '⚠️ Approaching limit',
+
+    // AITrigger
+    triggerOpen: 'Open AI features',
+    triggerClose: 'Close AI features',
+  } as const satisfies AILabels,
+} as const;

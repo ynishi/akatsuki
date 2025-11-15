@@ -1,4 +1,4 @@
-import type { TokenUsageDetails } from '../../core/types';
+import type { TokenUsageDetails, AIPanelPosition } from '../../core/types';
 
 /**
  * AITokenUsagePanelコンポーネントのProps
@@ -11,7 +11,7 @@ export interface AITokenUsagePanelProps {
   /** 閉じるコールバック */
   onClose: () => void;
   /** パネルの位置 */
-  position?: 'left' | 'right' | 'center';
+  position?: AIPanelPosition;
 }
 
 /**

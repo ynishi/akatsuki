@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { AIIconSetPosition } from '../../core/types';
 
 /**
  * AIModelSelectorコンポーネントのProps
@@ -21,7 +22,7 @@ export interface AIModelSelectorProps {
   /** ローディング状態 */
   isLoading?: boolean;
   /** 位置 */
-  position?: 'top' | 'bottom' | 'left' | 'right';
+  position?: AIIconSetPosition;
 }
 
 /**

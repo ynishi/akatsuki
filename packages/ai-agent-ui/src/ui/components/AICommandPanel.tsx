@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SystemCommand, SavedPrompt } from '../../core/types';
+import type { SystemCommand, SavedPrompt, AIPanelPosition } from '../../core/types';
 
 /**
  * AICommandPanelコンポーネントのProps
@@ -24,7 +24,7 @@ export interface AICommandPanelProps {
   /** ローディング中 */
   isLoading?: boolean;
   /** パネルの位置 */
-  position?: 'left' | 'right' | 'center';
+  position?: AIPanelPosition;
 }
 
 /**

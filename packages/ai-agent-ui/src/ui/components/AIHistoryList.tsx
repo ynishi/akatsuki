@@ -1,4 +1,4 @@
-import type { AIHistoryEntry } from '../../core/types';
+import type { AIHistoryEntry, AIPanelPosition } from '../../core/types';
 
 /**
  * AIHistoryListコンポーネントのProps
@@ -15,7 +15,7 @@ export interface AIHistoryListProps {
   /** ローディング中 */
   isLoading?: boolean;
   /** パネルの位置 */
-  position?: 'left' | 'right' | 'center';
+  position?: AIPanelPosition;
 }
 
 /**

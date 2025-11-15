@@ -1,3 +1,5 @@
+import type { AITriggerSize, AITriggerPosition } from '../../core/types';
+
 /**
  * AITriggerコンポーネントのProps
  */
@@ -7,9 +9,9 @@ export interface AITriggerProps {
   /** カスタムクラス名 */
   className?: string;
   /** アイコンサイズ */
-  size?: 'sm' | 'md' | 'lg';
+  size?: AITriggerSize;
   /** 位置 */
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  position?: AITriggerPosition;
   /** アクティブ状態（メニューが開いているか） */
   isActive?: boolean;
 }
