@@ -28,11 +28,12 @@ import { WebSearchCard } from '../components/features/search/WebSearchCard'
 import { FileSearchDemo } from '../components/features/file-search/FileSearchDemo'
 import { JobProgress } from '../components/common/JobProgress'
 import { AIAgentProvider, useAIRegister, useAIUI } from '../../../ai-agent-ui/src/core'
-import { AkatsukiAgentProvider, setAIService } from '../../../ai-agent-ui/src/providers'
+import {
+  GeminiProvider as AIGeminiProvider,
+  AnthropicProvider,
+  OpenAIProvider,
+} from '../../../ai-agent-ui/src/providers'
 import { AIIconSet } from '../../../ai-agent-ui/src/ui'
-
-// AIServiceを注入
-setAIService(AIService)
 
 /**
  * AIエージェントUIデモカード（内部実装）
@@ -193,10 +194,15 @@ const ai = useAIRegister({
  * AIAgentProviderでラップして内部コンポーネントに渡す
  */
 function AIAgentUICard({ user }: { user: any }) {
-  const provider = new AkatsukiAgentProvider()
+  // 複数のAIプロバイダーを登録
+  const providers = [
+    new AIGeminiProvider(AIService),
+    new AnthropicProvider(AIService),
+    new OpenAIProvider(AIService),
+  ]
 
   return (
-    <AIAgentProvider provider={provider}>
+    <AIAgentProvider providers={providers}>
       <AIAgentUICardInner user={user} />
     </AIAgentProvider>
   )
