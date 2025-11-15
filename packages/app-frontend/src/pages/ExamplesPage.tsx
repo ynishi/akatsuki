@@ -27,7 +27,7 @@ import { PublicProfileRepository } from '../repositories/PublicProfileRepository
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
 import { FileSearchDemo } from '../components/features/file-search/FileSearchDemo'
 import { JobProgress } from '../components/common/JobProgress'
-import { AIAgentProvider, useAIRegister, useAIUI } from '../../../ai-agent-ui/src/core'
+import { AIAgentProvider, useAIRegister, useAIUI, AI_LABELS } from '../../../ai-agent-ui/src/core'
 import {
   GeminiProvider as AIGeminiProvider,
   AnthropicProvider,
@@ -119,6 +119,7 @@ const ai = useAIRegister({
                 uiState={bioUI.ui}
                 uiHandlers={bioUI.handlers}
                 position="bottom"
+                labels={AI_LABELS.ja}
               />
             )}
           </div>
@@ -160,6 +161,7 @@ const ai = useAIRegister({
                 uiState={titleUI.ui}
                 uiHandlers={titleUI.handlers}
                 position="bottom"
+                labels={AI_LABELS.ja}
               />
             )}
           </div>
