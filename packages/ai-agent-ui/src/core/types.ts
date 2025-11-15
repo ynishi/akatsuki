@@ -380,6 +380,9 @@ export interface AIUIResult {
     /** メニューを閉じる */
     closeMenu: () => void;
 
+    /** メニューをトグル（開閉切り替え） */
+    toggleMenu: () => void;
+
     /** 履歴パネルを切り替え */
     toggleHistoryPanel: () => void;
 

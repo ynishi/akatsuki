@@ -2,7 +2,7 @@
  * AITriggerコンポーネントのProps
  */
 export interface AITriggerProps {
-  /** メニューを開く関数（useAIUIから取得） */
+  /** メニューを開く/閉じる関数（useAIUIから取得） */
   onClick: () => void;
   /** カスタムクラス名 */
   className?: string;
@@ -18,6 +18,7 @@ export interface AITriggerProps {
  * ✨ AIトリガーアイコンコンポーネント
  *
  * 入力フィールドの近くに表示され、AI機能を呼び出すトリガーとなる
+ * クリックでメニューを開閉できる（toggleMenu推奨）
  *
  * @example
  * ```tsx
@@ -26,7 +27,7 @@ export interface AITriggerProps {
  * <div className="relative">
  *   <textarea value={text} onChange={...} />
  *   <AITrigger
- *     onClick={aiUI.handlers.openMenu}
+ *     onClick={aiUI.handlers.toggleMenu}
  *     isActive={aiUI.ui.isMenuOpen}
  *   />
  * </div>
@@ -56,7 +57,7 @@ export function AITrigger({
     <button
       type="button"
       onClick={onClick}
-      aria-label="AI機能を開く"
+      aria-label={isActive ? 'AI機能を閉じる' : 'AI機能を開く'}
       className={`
         absolute ${positionClasses[position]} ${sizeClasses[size]}
         flex items-center justify-center

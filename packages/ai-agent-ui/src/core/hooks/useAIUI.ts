@@ -66,6 +66,17 @@ export function useAIUI(): AIUIResult {
   }, []);
 
   /**
+   * メニューをトグル（開閉切り替え）
+   */
+  const toggleMenu = useCallback(() => {
+    if (isMenuOpen) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }, [isMenuOpen, openMenu, closeMenu]);
+
+  /**
    * 履歴パネルを切り替え
    */
   const toggleHistoryPanel = useCallback(() => {
@@ -96,6 +107,7 @@ export function useAIUI(): AIUIResult {
     handlers: {
       openMenu,
       closeMenu,
+      toggleMenu,
       toggleHistoryPanel,
       toggleCommandPanel,
     },
