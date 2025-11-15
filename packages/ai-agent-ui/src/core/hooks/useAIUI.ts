@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { AIUIResult } from '../types';
+import type { AIUIResult, SubMenuType } from '../types';
 
 /**
  * AI UI状態管理フック
@@ -47,6 +47,16 @@ export function useAIUI(): AIUIResult {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [showCommandPanel, setShowCommandPanel] = useState(false);
+  const [openSubMenu, setOpenSubMenu] = useState<SubMenuType>(null);
+
+  /**
+   * すべてのメニュー/パネルを閉じる
+   */
+  const closeAllMenus = useCallback(() => {
+    setOpenSubMenu(null);
+    setShowHistoryPanel(false);
+    setShowCommandPanel(false);
+  }, []);
 
   /**
    * メニューを開く
@@ -60,10 +70,9 @@ export function useAIUI(): AIUIResult {
    */
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
-    // メニューを閉じる時は全てのパネルも閉じる
-    setShowHistoryPanel(false);
-    setShowCommandPanel(false);
-  }, []);
+    // メニューを閉じる時は全てのパネルとサブメニューも閉じる
+    closeAllMenus();
+  }, [closeAllMenus]);
 
   /**
    * メニューをトグル（開閉切り替え）
@@ -81,9 +90,10 @@ export function useAIUI(): AIUIResult {
    */
   const toggleHistoryPanel = useCallback(() => {
     setShowHistoryPanel((prev) => !prev);
-    // 履歴を開く時はコマンドパネルを閉じる
+    // 履歴を開く時は他のパネルとサブメニューを閉じる
     if (!showHistoryPanel) {
       setShowCommandPanel(false);
+      setOpenSubMenu(null);
     }
   }, [showHistoryPanel]);
 
@@ -92,17 +102,39 @@ export function useAIUI(): AIUIResult {
    */
   const toggleCommandPanel = useCallback(() => {
     setShowCommandPanel((prev) => !prev);
-    // コマンドを開く時は履歴パネルを閉じる
+    // コマンドを開く時は他のパネルとサブメニューを閉じる
     if (!showCommandPanel) {
       setShowHistoryPanel(false);
+      setOpenSubMenu(null);
     }
   }, [showCommandPanel]);
+
+  /**
+   * サブメニューを切り替え（排他制御）
+   */
+  const toggleSubMenu = useCallback((menu: 'direction' | 'model' | 'token') => {
+    setOpenSubMenu((prev) => (prev === menu ? null : menu));
+    // サブメニューを開く時は他のパネルを閉じる
+    setShowHistoryPanel(false);
+    setShowCommandPanel(false);
+  }, []);
+
+  /**
+   * サブメニューを開く（排他制御）
+   */
+  const openSubMenuExclusive = useCallback((menu: SubMenuType) => {
+    setOpenSubMenu(menu);
+    // サブメニューを開く時は他のパネルを閉じる
+    setShowHistoryPanel(false);
+    setShowCommandPanel(false);
+  }, []);
 
   return {
     ui: {
       isMenuOpen,
       showHistoryPanel,
       showCommandPanel,
+      openSubMenu,
     },
     handlers: {
       openMenu,
@@ -110,6 +142,9 @@ export function useAIUI(): AIUIResult {
       toggleMenu,
       toggleHistoryPanel,
       toggleCommandPanel,
+      toggleSubMenu,
+      openSubMenuExclusive,
+      closeAllMenus,
     },
   };
 }

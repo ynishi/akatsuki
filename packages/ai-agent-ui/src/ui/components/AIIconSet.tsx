@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { AIRegisterResult, AIUIResult } from '../../core/types';
 import { AIDirectionMenu } from './AIDirectionMenu';
 import { AIHistoryList } from './AIHistoryList';
@@ -86,8 +85,7 @@ export function AIIconSet({
   className = '',
   position = 'bottom',
 }: AIIconSetProps) {
-  // 開いているメニューを一つの状態で管理（同時に複数開かないようにする）
-  const [openMenu, setOpenMenu] = useState<'direction' | 'model' | 'token' | null>(null);
+  // サブメニュー状態はCore層（useAIUI）で管理
 
   const positionClasses = {
     top: 'bottom-full mb-2',
@@ -173,16 +171,7 @@ export function AIIconSet({
         {/* 🎚️ 方向性指定 */}
         <div className="relative">
           <TooltipButton
-            onClick={() => {
-              setOpenMenu(openMenu === 'direction' ? null : 'direction');
-              // コマンドと履歴のパネルも閉じる
-              if (uiState.showCommandPanel) {
-                uiHandlers.toggleCommandPanel();
-              }
-              if (uiState.showHistoryPanel) {
-                uiHandlers.toggleHistoryPanel();
-              }
-            }}
+            onClick={() => uiHandlers.toggleSubMenu('direction')}
             disabled={state.isLoading}
             label="方向性を指定"
             className={iconButtonClass}
@@ -191,20 +180,20 @@ export function AIIconSet({
           </TooltipButton>
 
           {/* 方向性メニュー */}
-          {openMenu === 'direction' && (
+          {uiState.openSubMenu === 'direction' && (
             <AIDirectionMenu
               directions={state.directions}
               onGenerate={(direction) => {
                 actions.generate({ direction });
-                setOpenMenu(null);
+                uiHandlers.closeAllMenus();
                 uiHandlers.closeMenu();
               }}
               onRefine={(direction) => {
                 actions.refine({ direction });
-                setOpenMenu(null);
+                uiHandlers.closeAllMenus();
                 uiHandlers.closeMenu();
               }}
-              onClose={() => setOpenMenu(null)}
+              onClose={() => uiHandlers.toggleSubMenu('direction')}
               isLoading={state.isLoading}
             />
           )}
@@ -213,16 +202,7 @@ export function AIIconSet({
         {/* 🎛️ モデル選択 */}
         <div className="relative">
           <TooltipButton
-            onClick={() => {
-              setOpenMenu(openMenu === 'model' ? null : 'model');
-              // コマンドと履歴のパネルも閉じる
-              if (uiState.showCommandPanel) {
-                uiHandlers.toggleCommandPanel();
-              }
-              if (uiState.showHistoryPanel) {
-                uiHandlers.toggleHistoryPanel();
-              }
-            }}
+            onClick={() => uiHandlers.toggleSubMenu('model')}
             disabled={state.isLoading}
             label="モデルを選択"
             className={iconButtonClass}
@@ -231,21 +211,21 @@ export function AIIconSet({
           </TooltipButton>
 
           {/* モデル選択パネル */}
-          {openMenu === 'model' && (
+          {uiState.openSubMenu === 'model' && (
             <AIModelSelector
               availableModels={state.availableModels}
               currentModel={state.currentModel}
               onSelectModel={(modelId) => {
                 actions.setModel(modelId);
-                setOpenMenu(null);
+                uiHandlers.closeAllMenus();
               }}
               onMultiRun={async (modelIds) => {
                 await actions.generateMulti(modelIds);
-                setOpenMenu(null);
+                uiHandlers.closeAllMenus();
               }}
               selectedModelIds={state.selectedModelIds}
               onToggleModelSelection={actions.toggleModelSelection}
-              onClose={() => setOpenMenu(null)}
+              onClose={() => uiHandlers.toggleSubMenu('model')}
               isLoading={state.isLoading}
               position="left"
             />
@@ -255,11 +235,7 @@ export function AIIconSet({
         {/* 💬 コマンド */}
         <div className="relative">
           <TooltipButton
-            onClick={() => {
-              uiHandlers.toggleCommandPanel();
-              // 方向性とモデル選択のメニューを閉じる
-              setOpenMenu(null);
-            }}
+            onClick={() => uiHandlers.toggleCommandPanel()}
             disabled={state.isLoading}
             label="コマンド"
             className={iconButtonClass}
@@ -291,11 +267,7 @@ export function AIIconSet({
         {/* 🗒️ 履歴 */}
         <div className="relative">
           <TooltipButton
-            onClick={() => {
-              uiHandlers.toggleHistoryPanel();
-              // 方向性とモデル選択のメニューを閉じる
-              setOpenMenu(null);
-            }}
+            onClick={() => uiHandlers.toggleHistoryPanel()}
             disabled={state.isLoading}
             label="履歴"
             className={iconButtonClass}
@@ -321,16 +293,7 @@ export function AIIconSet({
         {/* 📊 Token使用量 */}
         <div className="relative">
           <TooltipButton
-            onClick={() => {
-              setOpenMenu(openMenu === 'token' ? null : 'token');
-              // コマンドと履歴のパネルも閉じる
-              if (uiState.showCommandPanel) {
-                uiHandlers.toggleCommandPanel();
-              }
-              if (uiState.showHistoryPanel) {
-                uiHandlers.toggleHistoryPanel();
-              }
-            }}
+            onClick={() => uiHandlers.toggleSubMenu('token')}
             disabled={state.isLoading}
             label="Token使用量"
             className={iconButtonClass}
@@ -339,11 +302,11 @@ export function AIIconSet({
           </TooltipButton>
 
           {/* Token使用量パネル */}
-          {openMenu === 'token' && (
+          {uiState.openSubMenu === 'token' && (
             <AITokenUsagePanel
               tokenUsage={state.tokenUsage}
               tokenLimits={state.tokenLimits}
-              onClose={() => setOpenMenu(null)}
+              onClose={() => uiHandlers.toggleSubMenu('token')}
               position="left"
             />
           )}

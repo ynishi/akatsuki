@@ -366,6 +366,11 @@ export interface AIRegisterResult {
 // ============================================================================
 
 /**
+ * サブメニューの種類
+ */
+export type SubMenuType = 'direction' | 'model' | 'token' | null;
+
+/**
  * useAIUIの戻り値（UI状態のみ）
  */
 export interface AIUIResult {
@@ -379,6 +384,9 @@ export interface AIUIResult {
 
     /** コマンドパネルが開いているか */
     showCommandPanel: boolean;
+
+    /** 開いているサブメニュー（direction/model/token） */
+    openSubMenu: SubMenuType;
   };
 
   /** UI操作 */
@@ -397,5 +405,14 @@ export interface AIUIResult {
 
     /** コマンドパネルを切り替え */
     toggleCommandPanel: () => void;
+
+    /** サブメニューを切り替え（排他制御） */
+    toggleSubMenu: (menu: 'direction' | 'model' | 'token') => void;
+
+    /** サブメニューを開く（排他制御） */
+    openSubMenuExclusive: (menu: SubMenuType) => void;
+
+    /** すべてのメニュー/パネルを閉じる */
+    closeAllMenus: () => void;
   };
 }
