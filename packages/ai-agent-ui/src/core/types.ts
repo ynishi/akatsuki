@@ -88,6 +88,14 @@ export interface TokenUsage {
 
   /** コスト（オプション） */
   cost?: number;
+
+  /** プロバイダー別の使用量 */
+  byProvider?: Record<string, {
+    input: number;
+    output: number;
+    total: number;
+    cost?: number;
+  }>;
 }
 
 /**

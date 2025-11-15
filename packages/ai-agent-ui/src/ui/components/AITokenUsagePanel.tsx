@@ -122,13 +122,13 @@ export function AITokenUsagePanel({
           {/* 合計トークン数 */}
           <div>
             <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-gray-600">合計</span>
+              <span className="text-gray-600 font-semibold">合計</span>
               <span className={`font-semibold ${levelColors[warningLevel]}`}>
                 {tokenUsage.total.toLocaleString()}
               </span>
             </div>
             {tokenLimits.maxTokens && (
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
                     warningLevel === 'danger'
@@ -143,23 +143,57 @@ export function AITokenUsagePanel({
                 />
               </div>
             )}
+            <div className="space-y-1 mt-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 pl-2">入力</span>
+                <span className="text-gray-700">
+                  {tokenUsage.input.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 pl-2">出力</span>
+                <span className="text-gray-700">
+                  {tokenUsage.output.toLocaleString()}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* 入力/出力内訳 */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500">入力</span>
-              <span className="text-gray-700 font-medium">
-                {tokenUsage.input.toLocaleString()}
-              </span>
+          {/* プロバイダー別内訳 */}
+          {tokenUsage.byProvider && Object.keys(tokenUsage.byProvider).length > 0 && (
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-gray-600 border-b border-gray-200 pb-1">
+                プロバイダー別
+              </div>
+              {Object.entries(tokenUsage.byProvider).map(([provider, usage]) => (
+                <div key={provider} className="space-y-1">
+                  <div className="text-xs font-medium text-gray-700 capitalize">
+                    {provider}
+                  </div>
+                  <div className="flex items-center justify-between text-xs pl-2">
+                    <span className="text-gray-500">入力</span>
+                    <span className="text-gray-700">
+                      {usage.input.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pl-2">
+                    <span className="text-gray-500">出力</span>
+                    <span className="text-gray-700">
+                      {usage.output.toLocaleString()}
+                    </span>
+                  </div>
+                  {usage.cost !== undefined && usage.cost > 0 && (
+                    <div className="flex items-center justify-between text-xs pl-2">
+                      <span className="text-gray-500">コスト</span>
+                      <span className="text-gray-700">
+                        ${usage.cost.toFixed(4)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500">出力</span>
-              <span className="text-gray-700 font-medium">
-                {tokenUsage.output.toLocaleString()}
-              </span>
-            </div>
-          </div>
+          )}
 
           {/* コスト表示 */}
           {tokenUsage.cost !== undefined && tokenUsage.cost > 0 && (
