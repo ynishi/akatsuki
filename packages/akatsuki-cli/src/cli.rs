@@ -5,6 +5,8 @@ use crate::commands::design::DesignCommand;
 use crate::commands::setup::SetupCommand;
 use crate::commands::dev::DevCommand;
 use crate::commands::build::BuildCommand;
+use crate::commands::db::DbCommand;
+use crate::commands::function::FunctionCommand;
 
 #[derive(Parser)]
 #[command(name = "akatsuki")]
@@ -38,6 +40,16 @@ enum Commands {
         /// Target to build: frontend, backend, or all (default)
         #[arg(value_enum, default_value = "all")]
         target: BuildTarget,
+    },
+    /// Database operations (Supabase)
+    Db {
+        #[command(subcommand)]
+        action: DbAction,
+    },
+    /// Edge Function operations (Supabase)
+    Function {
+        #[command(subcommand)]
+        action: FunctionAction,
     },
 }
 
@@ -85,6 +97,35 @@ pub enum BuildTarget {
     All,
 }
 
+#[derive(Subcommand)]
+pub enum DbAction {
+    /// Push local migrations to remote database
+    Push,
+    /// Create a new migration file
+    MigrationNew {
+        /// Migration name
+        name: String,
+    },
+    /// Show database status
+    Status,
+    /// Link to Supabase project
+    Link,
+}
+
+#[derive(Subcommand)]
+pub enum FunctionAction {
+    /// Create a new edge function
+    New {
+        /// Function name
+        name: String,
+    },
+    /// Deploy edge function(s)
+    Deploy {
+        /// Function name (optional, deploys all if omitted)
+        name: Option<String>,
+    },
+}
+
 impl Cli {
     pub fn run(self) -> Result<()> {
         match self.command {
@@ -103,6 +144,14 @@ impl Cli {
             Commands::Build { target } => {
                 let cmd = BuildCommand::new();
                 cmd.execute(target)
+            }
+            Commands::Db { action } => {
+                let cmd = DbCommand::new();
+                cmd.execute(action)
+            }
+            Commands::Function { action } => {
+                let cmd = FunctionCommand::new();
+                cmd.execute(action)
             }
         }
     }
