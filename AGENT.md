@@ -2093,7 +2093,7 @@ AGENT.md内の詳細なコードサンプルは、実装パターンが充実し
 ```json
 {
   "dependencies": {
-    "ui-components": "workspace:*",
+    "components": "workspace:*",
     "aigen-hooks": "workspace:*"
   }
 }

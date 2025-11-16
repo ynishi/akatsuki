@@ -88,6 +88,10 @@ export default defineConfig([
           {
             group: ['**/repositories/*', '../repositories/*', '@/repositories/*'],
             message: '⚠️ Pages should use custom hooks, not repositories directly. Consider creating a hook. (AGENT.md L278)'
+          },
+          {
+            group: ['**/components/layout/*', '../components/layout/*', '@/components/layout/*'],
+            message: '❌ Pages must not import Layout components. Layout is already applied in App.jsx routing. Remove the Layout wrapper from this page.'
           }
         ]
       }],
