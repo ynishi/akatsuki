@@ -769,35 +769,71 @@ AI: 「次はRepositoryを作りますが、よろしいですか？」
 ー＞確認は不要
 ```
 
-#### 6.4.3. 設計ドキュメントテンプレート
+#### 6.4.3. VibeCoding Design Framework（設計ドキュメント作成）
 
 **設計整理は必須** - 新機能を実装する前に、`workspace/[feature-name]-design.md` に書き出す。
 
-**テンプレート項目:**
-1. ユーザーの本当のニーズ（3行で）- WHY/WHO/WHAT
-2. ユースケース展開 - メインフロー/サブフロー/エッジケース
-3. 画面構成（ユーザー体験重視）- ルーティング、各画面の体験設計、ASCII WireFrame
-4. DB設計 - テーブル定義（SQL）、RLS Policy設計
-5. 使用するAkatsuki機能 - 実装済み機能、既存Edge Functions、新規作成が必要な機能
-6. アーキテクチャ層 - Models/Repositories/Services/Hooks/Components
-7. 実装ステップ - Phase 1-6のチェックリスト
-8. 重要な設計判断 - なぜこの設計にしたか、セキュリティ考慮事項
+**✨ 新機能: Design Template Generator**
 
-*詳細なテンプレートはAGENT.md（完全版）を参照*
+```bash
+# 設計ドキュメントを自動生成
+npm run design:new <feature-name>
+
+# 例
+npm run design:new user-dashboard
+# → workspace/user-dashboard-design.md が作成される
+```
+
+**テンプレートの特徴:**
+- 💡 **"Feel free to customize!"** マーカー - カスタマイズポイントを明示
+- 🎨 **カラーバリエーション選択肢** - AGENT.md L954-1000参照
+- 📐 **レイアウトパターン** - 1-pane/2-pane/3-paneから選択
+- 📝 **事前対話メモ** - ユーザーとの対話内容を記録
+
+**テンプレート項目:**
+1. **事前対話メモ** - ユーザーとの対話内容（カラー、レイアウト等）
+2. **ユーザーの本当のニーズ** - WHY/WHO/WHAT
+3. **ユースケース展開** - メインフロー/サブフロー/エッジケース
+4. **画面構成（UX重視）** - カラーテーマ、レイアウトパターン、ASCII WireFrame
+5. **DB設計** - テーブル定義（SQL）、RLS Policy設計
+6. **使用するAkatsuki機能** - 実装済み機能、新規作成が必要な機能
+7. **アーキテクチャ層** - Models/Repositories/Services/Hooks/Components
+8. **実装ステップ** - Phase 1-8のチェックリスト
+9. **重要な設計判断** - なぜこの設計にしたか、セキュリティ考慮事項
+10. **参考資料** - 既存実装パターンへのリンク
+
+**Design Frameworkの本質:**
+
+❌ **従来のTemplate/Theme（固定化）:**
+- WordPressテンプレート的
+- 「そのまま適用」を想定
+- カスタマイズしにくい
+
+✅ **VibeCoding Design（対話と柔軟性）:**
+- 「思考の出発点」
+- ユーザーとの対話で決定（カラー、レイアウト等）
+- 要件に応じて自由にカスタマイズ
+- 実装の「地図」であり「羅針盤」
 
 **ワークフロー:**
-1. 下書き作成: `workspace/[feature-name]-design.md` にファイル保存
-2. テンプレート確認: 8.9のテンプレートが使えるか判断
-3. ソース・Example調査: ExamplePage/AdminPage、ソースコードのJSDocなどを調べてデザインファイルを更新
-4. 実装開始: 設計を見ながらVibeCoding
-5. 完了後: `docs/design/` にコミット
+1. **CLI実行**: `npm run design:new <feature-name>`
+2. **対話で確認**: カラー、レイアウト、画面数などをユーザーと確認
+3. **テンプレート記入**: 対話内容を「事前対話メモ」に記録、各セクション埋める
+4. **Example調査**: ExamplePage/AdminPage、既存実装を調査
+5. **実装開始**: 設計を見ながらVibeCoding
+6. **完了後**: `docs/examples/` にコミット（成功事例として蓄積）
+
+**参考資料:**
+- Template: `docs/templates/design-template.md`
+- 実例: `docs/examples/agent-asset-hub-design.md`
 
 **ポイント:**
-- ✅ 最小限の整理で開始 - 機能的な完璧を求めない。見栄えが良く動くものを
-- ✅ テンプレート活用 - よくあるパターンは8.9参照
-- ✅ Example活用 - 豊富なExampleがあるので車輪の再発明を避ける
+- ✅ 対話を最優先 - 「カラフルで楽しい感じ」等のニュアンスを反映
+- ✅ 自由にカスタマイズ - "Feel free!"マーカーを活用
+- ✅ 最小限の整理で開始 - 完璧を求めない
+- ✅ Example活用 - 車輪の再発明を避ける
 - ✅ RLS設計を最初から - 後付けは不整合の元
-- ✅ workspace → docs - 下書き→確定版の流れ
+- ✅ workspace → docs/examples - 成功事例として蓄積
 
 #### 6.4.4. よくある質問（FAQ）
 
