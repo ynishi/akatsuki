@@ -8,8 +8,7 @@
   ],
   "scripts": {
     "preview:frontend": "npm run preview --workspace=app-frontend",
-    "setup": "node scripts/setup.js",
-    "workspace:publish": "node scripts/workspace-publish.js"
+    "setup": "node scripts/setup.js"
   },
   "engines": {
     "node": ">=20.0.0",
