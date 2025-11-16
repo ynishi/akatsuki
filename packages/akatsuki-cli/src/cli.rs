@@ -10,10 +10,33 @@ use crate::commands::function::FunctionCommand;
 use crate::commands::check::CheckCommand;
 use crate::commands::test::TestCommand;
 use crate::commands::deploy::DeployCommand;
+use crate::commands::docs::DocsCommand;
 
 #[derive(Parser)]
 #[command(name = "akatsuki")]
-#[command(about = "Akatsuki development CLI tools", long_about = None)]
+#[command(about = "Akatsuki - VibeCoding Development CLI", long_about = r#"Akatsuki - VibeCoding Development CLI
+
+A comprehensive CLI tool for VibeCoding development workflow.
+Provides commands for design, database, development, testing, and deployment.
+
+USAGE:
+    akatsuki <COMMAND>
+
+COMMON WORKFLOWS:
+    New Feature:
+      1. akatsuki design new <name>      - Create design document
+      2. akatsuki db migration-new <name> - Create migration (if needed)
+      3. akatsuki db push                - Apply migration
+      4. akatsuki check frontend         - Verify implementation
+
+    Development:
+      akatsuki dev                       - Start dev server
+      akatsuki check                     - Run all checks
+      akatsuki test                      - Run all tests
+
+For detailed command help, run:
+    akatsuki <command> --help
+"#)]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -22,12 +45,18 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// VibeCoding Design Framework commands
+    /// VibeCoding Design Framework
+    ///
+    /// Commands: new, list, use, publish
+    #[command(about = "VibeCoding Design Framework (new | list | use | publish)")]
     Design {
         #[command(subcommand)]
         action: DesignAction,
     },
-    /// Setup and verification commands
+    /// Setup and verification
+    ///
+    /// Commands: check
+    #[command(about = "Setup and verification (check)")]
     Setup {
         #[command(subcommand)]
         action: SetupAction,
@@ -45,22 +74,34 @@ enum Commands {
         target: BuildTarget,
     },
     /// Database operations (Supabase)
+    ///
+    /// Commands: push, migration-new, status, link
+    #[command(about = "Database operations (push | migration-new | status | link)")]
     Db {
         #[command(subcommand)]
         action: DbAction,
     },
     /// Edge Function operations (Supabase)
+    ///
+    /// Commands: new, deploy
+    #[command(about = "Edge Function operations (new | deploy)")]
     Function {
         #[command(subcommand)]
         action: FunctionAction,
     },
     /// Run checks (lint, typecheck, cargo check)
+    ///
+    /// Targets: frontend | backend | all (default)
+    #[command(about = "Run checks [frontend | backend | all]")]
     Check {
         /// Target to check: frontend, backend, or all (default)
         #[arg(value_enum, default_value = "all")]
         target: CheckTarget,
     },
     /// Run tests
+    ///
+    /// Targets: frontend | backend | all (default)
+    #[command(about = "Run tests [frontend | backend | all]")]
     Test {
         /// Target to test: frontend, backend, or all (default)
         #[arg(value_enum, default_value = "all")]
@@ -71,6 +112,14 @@ enum Commands {
         /// Target to deploy: frontend, backend, or all (default)
         #[arg(value_enum, default_value = "all")]
         target: DeployTarget,
+    },
+    /// Browse project documentation
+    ///
+    /// Commands: ui-components, models, repositories, services, hooks, pages
+    #[command(about = "Browse project documentation (ui-components | models | ...)")]
+    Docs {
+        #[command(subcommand)]
+        action: DocsAction,
     },
 }
 
@@ -177,6 +226,22 @@ pub enum DeployTarget {
     All,
 }
 
+#[derive(Subcommand)]
+pub enum DocsAction {
+    /// List all UI components with descriptions
+    UiComponents,
+    /// List all model classes
+    Models,
+    /// List all repository classes
+    Repositories,
+    /// List all service classes
+    Services,
+    /// List all custom hooks
+    Hooks,
+    /// List all page components
+    Pages,
+}
+
 impl Cli {
     pub fn run(self) -> Result<()> {
         match self.command {
@@ -215,6 +280,10 @@ impl Cli {
             Commands::Deploy { target } => {
                 let cmd = DeployCommand::new();
                 cmd.execute(target)
+            }
+            Commands::Docs { action } => {
+                let cmd = DocsCommand::new();
+                cmd.execute(action)
             }
         }
     }

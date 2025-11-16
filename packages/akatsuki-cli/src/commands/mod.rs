@@ -7,3 +7,4 @@ pub mod function;
 pub mod check;
 pub mod test;
 pub mod deploy;
+pub mod docs;
