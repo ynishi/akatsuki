@@ -96,11 +96,12 @@ npm run setup
 **That's it!** Start the development servers and check your app:
 
 ```bash
-# Terminal 1: Frontend
-npm run dev:frontend  # http://localhost:5173
+# Both servers at once
+akatsuki dev  # Frontend: http://localhost:5173, Backend: http://localhost:8000
 
-# Terminal 2: Backend
-npm run dev:backend   # http://localhost:8000
+# Or run them separately
+akatsuki dev frontend  # Frontend only
+akatsuki dev backend   # Backend only
 ```
 
 ---
@@ -110,7 +111,7 @@ npm run dev:backend   # http://localhost:8000
 You can check the setup status at any time with:
 
 ```bash
-npm run setup:check
+akatsuki setup check
 ```
 
 ### Detailed Setup Instructions
@@ -157,24 +158,74 @@ akatsuki/
 
 ## 🔧 Development Commands
 
-npm scripts available at project root:
+All development operations are managed through the `akatsuki` CLI:
 
-### Frontend
+### Development Servers
 
 ```bash
-npm run dev:frontend      # Start development server (localhost:5173)
-npm run build:frontend    # Production build
-npm run preview:frontend  # Preview build results
+akatsuki dev              # Start both frontend & backend
+akatsuki dev frontend     # Frontend only (localhost:5173)
+akatsuki dev backend      # Backend only (localhost:8000)
 ```
 
-### Backend
+### Build
 
 ```bash
-npm run dev:backend       # Start Shuttle local development server
-npm run check:backend     # Compilation check
-npm run build:backend     # Release build
-npm run test:backend      # Run tests
-npm run deploy:backend    # Deploy to Shuttle
+akatsuki build            # Build both frontend & backend
+akatsuki build frontend   # Frontend production build
+akatsuki build backend    # Backend release build
+```
+
+### Quality Checks
+
+```bash
+akatsuki check            # Run all checks (lint, typecheck, cargo check)
+akatsuki check frontend   # Frontend checks only (lint + typecheck)
+akatsuki check backend    # Backend check only (cargo check)
+```
+
+### Testing
+
+```bash
+akatsuki test             # Run all tests
+akatsuki test frontend    # Frontend tests (not configured yet)
+akatsuki test backend     # Backend tests (cargo test)
+```
+
+### Database Operations
+
+```bash
+akatsuki db push                  # Push migrations to remote database
+akatsuki db migration-new <name>  # Create new migration file
+akatsuki db status                # Show database status
+akatsuki db link                  # Link to Supabase project
+```
+
+### Edge Functions
+
+```bash
+akatsuki function new <name>      # Create new edge function
+akatsuki function deploy [name]   # Deploy edge function(s)
+```
+
+### Deployment
+
+```bash
+akatsuki deploy           # Deploy both frontend & backend
+akatsuki deploy frontend  # Frontend deployment (not configured yet)
+akatsuki deploy backend   # Backend deployment to Shuttle
+```
+
+### Other Commands
+
+```bash
+akatsuki design new <name>    # Create new VibeCoding design document
+akatsuki design list          # List design examples
+akatsuki design use           # Copy example design
+akatsuki setup check          # Check setup status
+
+# Preview server (still uses npm for workspace-specific commands)
+npm run preview:frontend      # Preview frontend build
 ```
 
 ---

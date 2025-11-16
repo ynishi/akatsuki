@@ -64,41 +64,53 @@ Step 6: 振り返り（docs/に整理）
 
 **コマンド集:**
 ```bash
-# Frontend
-npm run dev:frontend              # 開発サーバー
-npm run build:frontend            # 本番ビルド
-npm run preview:frontend          # ビルド結果をプレビュー
-npx tsc --noEmit                  # TypeScript型チェック（app-frontend内で実行）
+# 開発サーバー
+akatsuki dev                      # Frontend + Backend 同時起動
+akatsuki dev frontend             # Frontend のみ (localhost:5173)
+akatsuki dev backend              # Backend のみ (localhost:8000)
 
-# Backend (Rust)
-npm run dev:backend               # 開発サーバー（Shuttle）
-npm run build:backend             # リリースビルド
-npm run check:backend             # 型チェック（cargo check）
-npm run test:backend              # テスト実行
-npm run deploy:backend            # Shuttleにデプロイ
+# ビルド
+akatsuki build                    # 両方ビルド
+akatsuki build frontend           # Frontend 本番ビルド
+akatsuki build backend            # Backend リリースビルド
 
-# Supabase
-npm run supabase:migration:new    # Migration作成
-npm run supabase:push             # Migration適用
-npm run supabase:function:deploy  # Edge Function デプロイ
-npm run supabase:secrets:list     # Secrets一覧
-npm run supabase:secrets:set      # Secrets設定
+# 品質チェック
+akatsuki check                    # すべてチェック (lint + typecheck + cargo check)
+akatsuki check frontend           # Frontend チェック (lint + typecheck)
+akatsuki check backend            # Backend チェック (cargo check)
 
-# Setup
+# テスト
+akatsuki test                     # すべてテスト
+akatsuki test backend             # Backend テスト (cargo test)
+
+# データベース操作
+akatsuki db push                  # Migration 適用
+akatsuki db migration-new <name>  # Migration 作成
+akatsuki db status                # データベース状態確認
+
+# Edge Functions
+akatsuki function new <name>      # Edge Function 作成
+akatsuki function deploy [name]   # Edge Function デプロイ
+
+# デプロイ
+akatsuki deploy backend           # Backend を Shuttle にデプロイ
+
+# セットアップ
 npm run setup                     # 初回セットアップウィザード
-npm run setup:check               # セットアップ状態確認
+akatsuki setup check              # セットアップ状態確認
 
-# workspace/ でダミーデータ生成
-cd workspace && node generate-dummy-data.js
+# その他
+npm run preview:frontend          # ビルド結果をプレビュー
+cd workspace && node generate-dummy-data.js  # ダミーデータ生成
 ```
 
 **トラブル時の診断:**
 1. Edge Function エラー → `npx supabase functions logs <name> --tail`
 2. RLS エラー → Supabase Dashboard → Database → Policies
-3. TypeScript型エラー → `npx tsc --noEmit` で詳細確認
+3. TypeScript型エラー → `akatsuki check frontend` で詳細確認
 4. Model型エラー → Model の `fromDatabase()` 実装確認
 5. 再レンダリング → useEffect 依存配列確認
-6. ビルドエラー → `npm run build:frontend` で詳細確認
+6. ビルドエラー → `akatsuki build frontend` で詳細確認
 
 **🎯 よくあるシチュエーション別クイックジャンプ:**
 - 「新しい画面を作りたい」 → L693「ルーティングパターン」（Layout使用） + L2018 Template 1: CRUD画面
