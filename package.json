@@ -7,12 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:frontend": "npm run dev --workspace=app-frontend",
-    "build:frontend": "npm run build --workspace=app-frontend",
     "preview:frontend": "npm run preview --workspace=app-frontend",
-    "vibe:check": "npm run lint:vibe --workspace=app-frontend && npm run build:frontend",
-    "dev:backend": "cd packages/app-backend && cargo shuttle run",
-    "build:backend": "cd packages/app-backend && cargo build --release",
+    "vibe:check": "npm run lint:vibe --workspace=app-frontend && akatsuki build frontend",
     "check:backend": "cd packages/app-backend && cargo check",
     "test:backend": "cd packages/app-backend && cargo test",
     "deploy:backend": "cd packages/app-backend && cargo shuttle deploy",
