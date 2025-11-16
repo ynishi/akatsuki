@@ -25,7 +25,7 @@
     "supabase:secrets:set": "supabase secrets set",
     "supabase:status": "supabase status",
     "setup": "node scripts/setup.js",
-    "setup:check": "node scripts/check-setup.js",
+    "setup:check": "akatsuki setup check || cargo run --manifest-path packages/akatsuki-cli/Cargo.toml -- setup check || node scripts/check-setup.js",
     "workspace:publish": "node scripts/workspace-publish.js",
     "design:new": "akatsuki design new \"$@\" || cargo run --manifest-path packages/akatsuki-cli/Cargo.toml -- design new \"$@\" || node scripts/create-design.js \"$@\"",
     "design:list": "akatsuki design list || cargo run --manifest-path packages/akatsuki-cli/Cargo.toml -- design list || node scripts/list-designs.js",

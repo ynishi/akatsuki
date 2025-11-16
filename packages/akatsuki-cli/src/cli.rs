@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::commands::design::DesignCommand;
+use crate::commands::setup::SetupCommand;
 
 #[derive(Parser)]
 #[command(name = "akatsuki")]
@@ -18,6 +19,11 @@ enum Commands {
     Design {
         #[command(subcommand)]
         action: DesignAction,
+    },
+    /// Setup and verification commands
+    Setup {
+        #[command(subcommand)]
+        action: SetupAction,
     },
 }
 
@@ -39,11 +45,21 @@ pub enum DesignAction {
     },
 }
 
+#[derive(Subcommand)]
+pub enum SetupAction {
+    /// Check setup status and prerequisites
+    Check,
+}
+
 impl Cli {
     pub fn run(self) -> Result<()> {
         match self.command {
             Commands::Design { action } => {
                 let cmd = DesignCommand::new();
+                cmd.execute(action)
+            }
+            Commands::Setup { action } => {
+                let cmd = SetupCommand::new();
                 cmd.execute(action)
             }
         }
