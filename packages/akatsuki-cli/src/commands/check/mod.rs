@@ -1,14 +1,50 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::process::Command;
+use std::path::PathBuf;
 
 use crate::cli::CheckTarget;
 
-pub struct CheckCommand;
+mod navigation;
+
+pub struct CheckCommand {
+    project_root: PathBuf,
+}
 
 impl CheckCommand {
     pub fn new() -> Self {
-        Self
+        Self {
+            project_root: Self::find_project_root(),
+        }
+    }
+
+    fn find_project_root() -> PathBuf {
+        let mut current = std::env::current_dir().unwrap();
+
+        loop {
+            // Check for package.json with workspaces
+            let package_json = current.join("package.json");
+            if package_json.exists() {
+                if let Ok(content) = std::fs::read_to_string(&package_json) {
+                    if content.contains("\"workspaces\"") {
+                        return current;
+                    }
+                }
+            }
+
+            // Check for packages directory
+            if current.join("packages").is_dir() &&
+               current.join("packages/app-frontend").is_dir() {
+                return current;
+            }
+
+            // Move up to parent directory
+            if let Some(parent) = current.parent() {
+                current = parent.to_path_buf();
+            } else {
+                return std::env::current_dir().unwrap();
+            }
+        }
     }
 
     pub fn execute(&self, target: CheckTarget) -> Result<()> {
@@ -31,6 +67,12 @@ impl CheckCommand {
 
         if !lint_status.success() {
             anyhow::bail!("Frontend lint:vibe failed");
+        }
+
+        // Check navigation consistency
+        let nav_ok = navigation::check_navigation_consistency(&self.project_root)?;
+        if !nav_ok {
+            anyhow::bail!("Navigation consistency check failed");
         }
 
         // Run typecheck
