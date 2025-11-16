@@ -33,7 +33,7 @@ import {
   AnthropicProvider,
   OpenAIProvider,
 } from '../../../ai-agent-ui/src/providers'
-import { AIIconSet } from '../../../ai-agent-ui/src/ui'
+import { AIFieldTrigger } from '../components/features/ai'
 
 /**
  * AIエージェントUIデモカード（内部実装）
@@ -75,17 +75,17 @@ function AIAgentUICardInner({ user }: { user: any }) {
         </CardHeader>
         <CardContent className="space-y-4">
         <pre className="bg-gray-50 p-4 rounded-lg text-sm font-mono text-gray-700 overflow-x-auto">
-          <code>{`import { AIAgentProvider, useAIRegister } from '@akatsuki/ai-agent-ui'
-import { AITrigger, AIIconSet } from '@akatsuki/ai-agent-ui/ui'
+          <code>{`import { AIAgentProvider, useAIRegister, useAIUI } from '@akatsuki/ai-agent-ui'
+import { AIFieldTrigger } from '../components/features/ai'
 
 const ai = useAIRegister({
   context: { scope: 'UserProfile.Bio', type: 'long_text' },
   getValue: () => bio,
   setValue: (newValue) => setBio(newValue)
 })
+const ui = useAIUI()
 
-<AITrigger triggerProps={ai.triggerProps} />
-{ai.menuProps.isOpen && <AIIconSet ... />}`}</code>
+<AIFieldTrigger ai={ai} ui={ui} />`}</code>
         </pre>
 
         <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
@@ -100,28 +100,11 @@ const ai = useAIRegister({
 
         {/* 自己紹介フィールド */}
         <div>
-          <div className="flex items-center gap-2 mb-2 relative">
+          <div className="flex items-center gap-2 mb-2">
             <label className="text-sm font-medium text-gray-700">
               自己紹介 (Bio)
             </label>
-            <button
-              type="button"
-              onClick={bioUI.handlers.toggleMenu}
-              aria-label={bioUI.ui.isMenuOpen ? 'AI機能を閉じる' : 'AI機能を開く'}
-              className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
-            >
-              <span className="text-sm animate-pulse">✨</span>
-            </button>
-            {bioUI.ui.isMenuOpen && (
-              <AIIconSet
-                actions={bioAI.actions}
-                state={bioAI.state}
-                uiState={bioUI.ui}
-                uiHandlers={bioUI.handlers}
-                position="bottom"
-                labels={AI_LABELS.ja}
-              />
-            )}
+            <AIFieldTrigger ai={bioAI} ui={bioUI} position="bottom" />
           </div>
           <textarea
             value={bio}
@@ -142,28 +125,11 @@ const ai = useAIRegister({
 
         {/* 記事タイトルフィールド */}
         <div>
-          <div className="flex items-center gap-2 mb-2 relative">
+          <div className="flex items-center gap-2 mb-2">
             <label className="text-sm font-medium text-gray-700">
               記事タイトル
             </label>
-            <button
-              type="button"
-              onClick={titleUI.handlers.toggleMenu}
-              aria-label={titleUI.ui.isMenuOpen ? 'AI機能を閉じる' : 'AI機能を開く'}
-              className="w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
-            >
-              <span className="text-sm animate-pulse">✨</span>
-            </button>
-            {titleUI.ui.isMenuOpen && (
-              <AIIconSet
-                actions={titleAI.actions}
-                state={titleAI.state}
-                uiState={titleUI.ui}
-                uiHandlers={titleUI.handlers}
-                position="bottom"
-                labels={AI_LABELS.ja}
-              />
-            )}
+            <AIFieldTrigger ai={titleAI} ui={titleUI} position="bottom" />
           </div>
           <Input
             type="text"
