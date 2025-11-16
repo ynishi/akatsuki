@@ -1,6 +1,6 @@
 use anyhow::Result;
-use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 use super::{Detector, Detection, DetectionCategory};
 
@@ -17,39 +17,56 @@ impl Detector for MigrationDetector {
             return Ok(detections);
         }
 
-        // List all .sql files in migrations directory
-        let entries = fs::read_dir(&migrations_dir)?;
-        let mut sql_files: Vec<String> = Vec::new();
+        // Check for uncommitted migration files using git status
+        let output = Command::new("git")
+            .args(["status", "--porcelain"])
+            .current_dir(project_root)
+            .output();
 
-        for entry in entries {
-            let entry = entry?;
-            let path = entry.path();
+        match output {
+            Ok(output) if output.status.success() => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
 
-            if path.extension().and_then(|s| s.to_str()) == Some("sql") {
-                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
-                    sql_files.push(file_name.to_string());
+                // Filter for uncommitted migration files
+                let uncommitted_migrations: Vec<&str> = stdout
+                    .lines()
+                    .filter(|line| {
+                        line.contains("supabase/migrations/") && line.ends_with(".sql")
+                    })
+                    .collect();
+
+                if !uncommitted_migrations.is_empty() {
+                    // Extract file names
+                    let mut migration_files: Vec<String> = uncommitted_migrations
+                        .iter()
+                        .filter_map(|line| {
+                            // git status --porcelain format: "XY filename"
+                            // Extract filename (everything after first 3 chars)
+                            let path_part = line.get(3..)?;
+                            // Get just the filename from the path
+                            path_part.split('/').last().map(|s| s.to_string())
+                        })
+                        .collect();
+
+                    migration_files.sort();
+                    let latest = migration_files.last().unwrap();
+
+                    let message = format!(
+                        "New uncommitted migration file(s): {} (latest: {})",
+                        migration_files.len(),
+                        latest
+                    );
+
+                    detections.push(Detection::new(
+                        DetectionCategory::PendingMigration,
+                        message,
+                        1, // Priority 1 (Highest)
+                    ));
                 }
             }
-        }
-
-        if !sql_files.is_empty() {
-            // Sort to get the most recent one (timestamp-based naming)
-            sql_files.sort();
-            let latest = sql_files.last().unwrap();
-
-            // Check if this migration is in git (committed or staged)
-            // Simple heuristic: if migrations exist, suggest checking/applying them
-            let message = format!(
-                "Migration file(s) detected: {} (latest: {})",
-                sql_files.len(),
-                latest
-            );
-
-            detections.push(Detection::new(
-                DetectionCategory::PendingMigration,
-                message,
-                1, // Priority 1 (Highest)
-            ));
+            _ => {
+                // Git command failed, skip detection
+            }
         }
 
         Ok(detections)
