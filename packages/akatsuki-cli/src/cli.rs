@@ -11,6 +11,7 @@ use crate::commands::check::CheckCommand;
 use crate::commands::test::TestCommand;
 use crate::commands::deploy::DeployCommand;
 use crate::commands::docs::DocsCommand;
+use crate::commands::advice::AdviceCommand;
 
 #[derive(Parser)]
 #[command(name = "akatsuki")]
@@ -120,6 +121,14 @@ enum Commands {
     Docs {
         #[command(subcommand)]
         action: DocsAction,
+    },
+    /// Get contextual development advice
+    ///
+    /// Analyzes project state and suggests next steps
+    #[command(about = "Get contextual development advice")]
+    Advice {
+        /// Optional task-specific workflow (e.g., feature, migration)
+        task: Option<String>,
     },
 }
 
@@ -284,6 +293,10 @@ impl Cli {
             Commands::Docs { action } => {
                 let cmd = DocsCommand::new();
                 cmd.execute(action)
+            }
+            Commands::Advice { task } => {
+                let cmd = AdviceCommand::new();
+                cmd.execute(task)
             }
         }
     }

@@ -8,3 +8,4 @@ pub mod check;
 pub mod test;
 pub mod deploy;
 pub mod docs;
+pub mod advice;
