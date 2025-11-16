@@ -27,10 +27,10 @@
     "setup": "node scripts/setup.js",
     "setup:check": "node scripts/check-setup.js",
     "workspace:publish": "node scripts/workspace-publish.js",
-    "design:new": "node scripts/create-design.js",
-    "design:list": "node scripts/list-designs.js",
-    "design:use": "node scripts/use-design.js",
-    "design:publish": "node scripts/publish-design.js"
+    "design:new": "akatsuki design new \"$@\" || cargo run --manifest-path packages/akatsuki-cli/Cargo.toml -- design new \"$@\" || node scripts/create-design.js \"$@\"",
+    "design:list": "akatsuki design list || cargo run --manifest-path packages/akatsuki-cli/Cargo.toml -- design list || node scripts/list-designs.js",
+    "design:use": "akatsuki design use || cargo run --manifest-path packages/akatsuki-cli/Cargo.toml -- design use || node scripts/use-design.js",
+    "design:publish": "akatsuki design publish \"$@\" || cargo run --manifest-path packages/akatsuki-cli/Cargo.toml -- design publish \"$@\" || node scripts/publish-design.js \"$@\""
   },
   "engines": {
     "node": ">=20.0.0",
