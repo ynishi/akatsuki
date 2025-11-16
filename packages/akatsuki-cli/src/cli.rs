@@ -115,8 +115,8 @@ enum Commands {
     },
     /// Browse project documentation
     ///
-    /// Commands: ui-components, models, repositories, services, hooks, pages
-    #[command(about = "Browse project documentation (ui-components | models | ...)")]
+    /// Commands: components, models, repositories, services, hooks, pages
+    #[command(about = "Browse project documentation (components | models | ...)")]
     Docs {
         #[command(subcommand)]
         action: DocsAction,
@@ -229,7 +229,7 @@ pub enum DeployTarget {
 #[derive(Subcommand)]
 pub enum DocsAction {
     /// List all UI components with descriptions
-    UiComponents,
+    Components,
     /// List all model classes
     Models,
     /// List all repository classes

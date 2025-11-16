@@ -56,7 +56,7 @@ impl DocsCommand {
 
     pub fn execute(&self, action: DocsAction) -> Result<()> {
         match action {
-            DocsAction::UiComponents => self.list_ui_components(),
+            DocsAction::Components => self.list_components(),
             DocsAction::Models => self.list_models(),
             DocsAction::Repositories => self.list_repositories(),
             DocsAction::Services => self.list_services(),
@@ -65,7 +65,7 @@ impl DocsCommand {
         }
     }
 
-    fn list_ui_components(&self) -> Result<()> {
+    fn list_components(&self) -> Result<()> {
         println!("📦 UI Components\n");
 
         let components_dir = self.project_root.join("packages/app-frontend/src/components");
