@@ -7,6 +7,9 @@ use crate::commands::dev::DevCommand;
 use crate::commands::build::BuildCommand;
 use crate::commands::db::DbCommand;
 use crate::commands::function::FunctionCommand;
+use crate::commands::check::CheckCommand;
+use crate::commands::test::TestCommand;
+use crate::commands::deploy::DeployCommand;
 
 #[derive(Parser)]
 #[command(name = "akatsuki")]
@@ -50,6 +53,24 @@ enum Commands {
     Function {
         #[command(subcommand)]
         action: FunctionAction,
+    },
+    /// Run checks (lint, typecheck, cargo check)
+    Check {
+        /// Target to check: frontend, backend, or all (default)
+        #[arg(value_enum, default_value = "all")]
+        target: CheckTarget,
+    },
+    /// Run tests
+    Test {
+        /// Target to test: frontend, backend, or all (default)
+        #[arg(value_enum, default_value = "all")]
+        target: TestTarget,
+    },
+    /// Deploy the project
+    Deploy {
+        /// Target to deploy: frontend, backend, or all (default)
+        #[arg(value_enum, default_value = "all")]
+        target: DeployTarget,
     },
 }
 
@@ -126,6 +147,36 @@ pub enum FunctionAction {
     },
 }
 
+#[derive(Debug, Clone, ValueEnum)]
+pub enum CheckTarget {
+    /// Check frontend only (lint + typecheck)
+    Frontend,
+    /// Check backend only (cargo check)
+    Backend,
+    /// Check both frontend and backend
+    All,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum TestTarget {
+    /// Test frontend only
+    Frontend,
+    /// Test backend only
+    Backend,
+    /// Test both frontend and backend
+    All,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum DeployTarget {
+    /// Deploy frontend only
+    Frontend,
+    /// Deploy backend only
+    Backend,
+    /// Deploy both frontend and backend
+    All,
+}
+
 impl Cli {
     pub fn run(self) -> Result<()> {
         match self.command {
@@ -152,6 +203,18 @@ impl Cli {
             Commands::Function { action } => {
                 let cmd = FunctionCommand::new();
                 cmd.execute(action)
+            }
+            Commands::Check { target } => {
+                let cmd = CheckCommand::new();
+                cmd.execute(target)
+            }
+            Commands::Test { target } => {
+                let cmd = TestCommand::new();
+                cmd.execute(target)
+            }
+            Commands::Deploy { target } => {
+                let cmd = DeployCommand::new();
+                cmd.execute(target)
             }
         }
     }

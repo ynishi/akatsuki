@@ -4,3 +4,6 @@ pub mod dev;
 pub mod build;
 pub mod db;
 pub mod function;
+pub mod check;
+pub mod test;
+pub mod deploy;

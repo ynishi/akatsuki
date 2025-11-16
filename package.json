@@ -8,12 +8,7 @@
   ],
   "scripts": {
     "preview:frontend": "npm run preview --workspace=app-frontend",
-    "vibe:check": "npm run lint:vibe --workspace=app-frontend && akatsuki build frontend",
-    "check:backend": "cd packages/app-backend && cargo check",
-    "test:backend": "cd packages/app-backend && cargo test",
-    "deploy:backend": "cd packages/app-backend && cargo shuttle deploy",
     "setup": "node scripts/setup.js",
-    "setup:check": "akatsuki setup check",
     "workspace:publish": "node scripts/workspace-publish.js"
   },
   "engines": {
