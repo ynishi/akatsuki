@@ -76,8 +76,8 @@ enum Commands {
     },
     /// Database operations (Supabase)
     ///
-    /// Commands: push, migration-new, status, link
-    #[command(about = "Database operations (push | migration-new | status | link)")]
+    /// Commands: push, migration-new, check, status, link
+    #[command(about = "Database operations (push | migration-new | check | status | link)")]
     Db {
         #[command(subcommand)]
         action: DbAction,
@@ -185,6 +185,8 @@ pub enum DbAction {
         /// Migration name
         name: String,
     },
+    /// Check pending migrations and SQL syntax
+    Check,
     /// Show database status
     Status,
     /// Link to Supabase project

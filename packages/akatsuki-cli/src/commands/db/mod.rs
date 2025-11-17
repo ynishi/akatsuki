@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 
 use crate::cli::DbAction;
@@ -15,6 +17,7 @@ impl DbCommand {
         match action {
             DbAction::Push => self.push(),
             DbAction::MigrationNew { name } => self.migration_new(&name),
+            DbAction::Check => self.check(),
             DbAction::Status => self.status(),
             DbAction::Link => self.link(),
         }
@@ -80,6 +83,95 @@ impl DbCommand {
         }
 
         println!("{}", "✅ Project linked successfully!".green());
+        Ok(())
+    }
+
+    fn check(&self) -> Result<()> {
+        println!("{}", "🔍 Checking database migrations...".cyan());
+        println!();
+
+        // Step 1: Check if migrations directory exists
+        let migrations_path = Path::new("supabase/migrations");
+        if !migrations_path.exists() {
+            println!("{}", "⚠️  No migrations directory found".yellow());
+            println!("   Run: akatsuki db migration-new <name> to create your first migration");
+            return Ok(());
+        }
+
+        // Step 2: List migration files
+        let mut migrations = Vec::new();
+        if let Ok(entries) = fs::read_dir(migrations_path) {
+            for entry in entries.flatten() {
+                if let Some(filename) = entry.file_name().to_str() {
+                    if filename.ends_with(".sql") {
+                        migrations.push(filename.to_string());
+                    }
+                }
+            }
+        }
+
+        migrations.sort();
+
+        if migrations.is_empty() {
+            println!("{}", "✅ No migration files found".green());
+            return Ok(());
+        }
+
+        println!("{}", format!("📝 Found {} migration file(s):", migrations.len()).cyan());
+        for migration in &migrations {
+            println!("   • {}", migration);
+        }
+        println!();
+
+        // Step 3: Check migration status via Supabase CLI
+        println!("{}", "🔄 Checking migration status...".cyan());
+        let output = Command::new("supabase")
+            .args(["migration", "list"])
+            .output()
+            .context("Failed to check migration status. Make sure Supabase CLI is installed and you're linked to a project.")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            println!("{}", format!("⚠️  Could not check migration status:\n{}", stderr).yellow());
+            println!();
+            println!("{}", "💡 Tip: Run 'akatsuki db link' to link to your Supabase project".cyan());
+            return Ok(());
+        }
+
+        // Display migration status
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        println!("{}", stdout);
+
+        // Step 4: Show SQL preview for latest migration
+        if let Some(latest_migration) = migrations.last() {
+            println!("{}", format!("📄 Latest migration preview: {}", latest_migration).cyan());
+            println!("{}", "─".repeat(80).dimmed());
+
+            let migration_path = migrations_path.join(latest_migration);
+            if let Ok(content) = fs::read_to_string(&migration_path) {
+                // Show first 20 lines or full content if shorter
+                let lines: Vec<&str> = content.lines().collect();
+                let preview_lines = if lines.len() > 20 { 20 } else { lines.len() };
+
+                for line in &lines[..preview_lines] {
+                    println!("{}", line.dimmed());
+                }
+
+                if lines.len() > 20 {
+                    println!("{}", format!("... ({} more lines)", lines.len() - 20).dimmed());
+                }
+            }
+            println!("{}", "─".repeat(80).dimmed());
+        }
+
+        println!();
+        println!("{}", "✅ Migration check complete!".green());
+        println!();
+        println!("{}", "💡 Next steps:".cyan());
+        println!("   • Review migration files above");
+        println!("   • Run: akatsuki db push    - to apply migrations");
+        println!("   • Run: akatsuki db status  - to check database status");
+
         Ok(())
     }
 }
