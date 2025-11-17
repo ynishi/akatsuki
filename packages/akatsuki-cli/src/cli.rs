@@ -132,6 +132,9 @@ enum Commands {
     Advice {
         /// Optional task-specific workflow (e.g., feature, migration)
         task: Option<String>,
+        /// Use AI for advanced context-aware advice
+        #[arg(long)]
+        ai: bool,
     },
 }
 
@@ -303,9 +306,9 @@ impl Cli {
                 let cmd = DocsCommand::new();
                 cmd.execute(action, search.as_deref())
             }
-            Commands::Advice { task } => {
+            Commands::Advice { task, ai } => {
                 let cmd = AdviceCommand::new();
-                cmd.execute(task)
+                cmd.execute(task, ai)
             }
         }
     }
