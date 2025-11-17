@@ -116,11 +116,14 @@ enum Commands {
     },
     /// Browse project documentation
     ///
-    /// Commands: components, models, repositories, services, hooks, pages
-    #[command(about = "Browse project documentation (components | models | ...)")]
+    /// Commands: all, components, models, repositories, services, hooks, pages
+    #[command(about = "Browse project documentation (all | components | models | ...)")]
     Docs {
         #[command(subcommand)]
         action: DocsAction,
+        /// Search keyword to filter results
+        #[arg(long, short, global = true)]
+        search: Option<String>,
     },
     /// Get contextual development advice
     ///
@@ -239,6 +242,8 @@ pub enum DeployTarget {
 
 #[derive(Subcommand)]
 pub enum DocsAction {
+    /// List all layers (components, models, repositories, services, hooks, pages)
+    All,
     /// List all UI components with descriptions
     Components,
     /// List all model classes
@@ -292,9 +297,9 @@ impl Cli {
                 let cmd = DeployCommand::new();
                 cmd.execute(target)
             }
-            Commands::Docs { action } => {
+            Commands::Docs { action, search } => {
                 let cmd = DocsCommand::new();
-                cmd.execute(action)
+                cmd.execute(action, search.as_deref())
             }
             Commands::Advice { task } => {
                 let cmd = AdviceCommand::new();

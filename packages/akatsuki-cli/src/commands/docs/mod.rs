@@ -9,7 +9,7 @@ pub struct DocsCommand {
     project_root: PathBuf,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ComponentDoc {
     file_path: PathBuf,
     summary: String,
@@ -54,18 +54,41 @@ impl DocsCommand {
         }
     }
 
-    pub fn execute(&self, action: DocsAction) -> Result<()> {
+    pub fn execute(&self, action: DocsAction, search: Option<&str>) -> Result<()> {
         match action {
-            DocsAction::Components => self.list_components(),
-            DocsAction::Models => self.list_models(),
-            DocsAction::Repositories => self.list_repositories(),
-            DocsAction::Services => self.list_services(),
-            DocsAction::Hooks => self.list_hooks(),
-            DocsAction::Pages => self.list_pages(),
+            DocsAction::All => self.list_all(search),
+            DocsAction::Components => self.list_components(search),
+            DocsAction::Models => self.list_models(search),
+            DocsAction::Repositories => self.list_repositories(search),
+            DocsAction::Services => self.list_services(search),
+            DocsAction::Hooks => self.list_hooks(search),
+            DocsAction::Pages => self.list_pages(search),
         }
     }
 
-    fn list_components(&self) -> Result<()> {
+    fn list_all(&self, search: Option<&str>) -> Result<()> {
+        println!("📚 All Project Documentation");
+        if let Some(keyword) = search {
+            println!("🔍 Searching for: \"{}\"\n", keyword);
+        }
+        println!();
+
+        self.list_components(search)?;
+        println!();
+        self.list_models(search)?;
+        println!();
+        self.list_repositories(search)?;
+        println!();
+        self.list_services(search)?;
+        println!();
+        self.list_hooks(search)?;
+        println!();
+        self.list_pages(search)?;
+
+        Ok(())
+    }
+
+    fn list_components(&self, search: Option<&str>) -> Result<()> {
         println!("📦 UI Components\n");
 
         let components_dir = self.project_root.join("packages/app-frontend/src/components");
@@ -75,12 +98,13 @@ impl DocsCommand {
         }
 
         let docs = self.scan_directory(&components_dir, "component")?;
-        self.print_docs(&docs, "UI Component");
+        let filtered = self.filter_docs(&docs, search);
+        self.print_docs(&filtered, "UI Component");
 
         Ok(())
     }
 
-    fn list_models(&self) -> Result<()> {
+    fn list_models(&self, search: Option<&str>) -> Result<()> {
         println!("📊 Models\n");
 
         let models_dir = self.project_root.join("packages/app-frontend/src/models");
@@ -90,12 +114,13 @@ impl DocsCommand {
         }
 
         let docs = self.scan_directory(&models_dir, "model")?;
-        self.print_docs(&docs, "Model");
+        let filtered = self.filter_docs(&docs, search);
+        self.print_docs(&filtered, "Model");
 
         Ok(())
     }
 
-    fn list_repositories(&self) -> Result<()> {
+    fn list_repositories(&self, search: Option<&str>) -> Result<()> {
         println!("🗄️  Repositories\n");
 
         let repos_dir = self.project_root.join("packages/app-frontend/src/repositories");
@@ -105,12 +130,13 @@ impl DocsCommand {
         }
 
         let docs = self.scan_directory(&repos_dir, "repository")?;
-        self.print_docs(&docs, "Repository");
+        let filtered = self.filter_docs(&docs, search);
+        self.print_docs(&filtered, "Repository");
 
         Ok(())
     }
 
-    fn list_services(&self) -> Result<()> {
+    fn list_services(&self, search: Option<&str>) -> Result<()> {
         println!("⚙️  Services\n");
 
         let services_dir = self.project_root.join("packages/app-frontend/src/services");
@@ -120,12 +146,13 @@ impl DocsCommand {
         }
 
         let docs = self.scan_directory(&services_dir, "service")?;
-        self.print_docs(&docs, "Service");
+        let filtered = self.filter_docs(&docs, search);
+        self.print_docs(&filtered, "Service");
 
         Ok(())
     }
 
-    fn list_hooks(&self) -> Result<()> {
+    fn list_hooks(&self, search: Option<&str>) -> Result<()> {
         println!("🎣 Custom Hooks\n");
 
         let hooks_dir = self.project_root.join("packages/app-frontend/src/hooks");
@@ -135,12 +162,13 @@ impl DocsCommand {
         }
 
         let docs = self.scan_directory(&hooks_dir, "hook")?;
-        self.print_docs(&docs, "Hook");
+        let filtered = self.filter_docs(&docs, search);
+        self.print_docs(&filtered, "Hook");
 
         Ok(())
     }
 
-    fn list_pages(&self) -> Result<()> {
+    fn list_pages(&self, search: Option<&str>) -> Result<()> {
         println!("📄 Pages\n");
 
         let pages_dir = self.project_root.join("packages/app-frontend/src/pages");
@@ -150,7 +178,8 @@ impl DocsCommand {
         }
 
         let docs = self.scan_directory(&pages_dir, "page")?;
-        self.print_docs(&docs, "Page");
+        let filtered = self.filter_docs(&docs, search);
+        self.print_docs(&filtered, "Page");
 
         Ok(())
     }
@@ -287,5 +316,36 @@ impl DocsCommand {
         }
 
         println!("Total: {} {}s found", docs.len(), doc_type.to_lowercase());
+    }
+
+    fn filter_docs(&self, docs: &[ComponentDoc], search: Option<&str>) -> Vec<ComponentDoc> {
+        match search {
+            None => docs.to_vec(),
+            Some(keyword) => {
+                let keyword_lower = keyword.to_lowercase();
+                docs.iter()
+                    .filter(|doc| {
+                        // Search in file path
+                        let path_match = doc.file_path
+                            .to_string_lossy()
+                            .to_lowercase()
+                            .contains(&keyword_lower);
+
+                        // Search in summary
+                        let summary_match = doc.summary
+                            .to_lowercase()
+                            .contains(&keyword_lower);
+
+                        // Search in category
+                        let category_match = doc.category
+                            .to_lowercase()
+                            .contains(&keyword_lower);
+
+                        path_match || summary_match || category_match
+                    })
+                    .cloned()
+                    .collect()
+            }
+        }
     }
 }
