@@ -16,6 +16,24 @@
 2. 開発者1〜2名体制での **開発体験（DX）を最大化** する。
 3. 「AIGen（AI生成）」機能を息を吸うように導入できる開発基盤を提供する。
 
+## 2.3. Akatsuki CLI - 開発効率化ツール
+
+`akatsuki` CLI は、VibeCoding ワークフローを加速するコマンドラインツールです：
+
+**主な機能:**
+- 🚀 **ワンコマンド起動**: `akatsuki dev` でフロント・バックエンド同時起動
+- 📚 **ドキュメント探索**: `akatsuki docs all` で実装済みコンポーネントを即座に発見
+- 🤖 **AI統合**: `akatsuki advice ai` でプロジェクト状態を分析し次のステップを提案
+- 🗄️ **DB管理**: `akatsuki db check` でマイグレーションを適用前にプレビュー
+- 🎨 **設計支援**: `akatsuki design new` でテンプレートベースの設計ドキュメント生成
+
+**なぜ重要？**
+- AIコーディング時の「どのコンポーネントが使える？」を解決（`docs` コマンド）
+- 「次何すべき？」の迷いをなくす（`advice` コマンド）
+- マイグレーション失敗を防ぐ（`db check` でマルチバイト文字検出）
+
+詳細コマンド一覧は後述（L65-）
+
 ## 2.5. VibeCoding Quick Reference（チートシート）
 
 実装開始前に確認する最速リファレンスです。詳細は各セクション参照。
@@ -46,14 +64,18 @@ Step 6: 振り返り（docs/に整理）
 - 📦 **技術スタック全体**: L131「4. 技術スタック」
 
 **実装済みコンポーネント（すぐ使える）:**
+💡 最新情報は `akatsuki docs all` で確認
+
 - 認証: `AuthGuard`, `LoginForm`, `SignupForm`
 - レイアウト: `Layout`, `PrivateLayout`, `NarrowLayout`, `FullWidthLayout`, `TopNavigation`
   - `Layout` - デフォルトレイアウト（メニュー・背景・パディング自動提供）
   - `PrivateLayout` - 認証必須ページ用（AuthGuard + Layout）
 - ストレージ: `FileUpload`
-- AI: `useAIGen`, `useImageGeneration`, `AIService`, `ImageGenerationService`
-- Hooks: `usePublicProfile` (React Query)
-- UI: shadcn/ui 44コンポーネント（`components/ui/`）
+- Hooks: `useAIGen`, `useImageGeneration`, `usePublicProfile` (React Query)
+- UI: shadcn/ui 58コンポーネント（`components/ui/`）
+- Models: 7クラス（100%ドキュメント化）
+- Repositories: 12クラス（100%ドキュメント化）
+- Services: 13クラス（100%ドキュメント化）
 
 **Edge Functions（デプロイ済み）:**
 - `ai-chat` - LLM統合（OpenAI/Anthropic/Gemini）
@@ -86,7 +108,30 @@ akatsuki test backend             # Backend テスト (cargo test)
 # データベース操作
 akatsuki db push                  # Migration 適用
 akatsuki db migration-new <name>  # Migration 作成
+akatsuki db check                 # Migration チェック（SQL preview、multibyte検出）
 akatsuki db status                # データベース状態確認
+
+# 設計ワークフロー
+akatsuki design new <name>        # デザインドキュメント作成
+akatsuki design list              # デザイン例一覧
+akatsuki design publish <name>    # デザインを examples に公開
+
+# ドキュメント探索（AIコーディング支援）
+akatsuki docs all                 # 全レイヤー（components/models/repositories/services/hooks/pages）表示
+akatsuki docs components          # UI コンポーネント一覧
+akatsuki docs models              # Model クラス一覧
+akatsuki docs repositories        # Repository クラス一覧
+akatsuki docs services            # Service クラス一覧
+akatsuki docs hooks               # Custom Hooks 一覧
+akatsuki docs pages               # Page コンポーネント一覧
+akatsuki docs lint                # ドキュメント網羅率チェック（JSDoc未記載検出）
+akatsuki docs all --search "RAG"  # 全レイヤー横断検索
+
+# 開発アドバイス（AI統合）
+akatsuki advice rule              # 静的ルールベース提案（高速）
+akatsuki advice prompt            # AI分析用プロンプト生成（Claude Codeにコピペ）
+akatsuki advice ai                # AI自動分析（claude command経由）
+akatsuki advice ai --backend=markdown  # プロンプト生成のみ
 
 # Edge Functions
 akatsuki function new <name>      # Edge Function 作成
