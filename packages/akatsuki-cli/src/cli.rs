@@ -141,6 +141,9 @@ enum Commands {
         /// Shell type (zsh, bash, fish, powershell)
         shell: clap_complete::Shell,
     },
+    /// List all available commands (flat hierarchy)
+    #[command(about = "List all available commands")]
+    List,
 }
 
 #[derive(Subcommand)]
@@ -357,6 +360,9 @@ impl Cli {
             Commands::Completion { shell } => {
                 Self::generate_completion(shell)
             }
+            Commands::List => {
+                Self::list_all_commands()
+            }
         }
     }
 
@@ -369,6 +375,91 @@ impl Cli {
         let bin_name = cmd.get_name().to_string();
 
         generate(shell, &mut cmd, bin_name, &mut io::stdout());
+
+        Ok(())
+    }
+
+    fn list_all_commands() -> Result<()> {
+        println!("\n📋 All Available Commands (Flat Hierarchy)\n");
+
+        println!("# 開発サーバー");
+        println!("akatsuki dev                      # Frontend + Backend 同時起動");
+        println!("akatsuki dev frontend             # Frontend のみ (localhost:5173)");
+        println!("akatsuki dev backend              # Backend のみ (localhost:8000)");
+        println!();
+
+        println!("# ビルド");
+        println!("akatsuki build                    # 両方ビルド");
+        println!("akatsuki build frontend           # Frontend 本番ビルド");
+        println!("akatsuki build backend            # Backend リリースビルド");
+        println!();
+
+        println!("# 品質チェック");
+        println!("akatsuki check                    # すべてチェック (lint + typecheck + cargo check)");
+        println!("akatsuki check frontend           # Frontend チェック (lint + typecheck)");
+        println!("akatsuki check backend            # Backend チェック (cargo check)");
+        println!();
+
+        println!("# テスト");
+        println!("akatsuki test                     # すべてテスト");
+        println!("akatsuki test backend             # Backend テスト (cargo test)");
+        println!();
+
+        println!("# データベース操作");
+        println!("akatsuki db push                  # Migration 適用");
+        println!("akatsuki db migration-new <name>  # Migration 作成");
+        println!("akatsuki db check                 # Migration チェック（SQL preview、multibyte検出）");
+        println!("akatsuki db status                # データベース状態確認");
+        println!("akatsuki db link                  # Supabase プロジェクトにリンク");
+        println!();
+
+        println!("# 設計ワークフロー");
+        println!("akatsuki design new <name>        # デザインドキュメント作成");
+        println!("akatsuki design list              # デザイン例一覧");
+        println!("akatsuki design use               # デザイン例をコピー");
+        println!("akatsuki design publish <name>    # デザインを examples に公開");
+        println!();
+
+        println!("# ドキュメント探索（AIコーディング支援）");
+        println!("akatsuki docs all                 # 全レイヤー（components/models/repositories/services/hooks/pages）表示");
+        println!("akatsuki docs components          # UI コンポーネント一覧");
+        println!("akatsuki docs models              # Model クラス一覧");
+        println!("akatsuki docs repositories        # Repository クラス一覧");
+        println!("akatsuki docs services            # Service クラス一覧");
+        println!("akatsuki docs hooks               # Custom Hooks 一覧");
+        println!("akatsuki docs pages               # Page コンポーネント一覧");
+        println!("akatsuki docs lint                # ドキュメント網羅率チェック（JSDoc未記載検出）");
+        println!("akatsuki docs sync                # AGENT-mini.md のコンポーネントリスト自動更新");
+        println!("akatsuki docs all --search \"RAG\"  # 全レイヤー横断検索");
+        println!();
+
+        println!("# 開発アドバイス（AI統合）");
+        println!("akatsuki advice rule              # 静的ルールベース提案（高速）");
+        println!("akatsuki advice prompt            # AI分析用プロンプト生成（Claude Codeにコピペ）");
+        println!("akatsuki advice ai                # AI自動分析（claude command経由）");
+        println!("akatsuki advice ai --backend=markdown  # プロンプト生成のみ");
+        println!();
+
+        println!("# Edge Functions");
+        println!("akatsuki function new <name>      # Edge Function 作成");
+        println!("akatsuki function deploy [name]   # Edge Function デプロイ");
+        println!();
+
+        println!("# デプロイ");
+        println!("akatsuki deploy backend           # Backend を Shuttle にデプロイ");
+        println!();
+
+        println!("# セットアップ");
+        println!("akatsuki setup check              # セットアップ状態確認");
+        println!();
+
+        println!("# ユーティリティ");
+        println!("akatsuki completion <shell>       # Shell completion スクリプト生成 (zsh/bash/fish/powershell)");
+        println!("akatsuki list                     # 全コマンド一覧（このリスト）");
+        println!();
+
+        println!("💡 詳細なヘルプ: akatsuki <command> --help");
+        println!();
 
         Ok(())
     }
