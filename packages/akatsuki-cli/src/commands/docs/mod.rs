@@ -64,6 +64,7 @@ impl DocsCommand {
             DocsAction::Hooks => self.list_hooks(search),
             DocsAction::Pages => self.list_pages(search),
             DocsAction::Lint => self.lint(),
+            DocsAction::Sync { target, dry_run } => self.sync(&target, dry_run),
         }
     }
 
@@ -488,4 +489,179 @@ impl DocsCommand {
             Ok(false)
         }
     }
+
+    fn sync(&self, target: &str, dry_run: bool) -> Result<()> {
+        println!("\n🔍 Scanning project components...");
+
+        // 1. Collect statistics
+        let stats = self.collect_sync_stats()?;
+
+        println!("  Components: {} files", stats.components_count);
+        println!("  Models: {} files ({}% documented)", stats.models_count, stats.models_coverage);
+        println!("  Repositories: {} files ({}% documented)", stats.repos_count, stats.repos_coverage);
+        println!("  Services: {} files ({}% documented)", stats.services_count, stats.services_coverage);
+        println!("  Hooks: {} files ({}% documented)", stats.hooks_count, stats.hooks_coverage);
+        println!("  Pages: {} files ({}% documented)", stats.pages_count, stats.pages_coverage);
+
+        // 2. Generate new Markdown section
+        let new_section = self.generate_component_section(&stats)?;
+
+        // 3. Read target file
+        let target_path = self.project_root.join(target);
+        if !target_path.exists() {
+            anyhow::bail!("Target file not found: {}", target);
+        }
+
+        let original_content = fs::read_to_string(&target_path)?;
+
+        // 4. Detect and replace section
+        let updated_content = self.replace_section(&original_content, &new_section)?;
+
+        // 5. Show diff or apply changes
+        if dry_run {
+            println!("\n📋 Proposed changes (--dry-run):\n");
+            self.print_diff(&original_content, &updated_content);
+            println!("\n💡 Run without --dry-run to apply changes.");
+        } else {
+            println!("\n📝 Updating {}...", target);
+            fs::write(&target_path, updated_content)?;
+            println!("✅ {} updated successfully!", target);
+            println!("\n💡 Review changes: git diff {}", target);
+        }
+
+        Ok(())
+    }
+
+    fn collect_sync_stats(&self) -> Result<SyncStats> {
+        let layers = vec![
+            ("components", self.project_root.join("packages/app-frontend/src/components")),
+            ("models", self.project_root.join("packages/app-frontend/src/models")),
+            ("repositories", self.project_root.join("packages/app-frontend/src/repositories")),
+            ("services", self.project_root.join("packages/app-frontend/src/services")),
+            ("hooks", self.project_root.join("packages/app-frontend/src/hooks")),
+            ("pages", self.project_root.join("packages/app-frontend/src/pages")),
+        ];
+
+        let mut stats = SyncStats::default();
+
+        for (layer_name, dir) in layers {
+            if !dir.exists() {
+                continue;
+            }
+
+            let (documented, undocumented) = self.lint_layer(&dir)?;
+            let total = documented.len() + undocumented.len();
+            let coverage = if total > 0 {
+                (documented.len() as f64 / total as f64 * 100.0) as usize
+            } else {
+                0
+            };
+
+            match layer_name {
+                "components" => stats.components_count = total,
+                "models" => {
+                    stats.models_count = total;
+                    stats.models_coverage = coverage;
+                }
+                "repositories" => {
+                    stats.repos_count = total;
+                    stats.repos_coverage = coverage;
+                }
+                "services" => {
+                    stats.services_count = total;
+                    stats.services_coverage = coverage;
+                }
+                "hooks" => {
+                    stats.hooks_count = total;
+                    stats.hooks_coverage = coverage;
+                }
+                "pages" => {
+                    stats.pages_count = total;
+                    stats.pages_coverage = coverage;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(stats)
+    }
+
+    fn generate_component_section(&self, stats: &SyncStats) -> Result<String> {
+        let mut md = String::new();
+
+        // Note: Hardcoded known components (auth, layout, storage)
+        // TODO: Auto-detect from JSDoc categories
+        md.push_str("- 認証: `AuthGuard`, `LoginForm`, `SignupForm`\n");
+        md.push_str("- レイアウト: `Layout`, `PrivateLayout`, `NarrowLayout`, `FullWidthLayout`, `TopNavigation`\n");
+        md.push_str("  - `Layout` - デフォルトレイアウト（メニュー・背景・パディング自動提供）\n");
+        md.push_str("  - `PrivateLayout` - 認証必須ページ用（AuthGuard + Layout）\n");
+        md.push_str("- ストレージ: `FileUpload`\n");
+        md.push_str("- Hooks: `useAIGen`, `useImageGeneration`, `usePublicProfile` (React Query)\n");
+        md.push_str(&format!("- UI: shadcn/ui {}コンポーネント（`components/ui/`）\n", stats.components_count));
+        md.push_str(&format!("- Models: {}クラス（{}%ドキュメント化）\n", stats.models_count, stats.models_coverage));
+        md.push_str(&format!("- Repositories: {}クラス（{}%ドキュメント化）\n", stats.repos_count, stats.repos_coverage));
+        md.push_str(&format!("- Services: {}クラス（{}%ドキュメント化）\n", stats.services_count, stats.services_coverage));
+
+        Ok(md)
+    }
+
+    fn replace_section(&self, content: &str, new_section: &str) -> Result<String> {
+        let start_marker = "<!-- SYNC:COMPONENTS:START -->";
+        let end_marker = "<!-- SYNC:COMPONENTS:END -->";
+
+        let start_pos = content.find(start_marker)
+            .ok_or_else(|| anyhow::anyhow!("Start marker not found: {}", start_marker))?;
+        let end_pos = content.find(end_marker)
+            .ok_or_else(|| anyhow::anyhow!("End marker not found: {}", end_marker))?;
+
+        if start_pos >= end_pos {
+            anyhow::bail!("Invalid marker positions: start must come before end");
+        }
+
+        // Extract everything before start marker, section content, and everything after end marker
+        let before = &content[..start_pos + start_marker.len()];
+        let after = &content[end_pos..];
+
+        Ok(format!("{}\n{}{}", before, new_section, after))
+    }
+
+    fn print_diff(&self, old: &str, new: &str) {
+        // Simple line-by-line diff
+        let old_lines: Vec<&str> = old.lines().collect();
+        let new_lines: Vec<&str> = new.lines().collect();
+
+        println!("--- Original");
+        println!("+++ Updated");
+        println!();
+
+        let max_len = old_lines.len().max(new_lines.len());
+        for i in 0..max_len {
+            let old_line = old_lines.get(i).copied().unwrap_or("");
+            let new_line = new_lines.get(i).copied().unwrap_or("");
+
+            if old_line != new_line {
+                if !old_line.is_empty() {
+                    println!("- {}", old_line);
+                }
+                if !new_line.is_empty() {
+                    println!("+ {}", new_line);
+                }
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct SyncStats {
+    components_count: usize,
+    models_count: usize,
+    models_coverage: usize,
+    repos_count: usize,
+    repos_coverage: usize,
+    services_count: usize,
+    services_coverage: usize,
+    hooks_count: usize,
+    hooks_coverage: usize,
+    pages_count: usize,
+    pages_coverage: usize,
 }

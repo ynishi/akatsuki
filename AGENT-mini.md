@@ -66,6 +66,7 @@ Step 6: 振り返り（docs/に整理）
 **実装済みコンポーネント（すぐ使える）:**
 💡 最新情報は `akatsuki docs all` で確認
 
+<!-- SYNC:COMPONENTS:START -->
 - 認証: `AuthGuard`, `LoginForm`, `SignupForm`
 - レイアウト: `Layout`, `PrivateLayout`, `NarrowLayout`, `FullWidthLayout`, `TopNavigation`
   - `Layout` - デフォルトレイアウト（メニュー・背景・パディング自動提供）
@@ -76,6 +77,7 @@ Step 6: 振り返り（docs/に整理）
 - Models: 7クラス（100%ドキュメント化）
 - Repositories: 12クラス（100%ドキュメント化）
 - Services: 13クラス（100%ドキュメント化）
+<!-- SYNC:COMPONENTS:END -->
 
 **Edge Functions（デプロイ済み）:**
 - `ai-chat` - LLM統合（OpenAI/Anthropic/Gemini）

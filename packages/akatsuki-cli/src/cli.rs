@@ -266,6 +266,15 @@ pub enum DocsAction {
     Pages,
     /// Check documentation coverage and list undocumented files
     Lint,
+    /// Sync component list to documentation file (e.g., AGENT-mini.md)
+    Sync {
+        /// Target file to update
+        #[arg(long, default_value = "AGENT-mini.md")]
+        target: String,
+        /// Show diff without applying changes
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[derive(Subcommand)]
