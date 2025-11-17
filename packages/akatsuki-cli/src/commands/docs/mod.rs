@@ -63,6 +63,7 @@ impl DocsCommand {
             DocsAction::Services => self.list_services(search),
             DocsAction::Hooks => self.list_hooks(search),
             DocsAction::Pages => self.list_pages(search),
+            DocsAction::Lint => self.lint(),
         }
     }
 
@@ -227,7 +228,7 @@ impl DocsCommand {
         Ok(())
     }
 
-    fn extract_doc(&self, file_path: &Path, doc_type: &str) -> Result<Option<ComponentDoc>> {
+    fn extract_doc(&self, file_path: &Path, _doc_type: &str) -> Result<Option<ComponentDoc>> {
         let content = fs::read_to_string(file_path)?;
 
         // Extract JSDoc comment (/** ... */)
@@ -346,6 +347,145 @@ impl DocsCommand {
                     .cloned()
                     .collect()
             }
+        }
+    }
+
+    fn lint(&self) -> Result<()> {
+        println!("🔍 Documentation Coverage Report\n");
+
+        let mut total_files = 0;
+        let mut total_documented = 0;
+
+        // Check each layer
+        let layers = vec![
+            ("UI Components", self.project_root.join("packages/app-frontend/src/components")),
+            ("Models", self.project_root.join("packages/app-frontend/src/models")),
+            ("Repositories", self.project_root.join("packages/app-frontend/src/repositories")),
+            ("Services", self.project_root.join("packages/app-frontend/src/services")),
+            ("Hooks", self.project_root.join("packages/app-frontend/src/hooks")),
+            ("Pages", self.project_root.join("packages/app-frontend/src/pages")),
+        ];
+
+        for (layer_name, dir) in layers {
+            if !dir.exists() {
+                continue;
+            }
+
+            let (documented, undocumented) = self.lint_layer(&dir)?;
+            let total = documented.len() + undocumented.len();
+            let coverage = if total > 0 {
+                (documented.len() as f64 / total as f64 * 100.0) as usize
+            } else {
+                0
+            };
+
+            total_files += total;
+            total_documented += documented.len();
+
+            println!("━━━ {} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", layer_name);
+            println!();
+            println!("  Coverage: {}/{} ({}%)", documented.len(), total, coverage);
+            println!();
+
+            if !undocumented.is_empty() {
+                println!("  ⚠️  Undocumented files:");
+                for file in &undocumented {
+                    let relative_path = file.strip_prefix(&self.project_root)
+                        .unwrap_or(file);
+                    println!("    • {}", relative_path.display());
+                }
+                println!();
+            } else {
+                println!("  ✅ All files documented!");
+                println!();
+            }
+        }
+
+        // Overall summary
+        let overall_coverage = if total_files > 0 {
+            (total_documented as f64 / total_files as f64 * 100.0) as usize
+        } else {
+            0
+        };
+
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!();
+        println!("📊 Overall Coverage: {}/{} ({}%)", total_documented, total_files, overall_coverage);
+        println!();
+
+        if overall_coverage < 100 {
+            println!("💡 Tip: Add JSDoc comments to undocumented files:");
+            println!("   /**");
+            println!("    * Brief description of the component/module");
+            println!("    * Additional details (optional)");
+            println!("    */");
+        } else {
+            println!("🎉 Perfect! All files are documented!");
+        }
+
+        Ok(())
+    }
+
+    fn lint_layer(&self, dir: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+        let mut documented = Vec::new();
+        let mut undocumented = Vec::new();
+
+        self.collect_files(dir, &mut documented, &mut undocumented)?;
+
+        Ok((documented, undocumented))
+    }
+
+    fn collect_files(&self, dir: &Path, documented: &mut Vec<PathBuf>, undocumented: &mut Vec<PathBuf>) -> Result<()> {
+        if !dir.is_dir() {
+            return Ok(());
+        }
+
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                self.collect_files(&path, documented, undocumented)?;
+            } else if path.extension().and_then(|s| s.to_str()) == Some("ts")
+                   || path.extension().and_then(|s| s.to_str()) == Some("tsx")
+                   || path.extension().and_then(|s| s.to_str()) == Some("jsx") {
+
+                // Skip index.ts files
+                if path.file_name().and_then(|s| s.to_str()) == Some("index.ts") {
+                    continue;
+                }
+
+                // Check if file has JSDoc
+                let has_jsdoc = self.has_jsdoc(&path)?;
+                if has_jsdoc {
+                    documented.push(path);
+                } else {
+                    undocumented.push(path);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn has_jsdoc(&self, file_path: &Path) -> Result<bool> {
+        let content = fs::read_to_string(file_path)?;
+        let jsdoc_re = Regex::new(r"/\*\*\s*\n?((?:.*?\n?)*?)\*/").unwrap();
+
+        if let Some(captures) = jsdoc_re.captures(&content) {
+            let comment = captures.get(1).unwrap().as_str();
+
+            // Check if there's actual content (not just empty comment)
+            let has_content = comment
+                .lines()
+                .any(|line| {
+                    let trimmed = line.trim().trim_start_matches('*').trim();
+                    !trimmed.is_empty() && !trimmed.starts_with('@')
+                });
+
+            Ok(has_content)
+        } else {
+            Ok(false)
         }
     }
 }

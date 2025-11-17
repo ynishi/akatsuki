@@ -256,6 +256,8 @@ pub enum DocsAction {
     Hooks,
     /// List all page components
     Pages,
+    /// Check documentation coverage and list undocumented files
+    Lint,
 }
 
 impl Cli {
