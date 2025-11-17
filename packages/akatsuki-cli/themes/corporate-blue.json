@@ -1,0 +1,124 @@
+{
+  "name": "Corporate Blue",
+  "id": "corporate-blue",
+  "description": "プロフェッショナルで信頼感のあるビジネス向けテーマ",
+  "mood": "信頼性、プロフェッショナル、安定感",
+  "use_cases": ["企業向けダッシュボード", "SaaSアプリケーション", "業務管理システム"],
+  "colors": {
+    "primary": {
+      "50": "#eff6ff",
+      "100": "#dbeafe",
+      "200": "#bfdbfe",
+      "300": "#93c5fd",
+      "400": "#60a5fa",
+      "500": "#3b82f6",
+      "600": "#2563eb",
+      "700": "#1d4ed8",
+      "800": "#1e40af",
+      "900": "#1e3a8a"
+    },
+    "secondary": {
+      "50": "#f0f9ff",
+      "100": "#e0f2fe",
+      "200": "#bae6fd",
+      "300": "#7dd3fc",
+      "400": "#38bdf8",
+      "500": "#0ea5e9",
+      "600": "#0284c7",
+      "700": "#0369a1",
+      "800": "#075985",
+      "900": "#0c4a6e"
+    },
+    "neutral": {
+      "50": "#f8fafc",
+      "100": "#f1f5f9",
+      "200": "#e2e8f0",
+      "300": "#cbd5e1",
+      "400": "#94a3b8",
+      "500": "#64748b",
+      "600": "#475569",
+      "700": "#334155",
+      "800": "#1e293b",
+      "900": "#0f172a"
+    },
+    "success": {
+      "500": "#10b981",
+      "600": "#059669",
+      "700": "#047857"
+    },
+    "warning": {
+      "500": "#f59e0b",
+      "600": "#d97706",
+      "700": "#b45309"
+    },
+    "error": {
+      "500": "#ef4444",
+      "600": "#dc2626",
+      "700": "#b91c1c"
+    }
+  },
+  "typography": {
+    "font_family": {
+      "sans": "Inter, system-ui, -apple-system, sans-serif",
+      "mono": "\"JetBrains Mono\", \"Fira Code\", monospace"
+    },
+    "font_size": {
+      "xs": "0.75rem",
+      "sm": "0.875rem",
+      "base": "1rem",
+      "lg": "1.125rem",
+      "xl": "1.25rem",
+      "2xl": "1.5rem",
+      "3xl": "1.875rem",
+      "4xl": "2.25rem"
+    },
+    "line_height": {
+      "tight": "1.25",
+      "normal": "1.5",
+      "relaxed": "1.75"
+    }
+  },
+  "spacing": {
+    "1": "0.25rem",
+    "2": "0.5rem",
+    "3": "0.75rem",
+    "4": "1rem",
+    "6": "1.5rem",
+    "8": "2rem",
+    "12": "3rem",
+    "16": "4rem"
+  },
+  "border_radius": {
+    "sm": "0.125rem",
+    "md": "0.375rem",
+    "lg": "0.5rem",
+    "xl": "0.75rem",
+    "2xl": "1rem",
+    "full": "9999px"
+  },
+  "components": {
+    "button": {
+      "primary": "bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-medium rounded-lg px-4 py-2 transition-colors duration-200",
+      "secondary": "bg-secondary-100 hover:bg-secondary-200 text-secondary-900 font-medium rounded-lg px-4 py-2 transition-colors duration-200",
+      "outline": "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 font-medium rounded-lg px-4 py-2 transition-colors duration-200"
+    },
+    "card": {
+      "default": "bg-white border border-neutral-200 rounded-xl shadow-sm p-6",
+      "elevated": "bg-white border border-neutral-200 rounded-xl shadow-lg p-6"
+    },
+    "input": {
+      "default": "border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent",
+      "error": "border border-error-500 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-error-500 focus:border-transparent"
+    },
+    "badge": {
+      "primary": "bg-primary-100 text-primary-800 text-xs font-semibold px-2.5 py-0.5 rounded-full",
+      "success": "bg-success-100 text-success-800 text-xs font-semibold px-2.5 py-0.5 rounded-full",
+      "warning": "bg-warning-100 text-warning-800 text-xs font-semibold px-2.5 py-0.5 rounded-full",
+      "error": "bg-error-100 text-error-800 text-xs font-semibold px-2.5 py-0.5 rounded-full"
+    }
+  },
+  "examples": {
+    "layout": "```tsx\n<div className=\"min-h-screen bg-neutral-50\">\n  <header className=\"bg-white border-b border-neutral-200 px-6 py-4\">\n    <h1 className=\"text-2xl font-bold text-neutral-900\">Dashboard</h1>\n  </header>\n  <main className=\"p-6\">\n    <div className=\"bg-white border border-neutral-200 rounded-xl shadow-sm p-6\">\n      {/* Content */}\n    </div>\n  </main>\n</div>\n```",
+    "button_group": "```tsx\n<div className=\"flex gap-3\">\n  <button className=\"bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg px-4 py-2\">\n    Primary Action\n  </button>\n  <button className=\"bg-secondary-100 hover:bg-secondary-200 text-secondary-900 font-medium rounded-lg px-4 py-2\">\n    Secondary Action\n  </button>\n</div>\n```"
+  }
+}

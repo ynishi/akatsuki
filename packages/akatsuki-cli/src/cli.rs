@@ -166,6 +166,16 @@ pub enum DesignAction {
         /// Feature name in kebab-case (e.g., user-dashboard)
         feature_name: String,
     },
+    /// List all available themes
+    Themes,
+    /// Show theme details
+    Theme {
+        /// Theme ID (e.g., corporate-blue, minimal-dark)
+        theme_id: String,
+        /// Output format (markdown, json)
+        #[arg(long, short, default_value = "markdown")]
+        format: String,
+    },
 }
 
 #[derive(Subcommand)]
