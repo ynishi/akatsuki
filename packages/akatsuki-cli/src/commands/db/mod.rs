@@ -164,6 +164,72 @@ impl DbCommand {
             println!("{}", "─".repeat(80).dimmed());
         }
 
+        // Step 5: Check for multibyte characters (potential encoding issues)
+        println!();
+        println!("{}", "🔤 Checking for multibyte characters...".cyan());
+
+        let mut has_multibyte = false;
+        let mut multibyte_warnings = Vec::new();
+
+        for migration in &migrations {
+            let migration_path = migrations_path.join(migration);
+            if let Ok(content) = fs::read_to_string(&migration_path) {
+                for (line_num, line) in content.lines().enumerate() {
+                    // Check if line contains non-ASCII characters
+                    if line.chars().any(|c| !c.is_ascii()) {
+                        has_multibyte = true;
+                        // Extract the non-ASCII part (first 50 chars max)
+                        let sample: String = line.chars().take(50).collect();
+                        multibyte_warnings.push((migration.clone(), line_num + 1, sample));
+                    }
+                }
+            }
+        }
+
+        if has_multibyte {
+            println!();
+            println!("{}", "⚠️  WARNING: Multibyte characters detected in migration files".yellow().bold());
+            println!("{}", "   This may cause 'supabase db push' to fail with encoding errors".yellow());
+            println!();
+            println!("{}", "   Affected files:".yellow());
+
+            // Group by file and show first few occurrences per file
+            let mut current_file = String::new();
+            let mut count_in_file = 0;
+            const MAX_WARNINGS_PER_FILE: usize = 3;
+
+            for (file, line_num, sample) in &multibyte_warnings {
+                if *file != current_file {
+                    current_file = file.clone();
+                    count_in_file = 0;
+                    println!();
+                    println!("{}", format!("   📄 {}", file).yellow());
+                }
+
+                count_in_file += 1;
+                if count_in_file <= MAX_WARNINGS_PER_FILE {
+                    println!("{}", format!("      Line {}: {}", line_num, sample).dimmed());
+                } else if count_in_file == MAX_WARNINGS_PER_FILE + 1 {
+                    let remaining = multibyte_warnings.iter()
+                        .filter(|(f, _, _)| f == file)
+                        .count() - MAX_WARNINGS_PER_FILE;
+                    if remaining > 0 {
+                        println!("{}", format!("      ... and {} more line(s)", remaining).dimmed());
+                    }
+                }
+            }
+
+            println!();
+            println!("{}", "💡 Recommendations:".cyan());
+            println!("   1. Remove Japanese/multibyte comments from SQL files");
+            println!("   2. Use only ASCII characters (English) in migration files");
+            println!("   3. Ensure files are saved with UTF-8 encoding");
+            println!("   4. Test with: akatsuki db push --dry-run (if available)");
+            println!();
+        } else {
+            println!("{}", "   ✅ No multibyte characters found (safe for push)".green());
+        }
+
         println!();
         println!("{}", "✅ Migration check complete!".green());
         println!();
