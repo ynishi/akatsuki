@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
+use std::path::PathBuf;
 
 use crate::commands::design::DesignCommand;
 use crate::commands::setup::SetupCommand;
@@ -144,6 +145,9 @@ enum Commands {
     /// List all available commands (flat hierarchy)
     #[command(about = "List all available commands")]
     List,
+    /// Install akatsuki CLI globally (cargo install --path packages/akatsuki-cli)
+    #[command(about = "Install akatsuki CLI globally")]
+    Install,
 }
 
 #[derive(Subcommand)]
@@ -363,6 +367,9 @@ impl Cli {
             Commands::List => {
                 Self::list_all_commands()
             }
+            Commands::Install => {
+                Self::install_cli()
+            }
         }
     }
 
@@ -456,11 +463,89 @@ impl Cli {
         println!("# ユーティリティ");
         println!("akatsuki completion <shell>       # Shell completion スクリプト生成 (zsh/bash/fish/powershell)");
         println!("akatsuki list                     # 全コマンド一覧（このリスト）");
+        println!("akatsuki install                  # CLI をグローバルインストール (cargo install)");
         println!();
 
         println!("💡 詳細なヘルプ: akatsuki <command> --help");
         println!();
 
         Ok(())
+    }
+
+    fn install_cli() -> Result<()> {
+        use std::process::Command;
+
+        println!("\n🔧 Installing akatsuki CLI globally...\n");
+
+        // Find project root
+        let project_root = Self::find_project_root();
+        let cli_path = project_root.join("packages/akatsuki-cli");
+
+        // Verify we're in the project root
+        if !cli_path.exists() {
+            anyhow::bail!(
+                "Error: packages/akatsuki-cli not found.\n\n\
+                 This command must be run from the Akatsuki project root.\n\
+                 Current directory: {:?}\n\
+                 Expected path: {:?}",
+                std::env::current_dir()?,
+                cli_path
+            );
+        }
+
+        println!("📂 Project root: {}", project_root.display());
+        println!("📦 Installing from: {}", cli_path.display());
+        println!();
+
+        // Run cargo install
+        let status = Command::new("cargo")
+            .args(["install", "--path", cli_path.to_str().unwrap()])
+            .status()
+            .map_err(|e| anyhow::anyhow!("Failed to run cargo install: {}\n\nMake sure cargo is installed and available in PATH.", e))?;
+
+        if !status.success() {
+            anyhow::bail!("cargo install failed");
+        }
+
+        println!();
+        println!("✅ akatsuki CLI installed successfully!");
+        println!();
+        println!("💡 Next steps:");
+        println!("   1. Make sure ~/.cargo/bin is in your PATH");
+        println!("   2. Run: akatsuki --version");
+        println!("   3. Set up shell completion: akatsuki completion zsh > ~/.zsh/completions/_akatsuki");
+        println!();
+
+        Ok(())
+    }
+
+    fn find_project_root() -> PathBuf {
+        let mut current = std::env::current_dir().unwrap();
+
+        loop {
+            // Check for package.json with workspaces
+            let package_json = current.join("package.json");
+            if package_json.exists() {
+                if let Ok(content) = std::fs::read_to_string(&package_json) {
+                    if content.contains("\"workspaces\"") {
+                        return current;
+                    }
+                }
+            }
+
+            // Check for packages directory (monorepo indicator)
+            if current.join("packages").is_dir() &&
+               current.join("packages/app-frontend").is_dir() {
+                return current;
+            }
+
+            // Move up to parent directory
+            if let Some(parent) = current.parent() {
+                current = parent.to_path_buf();
+            } else {
+                // Reached filesystem root, return original
+                return std::env::current_dir().unwrap();
+            }
+        }
     }
 }
