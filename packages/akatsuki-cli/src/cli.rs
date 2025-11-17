@@ -127,14 +127,11 @@ enum Commands {
     },
     /// Get contextual development advice
     ///
-    /// Analyzes project state and suggests next steps
-    #[command(about = "Get contextual development advice")]
+    /// Commands: rule, prompt, ai
+    #[command(about = "Get contextual development advice (rule | prompt | ai)")]
     Advice {
-        /// Optional task-specific workflow (e.g., feature, migration)
-        task: Option<String>,
-        /// Use AI for advanced context-aware advice
-        #[arg(long)]
-        ai: bool,
+        #[command(subcommand)]
+        action: AdviceAction,
     },
 }
 
@@ -243,6 +240,14 @@ pub enum DeployTarget {
     All,
 }
 
+#[derive(Debug, Clone, ValueEnum)]
+pub enum AIBackend {
+    /// Use Claude Code via claude command (automatic invocation)
+    Claude,
+    /// Output markdown prompt only (manual copy-paste)
+    Markdown,
+}
+
 #[derive(Subcommand)]
 pub enum DocsAction {
     /// List all layers (components, models, repositories, services, hooks, pages)
@@ -261,6 +266,28 @@ pub enum DocsAction {
     Pages,
     /// Check documentation coverage and list undocumented files
     Lint,
+}
+
+#[derive(Subcommand)]
+pub enum AdviceAction {
+    /// Static rule-based advice (fast, no AI)
+    Rule {
+        /// Optional task-specific workflow (e.g., feature, migration)
+        task: Option<String>,
+    },
+    /// Generate AI prompt for manual copy-paste to Claude Code
+    Prompt {
+        /// Optional custom question
+        task: Option<String>,
+    },
+    /// Automatic AI invocation (requires claude command)
+    Ai {
+        /// Optional custom question
+        task: Option<String>,
+        /// AI backend to use
+        #[arg(long, value_enum, default_value = "claude")]
+        backend: AIBackend,
+    },
 }
 
 impl Cli {
@@ -306,9 +333,9 @@ impl Cli {
                 let cmd = DocsCommand::new();
                 cmd.execute(action, search.as_deref())
             }
-            Commands::Advice { task, ai } => {
+            Commands::Advice { action } => {
                 let cmd = AdviceCommand::new();
-                cmd.execute(task, ai)
+                cmd.execute(action)
             }
         }
     }

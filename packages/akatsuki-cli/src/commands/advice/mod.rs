@@ -2,10 +2,12 @@ use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::io::Write;
 
 mod detectors;
 mod rules;
 
+use crate::cli::{AdviceAction, AIBackend};
 use rules::{RuleEngine, Advice};
 
 pub struct AdviceCommand {
@@ -50,16 +52,21 @@ impl AdviceCommand {
         }
     }
 
-    pub fn execute(&self, task: Option<String>, use_ai: bool) -> Result<()> {
-        if use_ai {
-            // AI-powered advice (Phase 1: Markdown generation)
-            self.show_ai_advice(task.as_deref())
-        } else if let Some(task_name) = task {
-            // Task-specific workflow (Phase 2)
-            self.show_task_workflow(&task_name)
-        } else {
-            // Auto-detect mode
-            self.show_contextual_advice()
+    pub fn execute(&self, action: AdviceAction) -> Result<()> {
+        match action {
+            AdviceAction::Rule { task } => {
+                if let Some(task_name) = task {
+                    self.show_task_workflow(&task_name)
+                } else {
+                    self.show_contextual_advice()
+                }
+            }
+            AdviceAction::Prompt { task } => {
+                self.show_prompt_advice(task.as_deref())
+            }
+            AdviceAction::Ai { task, backend } => {
+                self.invoke_ai_backend(task.as_deref(), backend)
+            }
         }
     }
 
@@ -79,24 +86,73 @@ impl AdviceCommand {
         Ok(())
     }
 
-    fn show_ai_advice(&self, task: Option<&str>) -> Result<()> {
-        // 1. Collect static analysis
+    fn show_prompt_advice(&self, task: Option<&str>) -> Result<()> {
+        // Generate markdown prompt for manual copy-paste
         let engine = RuleEngine::new();
         let static_advice = engine.analyze(&self.project_root)?;
-
-        // 2. Collect additional context
         let context = self.collect_ai_context()?;
-
-        // 3. Build markdown prompt
         let prompt = self.build_ai_prompt(&static_advice, &context, task);
 
-        // 4. Output markdown (Phase 1)
-        println!("\n📋 AI Analysis Request\n");
+        println!("\n📋 AI Analysis Prompt\n");
         println!("Copy the following to Claude Code for advanced advice:\n");
         println!("---");
         println!("{}", prompt);
         println!("---\n");
         println!("💡 Paste this into Claude Code for AI-powered advice.");
+
+        Ok(())
+    }
+
+    fn invoke_ai_backend(&self, task: Option<&str>, backend: AIBackend) -> Result<()> {
+        match backend {
+            AIBackend::Markdown => {
+                // Same as prompt subcommand
+                self.show_prompt_advice(task)
+            }
+            AIBackend::Claude => {
+                // Automatic invocation via claude command
+                self.invoke_claude_command(task)
+            }
+        }
+    }
+
+    fn invoke_claude_command(&self, task: Option<&str>) -> Result<()> {
+        println!("\n🤖 Invoking Claude Code AI...\n");
+
+        // 1. Collect context and build prompt
+        let engine = RuleEngine::new();
+        let static_advice = engine.analyze(&self.project_root)?;
+        let context = self.collect_ai_context()?;
+        let prompt = self.build_ai_prompt(&static_advice, &context, task);
+
+        // 2. Invoke claude command with prompt via stdin
+        let mut child = Command::new("claude")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .spawn()
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to execute 'claude' command: {}\n\n\
+                     Make sure 'claude' command is installed and available in PATH.\n\
+                     Fallback: Use 'akatsuki advice prompt' to generate markdown for manual paste.",
+                    e
+                )
+            })?;
+
+        // Write prompt to stdin
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write_all(prompt.as_bytes())?;
+        }
+
+        // Wait for completion
+        let status = child.wait()?;
+
+        if !status.success() {
+            anyhow::bail!("Claude command failed with status: {}", status);
+        }
+
+        println!("\n✅ AI analysis complete!");
 
         Ok(())
     }
