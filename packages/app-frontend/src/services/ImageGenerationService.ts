@@ -1,5 +1,5 @@
 import { EdgeFunctionService } from './EdgeFunctionService'
-import { PublicStorageService } from './PublicStorageService'
+import { PublicStorageService, UploadResult as PublicUploadResult } from './PublicStorageService'
 import { PrivateStorageService } from './PrivateStorageService'
 
 /**
@@ -300,7 +300,7 @@ export class ImageGenerationService {
       return {
         data: {
           id: uploadResult.id, // files テーブルの ID
-          publicUrl: 'publicUrl' in uploadResult ? uploadResult.publicUrl : undefined, // 恒久的な公開URL
+          publicUrl: 'publicUrl' in uploadResult ? (uploadResult as PublicUploadResult).publicUrl : undefined, // 恒久的な公開URL
           storagePath: uploadResult.storagePath,
           revisedPrompt: generationResult.revised_prompt, // DALL-Eが修正したプロンプト
           provider: generationResult.provider,

@@ -97,8 +97,8 @@ export class GeminiProvider extends BaseProvider {
     }
 
     // TODO: Edge Functionでストリーミング実装後に有効化
-    await EdgeFunctionService.invokeStream('ai-chat', payload, (chunk: { text: string }) => {
-      onChunk(chunk.text)
+    await EdgeFunctionService.invokeStream('ai-chat', payload, (chunk: unknown) => {
+      onChunk((chunk as { text: string }).text)
     })
   }
 

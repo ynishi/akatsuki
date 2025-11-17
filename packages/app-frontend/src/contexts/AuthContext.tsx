@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
-import type { User, Session, AuthError, OAuthResponse, AuthTokenResponsePassword } from '@supabase/supabase-js'
+import type { User, Session, AuthError } from '@supabase/supabase-js'
 
 /**
  * Sign up metadata
@@ -36,13 +36,13 @@ export interface AuthContextValue {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string, metadata?: SignUpMetadata) => Promise<AuthResponse<AuthTokenResponsePassword>>
-  signIn: (email: string, password: string) => Promise<AuthResponse<AuthTokenResponsePassword>>
-  signInWithMagicLink: (email: string) => Promise<AuthResponse<{ user: User | null; session: Session | null }>>
-  signInWithOAuth: (provider: OAuthProvider) => Promise<AuthResponse<OAuthResponse>>
-  signOut: () => Promise<SignOutResponse>
-  resetPassword: (email: string) => Promise<AuthResponse<unknown>>
-  updatePassword: (newPassword: string) => Promise<AuthResponse<User>>
+  signUp: (email: string, password: string, metadata?: SignUpMetadata) => Promise<any>
+  signIn: (email: string, password: string) => Promise<any>
+  signInWithMagicLink: (email: string) => Promise<any>
+  signInWithOAuth: (provider: OAuthProvider) => Promise<any>
+  signOut: () => Promise<any>
+  resetPassword: (email: string) => Promise<any>
+  updatePassword: (newPassword: string) => Promise<any>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     email: string,
     password: string,
     metadata: SignUpMetadata = {}
-  ): Promise<AuthResponse<AuthTokenResponsePassword>> => {
+  ) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // Email/Password ログイン
-  const signIn = async (email: string, password: string): Promise<AuthResponse<AuthTokenResponsePassword>> => {
+  const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -105,9 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // Magic Link ログイン
-  const signInWithMagicLink = async (
-    email: string
-  ): Promise<AuthResponse<{ user: User | null; session: Session | null }>> => {
+  const signInWithMagicLink = async (email: string) => {
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -118,7 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // OAuth ログイン（拡張用）
-  const signInWithOAuth = async (provider: OAuthProvider): Promise<AuthResponse<OAuthResponse>> => {
+  const signInWithOAuth = async (provider: OAuthProvider) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -129,13 +127,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // ログアウト
-  const signOut = async (): Promise<SignOutResponse> => {
+  const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     return { error }
   }
 
   // パスワードリセットメール送信
-  const resetPassword = async (email: string): Promise<AuthResponse<unknown>> => {
+  const resetPassword = async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
@@ -143,7 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // パスワード更新
-  const updatePassword = async (newPassword: string): Promise<AuthResponse<User>> => {
+  const updatePassword = async (newPassword: string) => {
     const { data, error } = await supabase.auth.updateUser({
       password: newPassword,
     })

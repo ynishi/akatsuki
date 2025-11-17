@@ -79,7 +79,7 @@ export function useKnowledgeFiles(storeId: string | null): UseKnowledgeFilesRetu
       if (!data) throw new Error('File upload failed')
 
       // DBから完全なデータを取得
-      const fileData = await KnowledgeFileRepository.findByIdWithFile(data.file.id)
+      const fileData = await KnowledgeFileRepository.findByIdWithFile(data.knowledge_file.file_id)
       if (!fileData) throw new Error('File not found after upload')
 
       return KnowledgeFile.fromDatabase(fileData)

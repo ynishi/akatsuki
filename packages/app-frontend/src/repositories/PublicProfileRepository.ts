@@ -104,7 +104,7 @@ export class PublicProfileRepository {
       return { data: (data || []) as PublicProfileDatabaseRecord[], error: null }
     } catch (error) {
       console.error('PublicProfileRepository.findByUserIds error:', error)
-      return { data: [], error: error as Error }
+      return { data: null, error: error as Error }
     }
   }
 
@@ -214,7 +214,7 @@ export class PublicProfileRepository {
       return { data: (data || []) as PublicProfileDatabaseRecord[], error: null }
     } catch (error) {
       console.error('PublicProfileRepository.searchByUsername error:', error)
-      return { data: [], error: error as Error }
+      return { data: null, error: error as Error }
     }
   }
 

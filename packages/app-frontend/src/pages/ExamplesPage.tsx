@@ -13,7 +13,7 @@ import { UserProfileRepository, UserQuotaRepository, ComfyUIWorkflowRepository, 
 import { UserProfile } from '../models'
 import { callHelloFunction, EdgeFunctionService, EventService } from '../services'
 import { GeminiProvider } from '../services/ai/providers/GeminiProvider'
-import { AIService } from '../services/ai'
+import { AIServiceAdapter } from '../services/ai/AIServiceAdapter'
 import { PublicStorageService } from '../services/PublicStorageService'
 import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
@@ -162,10 +162,11 @@ const ui = useAIUI()
  */
 function AIAgentUICard({ user }: { user: any }) {
   // 複数のAIプロバイダーを登録
+  // AIServiceAdapterを使用してai-agent-uiの期待するインターフェースに適合
   const providers = [
-    new AIGeminiProvider(AIService),
-    new AnthropicProvider(AIService),
-    new OpenAIProvider(AIService),
+    new AIGeminiProvider(AIServiceAdapter),
+    new AnthropicProvider(AIServiceAdapter),
+    new OpenAIProvider(AIServiceAdapter),
   ]
 
   return (
