@@ -27,5 +27,6 @@
     }
   },
   "include": ["src"],
+  "exclude": ["src/TypeTestComponent.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

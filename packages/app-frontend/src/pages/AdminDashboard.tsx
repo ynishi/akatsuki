@@ -6,14 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Badge } from '../components/ui/badge'
 import { UserProfileRepository } from '../repositories'
 import { FileUpload } from '../components/storage/FileUpload'
+import { UserProfileDatabaseRecord } from '../models/UserProfile'
+import { UploadResult } from '../services/PublicStorageService'
 
 export function AdminDashboard() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
-  const [profile, setProfile] = useState(null)
-  const [profileError, setProfileError] = useState(null)
+  const [profile, setProfile] = useState<UserProfileDatabaseRecord | null>(null)
+  const [profileError, setProfileError] = useState<string | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [uploadedFiles, setUploadedFiles] = useState<UploadResult[]>([])
 
   // Load profile after page mount (after redirect)
   const loadProfile = useCallback(async () => {
@@ -27,7 +29,7 @@ export function AdminDashboard() {
       setProfile(data)
     } catch (error) {
       console.error('プロフィール読み込みエラー:', error)
-      setProfileError(error.message)
+      setProfileError(error instanceof Error ? error.message : 'エラーが発生しました')
     } finally {
       setProfileLoading(false)
     }
@@ -37,16 +39,11 @@ export function AdminDashboard() {
     loadProfile()
   }, [loadProfile])
 
-  const _handleLogout = async () => {
-    await signOut()
-    navigate('/login')
-  }
-
   const handleManualFetch = () => {
     loadProfile()
   }
 
-  const handleUploadComplete = (results) => {
+  const handleUploadComplete = (results: UploadResult[]) => {
     console.log('Upload complete:', results)
     setUploadedFiles([...uploadedFiles, ...results])
   }
@@ -68,7 +65,7 @@ export function AdminDashboard() {
                 <p><strong>Email:</strong> {user?.email}</p>
                 <p><strong>User ID:</strong> {user?.id}</p>
                 <p><strong>認証済み:</strong> {user?.email_confirmed_at ? 'はい' : 'いいえ'}</p>
-                <p><strong>作成日:</strong> {new Date(user?.created_at).toLocaleString('ja-JP')}</p>
+                <p><strong>作成日:</strong> {user?.created_at ? new Date(user.created_at).toLocaleString('ja-JP') : 'N/A'}</p>
               </div>
             </div>
 
@@ -232,7 +229,7 @@ export function AdminDashboard() {
                     >
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-green-900">
-                          {file.storagePath || file.filePath}
+                          {file.storagePath}
                         </p>
                         <p className="text-xs text-gray-600">
                           ID: {file.id?.substring(0, 8)}... | Bucket: {file.bucket}

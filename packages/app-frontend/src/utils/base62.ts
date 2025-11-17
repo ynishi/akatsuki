@@ -14,10 +14,10 @@ const BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrs
 
 /**
  * UUIDをBase62にエンコード
- * @param {string} uuid - UUID文字列 (ハイフン付き/なし両対応)
- * @returns {string} Base62エンコードされた文字列（22文字）
+ * @param uuid - UUID文字列 (ハイフン付き/なし両対応)
+ * @returns Base62エンコードされた文字列（22文字）
  */
-export function uuidToBase62(uuid) {
+export function uuidToBase62(uuid: string): string {
   // ハイフンを削除
   const hex = uuid.replace(/-/g, '')
 
@@ -30,10 +30,10 @@ export function uuidToBase62(uuid) {
 
 /**
  * Base62をUUIDにデコード
- * @param {string} base62 - Base62文字列
- * @returns {string} UUID文字列（ハイフン付き標準形式）
+ * @param base62 - Base62文字列
+ * @returns UUID文字列（ハイフン付き標準形式）
  */
-export function base62ToUuid(base62) {
+export function base62ToUuid(base62: string): string {
   // Base62デコード
   const num = decodeBase62(base62)
 
@@ -54,7 +54,7 @@ export function base62ToUuid(base62) {
  * BigIntをBase62エンコード
  * @private
  */
-function encodeBase62(num) {
+function encodeBase62(num: bigint): string {
   if (num === 0n) return BASE62_ALPHABET[0]
 
   let result = ''
@@ -73,7 +73,7 @@ function encodeBase62(num) {
  * Base62文字列をBigIntにデコード
  * @private
  */
-function decodeBase62(str) {
+function decodeBase62(str: string): bigint {
   let result = 0n
   const base = BigInt(BASE62_ALPHABET.length)
 
@@ -93,10 +93,10 @@ function decodeBase62(str) {
 
 /**
  * 文字列がBase62形式かどうかを検証
- * @param {string} str - 検証する文字列
- * @returns {boolean} 有効なBase62形式かどうか
+ * @param str - 検証する文字列
+ * @returns 有効なBase62形式かどうか
  */
-export function isValidBase62(str) {
+export function isValidBase62(str: string): boolean {
   if (!str || str.length === 0) return false
 
   for (let i = 0; i < str.length; i++) {

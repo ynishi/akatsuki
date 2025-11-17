@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
-import { RefreshCw, Eye, Filter, X } from 'lucide-react'
+import { RefreshCw, Eye, X } from 'lucide-react'
 
 interface WebhookLog {
   id: string

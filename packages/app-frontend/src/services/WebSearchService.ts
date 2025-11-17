@@ -14,10 +14,24 @@ export interface SearchOptions {
 }
 
 /**
+ * Individual search result item
+ */
+export interface SearchResultItem {
+  title: string
+  url: string
+  content: string
+  score?: number
+}
+
+/**
  * Search result
  */
 export interface SearchResult {
-  [key: string]: unknown
+  provider: string
+  num_results: number
+  answer?: string
+  searchQueries?: string[]
+  results: SearchResultItem[]
 }
 
 /**

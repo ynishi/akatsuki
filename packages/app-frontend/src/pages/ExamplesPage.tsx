@@ -9,7 +9,6 @@ import { Input } from '../components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip'
 import { UserProfileRepository, UserQuotaRepository, ComfyUIWorkflowRepository, ComfyUIModelRepository } from '../repositories'
 import { UserProfile } from '../models'
 import { callHelloFunction, EdgeFunctionService, EventService } from '../services'
@@ -27,7 +26,7 @@ import { PublicProfileRepository } from '../repositories/PublicProfileRepository
 import { WebSearchCard } from '../components/features/search/WebSearchCard'
 import { FileSearchDemo } from '../components/features/file-search/FileSearchDemo'
 import { JobProgress } from '../components/common/JobProgress'
-import { AIAgentProvider, useAIRegister, useAIUI, AI_LABELS } from '../../../ai-agent-ui/src/core'
+import { AIAgentProvider, useAIRegister, useAIUI } from '../../../ai-agent-ui/src/core'
 import {
   GeminiProvider as AIGeminiProvider,
   AnthropicProvider,

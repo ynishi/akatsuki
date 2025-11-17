@@ -9,7 +9,7 @@ import { Switch } from '../../components/ui/switch'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'sonner'
-import { RefreshCw, Plus, Edit, Trash2, Eye, Code, PlayCircle } from 'lucide-react'
+import { RefreshCw, Plus, Edit, Trash2, Eye, PlayCircle } from 'lucide-react'
 
 interface FunctionDefinition {
   id: string

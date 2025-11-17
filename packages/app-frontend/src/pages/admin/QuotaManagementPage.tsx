@@ -5,13 +5,13 @@ import { Badge } from '../../components/ui/badge'
 import { Input } from '../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog'
-import { UserQuotaRepository } from '../../repositories'
+import { UserQuotaRepository, PlanType } from '../../repositories'
 import { useAuth } from '../../contexts/AuthContext'
 
 interface UserData {
   id: string
   user_id: string
-  plan_type: 'free' | 'pro' | 'enterprise'
+  plan_type: PlanType
   monthly_request_limit: number
   requests_used: number
   user?: {
@@ -21,7 +21,7 @@ interface UserData {
 }
 
 interface EditForm {
-  planType: string
+  planType: PlanType
   monthlyLimit: number | string
   requestsUsed: number | string
 }
@@ -118,12 +118,12 @@ export function QuotaManagementPage() {
   }
 
   // Quick plan change
-  const handleQuickPlanChange = async (userData: UserData, newPlan: string) => {
+  const handleQuickPlanChange = async (userData: UserData, newPlan: PlanType) => {
     try {
       await UserQuotaRepository.updatePlanType(userData.user_id, newPlan)
 
       // Auto-adjust limit based on plan
-      const limits: Record<string, number> = { free: 100, pro: 1000, enterprise: 10000 }
+      const limits: Record<PlanType, number> = { free: 100, pro: 1000, enterprise: 10000 }
       await UserQuotaRepository.updateQuotaLimit(userData.user_id, limits[newPlan])
 
       await loadUsers()
@@ -321,7 +321,7 @@ export function QuotaManagementPage() {
                     <div className="flex gap-2">
                       <Select
                         value={userData.plan_type}
-                        onValueChange={(val) => handleQuickPlanChange(userData, val)}
+                        onValueChange={(val) => handleQuickPlanChange(userData, val as PlanType)}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
@@ -368,7 +368,7 @@ export function QuotaManagementPage() {
             <div className="space-y-4 py-4">
               <div>
                 <label className="text-sm font-medium">Plan Type</label>
-                <Select value={editForm.planType} onValueChange={(val) => setEditForm({ ...editForm, planType: val })}>
+                <Select value={editForm.planType} onValueChange={(val) => setEditForm({ ...editForm, planType: val as PlanType })}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>

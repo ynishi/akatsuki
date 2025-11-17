@@ -17,7 +17,6 @@ import { WebhookLogsPage } from './pages/admin/WebhookLogsPage'
 import { WebhookTestPage } from './pages/admin/WebhookTestPage'
 import { FunctionCallLogsPage } from './pages/admin/FunctionCallLogsPage'
 import { FunctionDefinitionsPage } from './pages/admin/FunctionDefinitionsPage'
-import { TypeTestComponent } from './TypeTestComponent'
 
 function App() {
   return (
@@ -28,7 +27,6 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/examples" element={<ExamplesPage />} />
-            <Route path="/type-test" element={<TypeTestComponent />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />

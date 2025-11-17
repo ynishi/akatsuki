@@ -49,6 +49,26 @@ export interface DeleteResult {
   deletedAt: string
 }
 
+/**
+ * Edge Function upload response
+ */
+interface UploadEdgeFunctionResponse {
+  file_id: string
+  public_url: string
+  storage_path: string
+  metadata: Record<string, unknown>
+  bucket: string
+  success: boolean
+}
+
+/**
+ * Edge Function delete response
+ */
+interface DeleteEdgeFunctionResponse {
+  success: boolean
+  deleted_at: string
+}
+
 export class PublicStorageService {
   static BUCKET_NAME = 'public_assets'
   static DEFAULT_MAX_SIZE_MB = 10
@@ -78,15 +98,19 @@ export class PublicStorageService {
 
     try {
       // Edge Function 呼び出し: Storage アップロード + DB INSERT
-      const { data, error } = await EdgeFunctionService.invoke('upload-file', formData, {
-        isFormData: true,
-      })
+      const { data, error } = await EdgeFunctionService.invoke<UploadEdgeFunctionResponse>(
+        'upload-file',
+        formData,
+        {
+          isFormData: true,
+        }
+      )
 
       if (error) {
         throw error
       }
 
-      if (!data || typeof data !== 'object') {
+      if (!data) {
         throw new Error('Edge Function が無効なレスポンスを返しました')
       }
 
@@ -156,15 +180,18 @@ export class PublicStorageService {
    */
   static async delete(fileId: string): Promise<DeleteResult> {
     try {
-      const { data, error } = await EdgeFunctionService.invoke('delete-file', {
-        fileId,
-      })
+      const { data, error } = await EdgeFunctionService.invoke<DeleteEdgeFunctionResponse>(
+        'delete-file',
+        {
+          fileId,
+        }
+      )
 
       if (error) {
         throw error
       }
 
-      if (!data || typeof data !== 'object') {
+      if (!data) {
         throw new Error('Edge Function が無効なレスポンスを返しました')
       }
 
@@ -359,17 +386,28 @@ export class PublicStorageService {
     }
 
     try {
-      const result = await EdgeFunctionService.invoke('create-url-alias', {
-        fileId,
-        shortCode: shortCode || null,
-        slug: slug || null,
-        ogTitle: ogTitle || null,
-        ogDescription: ogDescription || null,
-        ogImageAlt: ogImageAlt || null,
-        expiresAt: expiresAt || null,
-      })
+      const { data, error } = await EdgeFunctionService.invoke<CreateUrlAliasResult>(
+        'create-url-alias',
+        {
+          fileId,
+          shortCode: shortCode || null,
+          slug: slug || null,
+          ogTitle: ogTitle || null,
+          ogDescription: ogDescription || null,
+          ogImageAlt: ogImageAlt || null,
+          expiresAt: expiresAt || null,
+        }
+      )
 
-      return result.data || result
+      if (error) {
+        throw error
+      }
+
+      if (!data) {
+        throw new Error('Edge Function が無効なレスポンスを返しました')
+      }
+
+      return data
     } catch (error: unknown) {
       console.error('[PublicStorageService] createUrlAlias error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

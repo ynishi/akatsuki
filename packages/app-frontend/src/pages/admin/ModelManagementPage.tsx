@@ -6,9 +6,15 @@ import { Input } from '../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog'
 import { ComfyUIModelRepository } from '../../repositories'
-import { ComfyUIModel } from '../../models'
+import { ComfyUIModel, type ComfyUIModelCategory } from '../../models'
 import { useAuth } from '../../contexts/AuthContext'
 import { EdgeFunctionService } from '../../services'
+
+interface SyncModelsResponse {
+  synced: number
+  added: number
+  deactivated: number
+}
 
 interface EditForm {
   displayName: string
@@ -63,10 +69,18 @@ export function ModelManagementPage() {
   const handleSync = async () => {
     try {
       setSyncing(true)
-      const { data, error } = await EdgeFunctionService.invoke('sync-comfyui-models', {})
+      const { data, error } = await EdgeFunctionService.invoke<SyncModelsResponse>(
+        'sync-comfyui-models',
+        {}
+      )
 
       if (error) {
         alert(`Sync failed: ${error.message}`)
+        return
+      }
+
+      if (!data) {
+        alert('Sync completed but no data returned')
         return
       }
 
@@ -97,13 +111,13 @@ export function ModelManagementPage() {
 
   // Save changes
   const handleSave = async () => {
-    if (!selectedModel) return
+    if (!selectedModel || !selectedModel.id) return
 
     try {
       const updates = {
         display_name: editForm.displayName || null,
         description: editForm.description || null,
-        category: editForm.category,
+        category: editForm.category as ComfyUIModelCategory,
         tags: editForm.tags.split(',').map(t => t.trim()).filter(t => t),
         is_featured: editForm.isFeatured,
         sort_order: parseInt(String(editForm.sortOrder)) || 0,
@@ -128,6 +142,8 @@ export function ModelManagementPage() {
 
   // Toggle featured status
   const toggleFeatured = async (model: ComfyUIModel) => {
+    if (!model.id) return
+
     const { error } = await ComfyUIModelRepository.update(model.id, {
       is_featured: !model.isFeatured
     })

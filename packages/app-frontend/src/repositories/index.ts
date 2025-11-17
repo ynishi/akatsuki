@@ -1,6 +1,6 @@
 export { UserProfileRepository } from './UserProfileRepository'
 export { AIModelRepository } from './AIModelRepository'
-export { UserQuotaRepository } from './UserQuotaRepository'
+export { UserQuotaRepository, type PlanType } from './UserQuotaRepository'
 export { UserUsageStatsRepository } from './UserUsageStatsRepository'
 export { FileMetadataRepository } from './FileMetadataRepository'
 export { ComfyUIWorkflowRepository } from './ComfyUIWorkflowRepository'
