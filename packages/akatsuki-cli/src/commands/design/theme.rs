@@ -280,3 +280,56 @@ pub fn show_theme(theme_id: &str, format: &str) -> Result<()> {
 
     Ok(())
 }
+
+pub fn insert_theme(file_path: &str, theme_id: &str) -> Result<()> {
+    use crate::utils::template::generate_theme_section_for_insertion;
+
+    // Check if file exists
+    let path = std::path::Path::new(file_path);
+    if !path.exists() {
+        anyhow::bail!("File not found: {}", file_path);
+    }
+
+    // Read existing file
+    let original_content = std::fs::read_to_string(path)?;
+
+    // Load theme
+    let theme = Theme::load(theme_id)?;
+
+    // Generate theme section
+    let theme_section = generate_theme_section_for_insertion(&theme);
+
+    // Replace Color Theme section
+    let updated_content = replace_color_theme_section_in_file(&original_content, &theme_section);
+
+    // Write back to file
+    std::fs::write(path, updated_content)?;
+
+    println!("\n{}", "✅ Theme inserted successfully!".bright_green().bold());
+    println!("\n{} {}", "📄 File:".cyan(), file_path);
+    println!("{} {}", "🎨 Theme:".magenta(), theme_id.bright_white().bold());
+
+    Ok(())
+}
+
+fn replace_color_theme_section_in_file(content: &str, theme_section: &str) -> String {
+    let start_marker = "### Color Theme";
+    let end_marker = "### Layout Pattern";
+
+    if let Some(start_pos) = content.find(start_marker) {
+        if let Some(end_pos) = content.find(end_marker) {
+            let mut result = String::new();
+            result.push_str(&content[..start_pos]);
+            result.push_str(theme_section);
+            result.push_str("\n");
+            result.push_str(&content[end_pos..]);
+            return result;
+        }
+    }
+
+    // If section not found, append at the end
+    let mut result = content.to_string();
+    result.push_str("\n\n");
+    result.push_str(theme_section);
+    result
+}

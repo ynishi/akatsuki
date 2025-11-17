@@ -2,9 +2,9 @@ use anyhow::{bail, Result};
 use colored::*;
 use std::fs;
 
-use crate::utils::{get_workspace_dir, process_template, validate_feature_name};
+use crate::utils::{get_workspace_dir, process_template, process_template_with_theme, validate_feature_name};
 
-pub fn execute(feature_name: &str) -> Result<()> {
+pub fn execute(feature_name: &str, theme: Option<&str>) -> Result<()> {
     // Validate feature name
     if !validate_feature_name(feature_name) {
         bail!(
@@ -24,8 +24,12 @@ pub fn execute(feature_name: &str) -> Result<()> {
         );
     }
 
-    // Process template
-    let content = process_template(feature_name);
+    // Process template (with or without theme)
+    let content = if let Some(theme_id) = theme {
+        process_template_with_theme(feature_name, theme_id)?
+    } else {
+        process_template(feature_name)
+    };
 
     // Write file
     fs::write(&output_path, content)?;
@@ -33,6 +37,11 @@ pub fn execute(feature_name: &str) -> Result<()> {
     // Success output
     println!("\n{}", "✅ Design document created successfully!".green().bold());
     println!("\n{} {}", "📄 File:".cyan(), output_path.display());
+
+    if let Some(theme_id) = theme {
+        println!("\n{} {}", "🎨 Theme Applied:".magenta(), theme_id.bright_white().bold());
+    }
+
     println!("\n{}", "🚀 Next steps:".yellow().bold());
     println!("   1. Open the file and fill in the sections");
     println!("   2. Discuss with user to clarify requirements");

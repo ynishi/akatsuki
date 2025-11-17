@@ -156,6 +156,9 @@ pub enum DesignAction {
     New {
         /// Feature name in kebab-case (e.g., user-dashboard)
         feature_name: String,
+        /// Theme to apply (e.g., corporate-blue, minimal-dark)
+        #[arg(long, short)]
+        theme: Option<String>,
     },
     /// List all design examples
     List,
@@ -175,6 +178,14 @@ pub enum DesignAction {
         /// Output format (markdown, json)
         #[arg(long, short, default_value = "markdown")]
         format: String,
+    },
+    /// Insert theme into existing design document
+    InsertTheme {
+        /// Design file path
+        file: String,
+        /// Theme ID (e.g., corporate-blue, minimal-dark)
+        #[arg(long, short)]
+        theme: String,
     },
 }
 
