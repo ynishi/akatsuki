@@ -133,6 +133,14 @@ enum Commands {
         #[command(subcommand)]
         action: AdviceAction,
     },
+    /// Generate shell completion script
+    ///
+    /// Usage: akatsuki completion zsh > ~/.zsh/completions/_akatsuki
+    #[command(about = "Generate shell completion script")]
+    Completion {
+        /// Shell type (zsh, bash, fish, powershell)
+        shell: clap_complete::Shell,
+    },
 }
 
 #[derive(Subcommand)]
@@ -346,6 +354,22 @@ impl Cli {
                 let cmd = AdviceCommand::new();
                 cmd.execute(action)
             }
+            Commands::Completion { shell } => {
+                Self::generate_completion(shell)
+            }
         }
+    }
+
+    fn generate_completion(shell: clap_complete::Shell) -> Result<()> {
+        use clap::CommandFactory;
+        use clap_complete::generate;
+        use std::io;
+
+        let mut cmd = Cli::command();
+        let bin_name = cmd.get_name().to_string();
+
+        generate(shell, &mut cmd, bin_name, &mut io::stdout());
+
+        Ok(())
     }
 }
