@@ -19,7 +19,10 @@ impl FunctionCommand {
     }
 
     fn create_function(&self, name: &str) -> Result<()> {
-        println!("{}", format!("⚡ Creating new edge function: {}", name).cyan());
+        println!(
+            "{}",
+            format!("⚡ Creating new edge function: {}", name).cyan()
+        );
 
         let status = Command::new("supabase")
             .args(["functions", "new", name])
@@ -37,7 +40,10 @@ impl FunctionCommand {
     fn deploy(&self, name: Option<&str>) -> Result<()> {
         match name {
             Some(func_name) => {
-                println!("{}", format!("🚀 Deploying edge function: {}", func_name).cyan());
+                println!(
+                    "{}",
+                    format!("🚀 Deploying edge function: {}", func_name).cyan()
+                );
 
                 let status = Command::new("supabase")
                     .args(["functions", "deploy", func_name])
@@ -48,7 +54,10 @@ impl FunctionCommand {
                     anyhow::bail!("Function deployment failed");
                 }
 
-                println!("{}", format!("✅ Function '{}' deployed successfully!", func_name).green());
+                println!(
+                    "{}",
+                    format!("✅ Function '{}' deployed successfully!", func_name).green()
+                );
             }
             None => {
                 println!("{}", "🚀 Deploying all edge functions...".cyan());

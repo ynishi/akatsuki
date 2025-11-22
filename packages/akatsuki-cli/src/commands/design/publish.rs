@@ -22,7 +22,10 @@ pub fn execute(feature_name: &str) -> Result<()> {
         );
     }
 
-    println!("{}\n", "📚 VibeCoding Design - Publish to Examples".green().bold());
+    println!(
+        "{}\n",
+        "📚 VibeCoding Design - Publish to Examples".green().bold()
+    );
     println!("{} {}", "Source:".cyan(), source_path.display());
     println!("{} {}\n", "Target:".cyan(), target_path.display());
 
@@ -89,14 +92,21 @@ pub fn execute(feature_name: &str) -> Result<()> {
             println!("{} {}", "🏷️  Tags:".cyan(), tag_list.join(", "));
         }
     }
-    println!("\n{}", "💡 This design is now available as an example for future projects!".yellow());
+    println!(
+        "\n{}",
+        "💡 This design is now available as an example for future projects!".yellow()
+    );
     println!("   Use \"akatsuki design list\" to see all examples");
     println!("   Use \"akatsuki design use\" to copy this example\n");
 
     // Optional: Keep or remove from workspace
     if !confirm_keep_in_workspace()? {
         fs::remove_file(&source_path)?;
-        println!("{} {}", "🗑️  Removed from workspace:".yellow(), source_path.display());
+        println!(
+            "{} {}",
+            "🗑️  Removed from workspace:".yellow(),
+            source_path.display()
+        );
     }
 
     Ok(())

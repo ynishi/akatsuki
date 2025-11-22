@@ -37,10 +37,7 @@ pub fn input_feature_name() -> Result<String> {
 
 pub fn confirm_overwrite(filename: &str) -> Result<bool> {
     let result = Confirm::new()
-        .with_prompt(format!(
-            "File already exists: {}. Overwrite?",
-            filename
-        ))
+        .with_prompt(format!("File already exists: {}. Overwrite?", filename))
         .default(false)
         .interact()?;
 

@@ -638,6 +638,85 @@ paplay /usr/share/sounds/freedesktop/stereo/complete.oga
 - ✅ 集中力を保ったまま効率的に開発できる
 - ✅ VibeCoding のリズムに乗れる
 
+### 8.2. 次のアクション提案（推奨）
+
+AI エージェントの作業完了後、自動的に次に何をすべきか提案してもらうと開発フローがさらにスムーズになります。
+
+**開発フロー:**
+1. AI エージェントが実装完了
+2. Stop hook で通知音が鳴る
+3. 同時に `akatsuki advice` が実行され、次のアクションを提案
+
+#### Claude Code での設定
+
+`.claude/settings.local.json` の `hooks` セクションで、通知音と併せて `akatsuki advice` を実行します。
+
+```json
+{
+  "permissions": {
+    "allow": [...],
+    "deny": [],
+    "ask": []
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff"
+          },
+          {
+            "type": "command",
+            "command": "akatsuki advice rule"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**表示される情報:**
+- 📍 **現在の状況** - uncommitted changes, テスト失敗, lint エラーなど
+- 💡 **次の推奨ステップ** - 優先順位順に実行すべきアクション
+- ℹ️ **ヒント** - コードの健全性改善、リファクタリング提案など
+
+**例:**
+```
+📍 Current situation:
+  - Uncommitted changes detected in 3 files
+  - ESLint errors or warnings detected
+  - 2 large files detected (500+ lines)
+
+💡 Recommended next steps:
+  1. Fix code quality issues:
+     - Run linter: npx eslint src --fix
+  2. Review changes: git diff
+  3. Commit changes: git add . && git commit -m "..."
+
+ℹ️ Hints:
+  - Break down large files into smaller modules
+```
+
+**AI によるさらに詳細な分析が必要な場合:**
+
+```bash
+# AI を使った詳細分析（Claude Code を起動）
+akatsuki advice ai
+
+# またはプロンプトだけ生成してコピペ
+akatsuki advice prompt
+```
+
+**メリット:**
+- ✅ 実装後すぐに次のタスクが明確になる
+- ✅ テスト・lint・コミットを忘れない
+- ✅ コードの健全性を保ちながら開発できる
+- ✅ リファクタリングのタイミングを逃さない
+- ✅ 開発のリズムが途切れない
+
 ---
 
 ## 9. 次のステップ

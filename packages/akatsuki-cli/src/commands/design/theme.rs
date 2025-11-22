@@ -110,7 +110,9 @@ impl Theme {
             if let Some(parent) = current.parent() {
                 current = parent.to_path_buf();
             } else {
-                anyhow::bail!("Could not find themes directory. Make sure you're in the Akatsuki project.");
+                anyhow::bail!(
+                    "Could not find themes directory. Make sure you're in the Akatsuki project."
+                );
             }
         }
     }
@@ -120,7 +122,10 @@ impl Theme {
         let theme_path = themes_dir.join(format!("{}.json", theme_id));
 
         if !theme_path.exists() {
-            anyhow::bail!("Theme not found: {}. Use 'akatsuki design themes' to list available themes.", theme_id);
+            anyhow::bail!(
+                "Theme not found: {}. Use 'akatsuki design themes' to list available themes.",
+                theme_id
+            );
         }
 
         Ok(theme_path)
@@ -160,23 +165,39 @@ impl Theme {
         self.format_color_scale(&mut md, &self.colors.neutral);
 
         md.push_str("### Semantic Colors\n");
-        md.push_str(&format!("- **Success**: `{}` (500), `{}` (600)\n",
+        md.push_str(&format!(
+            "- **Success**: `{}` (500), `{}` (600)\n",
             self.colors.success.get("500").unwrap_or(&"N/A".to_string()),
-            self.colors.success.get("600").unwrap_or(&"N/A".to_string())));
-        md.push_str(&format!("- **Warning**: `{}` (500), `{}` (600)\n",
+            self.colors.success.get("600").unwrap_or(&"N/A".to_string())
+        ));
+        md.push_str(&format!(
+            "- **Warning**: `{}` (500), `{}` (600)\n",
             self.colors.warning.get("500").unwrap_or(&"N/A".to_string()),
-            self.colors.warning.get("600").unwrap_or(&"N/A".to_string())));
-        md.push_str(&format!("- **Error**: `{}` (500), `{}` (600)\n\n",
+            self.colors.warning.get("600").unwrap_or(&"N/A".to_string())
+        ));
+        md.push_str(&format!(
+            "- **Error**: `{}` (500), `{}` (600)\n\n",
             self.colors.error.get("500").unwrap_or(&"N/A".to_string()),
-            self.colors.error.get("600").unwrap_or(&"N/A".to_string())));
+            self.colors.error.get("600").unwrap_or(&"N/A".to_string())
+        ));
 
         // Typography
         md.push_str("## タイポグラフィ\n\n");
         md.push_str(&format!("**Font Family**:\n"));
-        md.push_str(&format!("- Sans: `{}`\n",
-            self.typography.font_family.get("sans").unwrap_or(&"N/A".to_string())));
-        md.push_str(&format!("- Mono: `{}`\n\n",
-            self.typography.font_family.get("mono").unwrap_or(&"N/A".to_string())));
+        md.push_str(&format!(
+            "- Sans: `{}`\n",
+            self.typography
+                .font_family
+                .get("sans")
+                .unwrap_or(&"N/A".to_string())
+        ));
+        md.push_str(&format!(
+            "- Mono: `{}`\n\n",
+            self.typography
+                .font_family
+                .get("mono")
+                .unwrap_or(&"N/A".to_string())
+        ));
 
         // Components
         md.push_str("## コンポーネント\n\n");
@@ -248,7 +269,11 @@ pub fn list_themes() -> Result<()> {
         // Load theme to get name and description
         match Theme::load(theme_id) {
             Ok(theme) => {
-                println!("  {} {}", "●".bright_green(), theme_id.bright_white().bold());
+                println!(
+                    "  {} {}",
+                    "●".bright_green(),
+                    theme_id.bright_white().bold()
+                );
                 println!("    {} - {}", theme.name.bright_cyan(), theme.description);
                 println!("    {}: {}", "Mood".dimmed(), theme.mood);
                 println!();
@@ -259,7 +284,10 @@ pub fn list_themes() -> Result<()> {
         }
     }
 
-    println!("💡 {}", "Use 'akatsuki design theme <id>' to view theme details".dimmed());
+    println!(
+        "💡 {}",
+        "Use 'akatsuki design theme <id>' to view theme details".dimmed()
+    );
 
     Ok(())
 }
@@ -305,9 +333,16 @@ pub fn insert_theme(file_path: &str, theme_id: &str) -> Result<()> {
     // Write back to file
     std::fs::write(path, updated_content)?;
 
-    println!("\n{}", "✅ Theme inserted successfully!".bright_green().bold());
+    println!(
+        "\n{}",
+        "✅ Theme inserted successfully!".bright_green().bold()
+    );
     println!("\n{} {}", "📄 File:".cyan(), file_path);
-    println!("{} {}", "🎨 Theme:".magenta(), theme_id.bright_white().bold());
+    println!(
+        "{} {}",
+        "🎨 Theme:".magenta(),
+        theme_id.bright_white().bold()
+    );
 
     Ok(())
 }

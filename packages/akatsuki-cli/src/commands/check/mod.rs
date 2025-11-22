@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
-use std::process::Command;
 use std::path::PathBuf;
+use std::process::Command;
 
 use crate::cli::CheckTarget;
 
@@ -33,8 +33,7 @@ impl CheckCommand {
             }
 
             // Check for packages directory
-            if current.join("packages").is_dir() &&
-               current.join("packages/app-frontend").is_dir() {
+            if current.join("packages").is_dir() && current.join("packages/app-frontend").is_dir() {
                 return current;
             }
 

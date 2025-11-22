@@ -4,8 +4,8 @@ mod error;
 mod utils;
 
 use anyhow::Result;
-use cli::Cli;
 use clap::Parser;
+use cli::Cli;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();

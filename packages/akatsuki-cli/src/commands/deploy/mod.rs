@@ -23,8 +23,14 @@ impl DeployCommand {
         println!("{}", "🚀 Deploying frontend...".cyan());
 
         // Note: Frontend deployment not configured yet
-        println!("{}", "  ℹ️  Frontend deployment not configured yet".yellow());
-        println!("{}", "  Configure deployment (Vercel, Netlify, etc.) first".yellow());
+        println!(
+            "{}",
+            "  ℹ️  Frontend deployment not configured yet".yellow()
+        );
+        println!(
+            "{}",
+            "  Configure deployment (Vercel, Netlify, etc.) first".yellow()
+        );
 
         Ok(())
     }

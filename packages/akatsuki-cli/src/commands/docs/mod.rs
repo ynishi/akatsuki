@@ -1,7 +1,7 @@
 use anyhow::Result;
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
-use regex::Regex;
 
 use crate::cli::DocsAction;
 
@@ -39,8 +39,7 @@ impl DocsCommand {
             }
 
             // Check for packages directory (monorepo indicator)
-            if current.join("packages").is_dir() &&
-               current.join("packages/app-frontend").is_dir() {
+            if current.join("packages").is_dir() && current.join("packages/app-frontend").is_dir() {
                 return current;
             }
 
@@ -93,7 +92,9 @@ impl DocsCommand {
     fn list_components(&self, search: Option<&str>) -> Result<()> {
         println!("📦 UI Components\n");
 
-        let components_dir = self.project_root.join("packages/app-frontend/src/components");
+        let components_dir = self
+            .project_root
+            .join("packages/app-frontend/src/components");
         if !components_dir.exists() {
             println!("❌ Components directory not found: {:?}", components_dir);
             return Ok(());
@@ -125,7 +126,9 @@ impl DocsCommand {
     fn list_repositories(&self, search: Option<&str>) -> Result<()> {
         println!("🗄️  Repositories\n");
 
-        let repos_dir = self.project_root.join("packages/app-frontend/src/repositories");
+        let repos_dir = self
+            .project_root
+            .join("packages/app-frontend/src/repositories");
         if !repos_dir.exists() {
             println!("❌ Repositories directory not found: {:?}", repos_dir);
             return Ok(());
@@ -193,7 +196,8 @@ impl DocsCommand {
 
         // Sort by category, then by file name
         docs.sort_by(|a, b| {
-            a.category.cmp(&b.category)
+            a.category
+                .cmp(&b.category)
                 .then_with(|| a.file_path.cmp(&b.file_path))
         });
 
@@ -212,9 +216,9 @@ impl DocsCommand {
             if path.is_dir() {
                 self.walk_dir(&path, docs, doc_type)?;
             } else if path.extension().and_then(|s| s.to_str()) == Some("ts")
-                   || path.extension().and_then(|s| s.to_str()) == Some("tsx")
-                   || path.extension().and_then(|s| s.to_str()) == Some("jsx") {
-
+                || path.extension().and_then(|s| s.to_str()) == Some("tsx")
+                || path.extension().and_then(|s| s.to_str()) == Some("jsx")
+            {
                 // Skip index.ts files
                 if path.file_name().and_then(|s| s.to_str()) == Some("index.ts") {
                     continue;
@@ -288,7 +292,10 @@ impl DocsCommand {
 
     fn print_docs(&self, docs: &[ComponentDoc], doc_type: &str) {
         if docs.is_empty() {
-            println!("  No {}s found with JSDoc comments.", doc_type.to_lowercase());
+            println!(
+                "  No {}s found with JSDoc comments.",
+                doc_type.to_lowercase()
+            );
             return;
         }
 
@@ -306,7 +313,9 @@ impl DocsCommand {
             }
 
             // Print file path relative to project root
-            let relative_path = doc.file_path.strip_prefix(&self.project_root)
+            let relative_path = doc
+                .file_path
+                .strip_prefix(&self.project_root)
                 .unwrap_or(&doc.file_path);
             println!("{}", relative_path.display());
 
@@ -328,20 +337,17 @@ impl DocsCommand {
                 docs.iter()
                     .filter(|doc| {
                         // Search in file path
-                        let path_match = doc.file_path
+                        let path_match = doc
+                            .file_path
                             .to_string_lossy()
                             .to_lowercase()
                             .contains(&keyword_lower);
 
                         // Search in summary
-                        let summary_match = doc.summary
-                            .to_lowercase()
-                            .contains(&keyword_lower);
+                        let summary_match = doc.summary.to_lowercase().contains(&keyword_lower);
 
                         // Search in category
-                        let category_match = doc.category
-                            .to_lowercase()
-                            .contains(&keyword_lower);
+                        let category_match = doc.category.to_lowercase().contains(&keyword_lower);
 
                         path_match || summary_match || category_match
                     })
@@ -359,12 +365,32 @@ impl DocsCommand {
 
         // Check each layer
         let layers = vec![
-            ("UI Components", self.project_root.join("packages/app-frontend/src/components")),
-            ("Models", self.project_root.join("packages/app-frontend/src/models")),
-            ("Repositories", self.project_root.join("packages/app-frontend/src/repositories")),
-            ("Services", self.project_root.join("packages/app-frontend/src/services")),
-            ("Hooks", self.project_root.join("packages/app-frontend/src/hooks")),
-            ("Pages", self.project_root.join("packages/app-frontend/src/pages")),
+            (
+                "UI Components",
+                self.project_root
+                    .join("packages/app-frontend/src/components"),
+            ),
+            (
+                "Models",
+                self.project_root.join("packages/app-frontend/src/models"),
+            ),
+            (
+                "Repositories",
+                self.project_root
+                    .join("packages/app-frontend/src/repositories"),
+            ),
+            (
+                "Services",
+                self.project_root.join("packages/app-frontend/src/services"),
+            ),
+            (
+                "Hooks",
+                self.project_root.join("packages/app-frontend/src/hooks"),
+            ),
+            (
+                "Pages",
+                self.project_root.join("packages/app-frontend/src/pages"),
+            ),
         ];
 
         for (layer_name, dir) in layers {
@@ -391,8 +417,7 @@ impl DocsCommand {
             if !undocumented.is_empty() {
                 println!("  ⚠️  Undocumented files:");
                 for file in &undocumented {
-                    let relative_path = file.strip_prefix(&self.project_root)
-                        .unwrap_or(file);
+                    let relative_path = file.strip_prefix(&self.project_root).unwrap_or(file);
                     println!("    • {}", relative_path.display());
                 }
                 println!();
@@ -411,7 +436,10 @@ impl DocsCommand {
 
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         println!();
-        println!("📊 Overall Coverage: {}/{} ({}%)", total_documented, total_files, overall_coverage);
+        println!(
+            "📊 Overall Coverage: {}/{} ({}%)",
+            total_documented, total_files, overall_coverage
+        );
         println!();
 
         if overall_coverage < 100 {
@@ -436,7 +464,12 @@ impl DocsCommand {
         Ok((documented, undocumented))
     }
 
-    fn collect_files(&self, dir: &Path, documented: &mut Vec<PathBuf>, undocumented: &mut Vec<PathBuf>) -> Result<()> {
+    fn collect_files(
+        &self,
+        dir: &Path,
+        documented: &mut Vec<PathBuf>,
+        undocumented: &mut Vec<PathBuf>,
+    ) -> Result<()> {
         if !dir.is_dir() {
             return Ok(());
         }
@@ -448,9 +481,9 @@ impl DocsCommand {
             if path.is_dir() {
                 self.collect_files(&path, documented, undocumented)?;
             } else if path.extension().and_then(|s| s.to_str()) == Some("ts")
-                   || path.extension().and_then(|s| s.to_str()) == Some("tsx")
-                   || path.extension().and_then(|s| s.to_str()) == Some("jsx") {
-
+                || path.extension().and_then(|s| s.to_str()) == Some("tsx")
+                || path.extension().and_then(|s| s.to_str()) == Some("jsx")
+            {
                 // Skip index.ts files
                 if path.file_name().and_then(|s| s.to_str()) == Some("index.ts") {
                     continue;
@@ -477,12 +510,10 @@ impl DocsCommand {
             let comment = captures.get(1).unwrap().as_str();
 
             // Check if there's actual content (not just empty comment)
-            let has_content = comment
-                .lines()
-                .any(|line| {
-                    let trimmed = line.trim().trim_start_matches('*').trim();
-                    !trimmed.is_empty() && !trimmed.starts_with('@')
-                });
+            let has_content = comment.lines().any(|line| {
+                let trimmed = line.trim().trim_start_matches('*').trim();
+                !trimmed.is_empty() && !trimmed.starts_with('@')
+            });
 
             Ok(has_content)
         } else {
@@ -497,11 +528,26 @@ impl DocsCommand {
         let stats = self.collect_sync_stats()?;
 
         println!("  Components: {} files", stats.components_count);
-        println!("  Models: {} files ({}% documented)", stats.models_count, stats.models_coverage);
-        println!("  Repositories: {} files ({}% documented)", stats.repos_count, stats.repos_coverage);
-        println!("  Services: {} files ({}% documented)", stats.services_count, stats.services_coverage);
-        println!("  Hooks: {} files ({}% documented)", stats.hooks_count, stats.hooks_coverage);
-        println!("  Pages: {} files ({}% documented)", stats.pages_count, stats.pages_coverage);
+        println!(
+            "  Models: {} files ({}% documented)",
+            stats.models_count, stats.models_coverage
+        );
+        println!(
+            "  Repositories: {} files ({}% documented)",
+            stats.repos_count, stats.repos_coverage
+        );
+        println!(
+            "  Services: {} files ({}% documented)",
+            stats.services_count, stats.services_coverage
+        );
+        println!(
+            "  Hooks: {} files ({}% documented)",
+            stats.hooks_count, stats.hooks_coverage
+        );
+        println!(
+            "  Pages: {} files ({}% documented)",
+            stats.pages_count, stats.pages_coverage
+        );
 
         // 2. Generate new Markdown section
         let new_section = self.generate_component_section(&stats)?;
@@ -534,12 +580,32 @@ impl DocsCommand {
 
     fn collect_sync_stats(&self) -> Result<SyncStats> {
         let layers = vec![
-            ("components", self.project_root.join("packages/app-frontend/src/components")),
-            ("models", self.project_root.join("packages/app-frontend/src/models")),
-            ("repositories", self.project_root.join("packages/app-frontend/src/repositories")),
-            ("services", self.project_root.join("packages/app-frontend/src/services")),
-            ("hooks", self.project_root.join("packages/app-frontend/src/hooks")),
-            ("pages", self.project_root.join("packages/app-frontend/src/pages")),
+            (
+                "components",
+                self.project_root
+                    .join("packages/app-frontend/src/components"),
+            ),
+            (
+                "models",
+                self.project_root.join("packages/app-frontend/src/models"),
+            ),
+            (
+                "repositories",
+                self.project_root
+                    .join("packages/app-frontend/src/repositories"),
+            ),
+            (
+                "services",
+                self.project_root.join("packages/app-frontend/src/services"),
+            ),
+            (
+                "hooks",
+                self.project_root.join("packages/app-frontend/src/hooks"),
+            ),
+            (
+                "pages",
+                self.project_root.join("packages/app-frontend/src/pages"),
+            ),
         ];
 
         let mut stats = SyncStats::default();
@@ -596,11 +662,25 @@ impl DocsCommand {
         md.push_str("  - `Layout` - デフォルトレイアウト（メニュー・背景・パディング自動提供）\n");
         md.push_str("  - `PrivateLayout` - 認証必須ページ用（AuthGuard + Layout）\n");
         md.push_str("- ストレージ: `FileUpload`\n");
-        md.push_str("- Hooks: `useAIGen`, `useImageGeneration`, `usePublicProfile` (React Query)\n");
-        md.push_str(&format!("- UI: shadcn/ui {}コンポーネント（`components/ui/`）\n", stats.components_count));
-        md.push_str(&format!("- Models: {}クラス（{}%ドキュメント化）\n", stats.models_count, stats.models_coverage));
-        md.push_str(&format!("- Repositories: {}クラス（{}%ドキュメント化）\n", stats.repos_count, stats.repos_coverage));
-        md.push_str(&format!("- Services: {}クラス（{}%ドキュメント化）\n", stats.services_count, stats.services_coverage));
+        md.push_str(
+            "- Hooks: `useAIGen`, `useImageGeneration`, `usePublicProfile` (React Query)\n",
+        );
+        md.push_str(&format!(
+            "- UI: shadcn/ui {}コンポーネント（`components/ui/`）\n",
+            stats.components_count
+        ));
+        md.push_str(&format!(
+            "- Models: {}クラス（{}%ドキュメント化）\n",
+            stats.models_count, stats.models_coverage
+        ));
+        md.push_str(&format!(
+            "- Repositories: {}クラス（{}%ドキュメント化）\n",
+            stats.repos_count, stats.repos_coverage
+        ));
+        md.push_str(&format!(
+            "- Services: {}クラス（{}%ドキュメント化）\n",
+            stats.services_count, stats.services_coverage
+        ));
 
         Ok(md)
     }
@@ -609,9 +689,11 @@ impl DocsCommand {
         let start_marker = "<!-- SYNC:COMPONENTS:START -->";
         let end_marker = "<!-- SYNC:COMPONENTS:END -->";
 
-        let start_pos = content.find(start_marker)
+        let start_pos = content
+            .find(start_marker)
             .ok_or_else(|| anyhow::anyhow!("Start marker not found: {}", start_marker))?;
-        let end_pos = content.find(end_marker)
+        let end_pos = content
+            .find(end_marker)
             .ok_or_else(|| anyhow::anyhow!("End marker not found: {}", end_marker))?;
 
         if start_pos >= end_pos {

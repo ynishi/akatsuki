@@ -2,7 +2,9 @@ use anyhow::{bail, Result};
 use colored::*;
 use std::fs;
 
-use crate::utils::{get_workspace_dir, process_template, process_template_with_theme, validate_feature_name};
+use crate::utils::{
+    get_workspace_dir, process_template, process_template_with_theme, validate_feature_name,
+};
 
 pub fn execute(feature_name: &str, theme: Option<&str>) -> Result<()> {
     // Validate feature name
@@ -35,11 +37,18 @@ pub fn execute(feature_name: &str, theme: Option<&str>) -> Result<()> {
     fs::write(&output_path, content)?;
 
     // Success output
-    println!("\n{}", "✅ Design document created successfully!".green().bold());
+    println!(
+        "\n{}",
+        "✅ Design document created successfully!".green().bold()
+    );
     println!("\n{} {}", "📄 File:".cyan(), output_path.display());
 
     if let Some(theme_id) = theme {
-        println!("\n{} {}", "🎨 Theme Applied:".magenta(), theme_id.bright_white().bold());
+        println!(
+            "\n{} {}",
+            "🎨 Theme Applied:".magenta(),
+            theme_id.bright_white().bold()
+        );
     }
 
     println!("\n{}", "🚀 Next steps:".yellow().bold());

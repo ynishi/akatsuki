@@ -117,7 +117,10 @@ impl DbCommand {
             return Ok(());
         }
 
-        println!("{}", format!("📝 Found {} migration file(s):", migrations.len()).cyan());
+        println!(
+            "{}",
+            format!("📝 Found {} migration file(s):", migrations.len()).cyan()
+        );
         for migration in &migrations {
             println!("   • {}", migration);
         }
@@ -132,9 +135,15 @@ impl DbCommand {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            println!("{}", format!("⚠️  Could not check migration status:\n{}", stderr).yellow());
+            println!(
+                "{}",
+                format!("⚠️  Could not check migration status:\n{}", stderr).yellow()
+            );
             println!();
-            println!("{}", "💡 Tip: Run 'akatsuki db link' to link to your Supabase project".cyan());
+            println!(
+                "{}",
+                "💡 Tip: Run 'akatsuki db link' to link to your Supabase project".cyan()
+            );
             return Ok(());
         }
 
@@ -144,7 +153,10 @@ impl DbCommand {
 
         // Step 4: Show SQL preview for latest migration
         if let Some(latest_migration) = migrations.last() {
-            println!("{}", format!("📄 Latest migration preview: {}", latest_migration).cyan());
+            println!(
+                "{}",
+                format!("📄 Latest migration preview: {}", latest_migration).cyan()
+            );
             println!("{}", "─".repeat(80).dimmed());
 
             let migration_path = migrations_path.join(latest_migration);
@@ -158,7 +170,10 @@ impl DbCommand {
                 }
 
                 if lines.len() > 20 {
-                    println!("{}", format!("... ({} more lines)", lines.len() - 20).dimmed());
+                    println!(
+                        "{}",
+                        format!("... ({} more lines)", lines.len() - 20).dimmed()
+                    );
                 }
             }
             println!("{}", "─".repeat(80).dimmed());
@@ -188,8 +203,16 @@ impl DbCommand {
 
         if has_multibyte {
             println!();
-            println!("{}", "⚠️  WARNING: Multibyte characters detected in migration files".yellow().bold());
-            println!("{}", "   This may cause 'supabase db push' to fail with encoding errors".yellow());
+            println!(
+                "{}",
+                "⚠️  WARNING: Multibyte characters detected in migration files"
+                    .yellow()
+                    .bold()
+            );
+            println!(
+                "{}",
+                "   This may cause 'supabase db push' to fail with encoding errors".yellow()
+            );
             println!();
             println!("{}", "   Affected files:".yellow());
 
@@ -208,13 +231,21 @@ impl DbCommand {
 
                 count_in_file += 1;
                 if count_in_file <= MAX_WARNINGS_PER_FILE {
-                    println!("{}", format!("      Line {}: {}", line_num, sample).dimmed());
+                    println!(
+                        "{}",
+                        format!("      Line {}: {}", line_num, sample).dimmed()
+                    );
                 } else if count_in_file == MAX_WARNINGS_PER_FILE + 1 {
-                    let remaining = multibyte_warnings.iter()
+                    let remaining = multibyte_warnings
+                        .iter()
                         .filter(|(f, _, _)| f == file)
-                        .count() - MAX_WARNINGS_PER_FILE;
+                        .count()
+                        - MAX_WARNINGS_PER_FILE;
                     if remaining > 0 {
-                        println!("{}", format!("      ... and {} more line(s)", remaining).dimmed());
+                        println!(
+                            "{}",
+                            format!("      ... and {} more line(s)", remaining).dimmed()
+                        );
                     }
                 }
             }
@@ -227,7 +258,10 @@ impl DbCommand {
             println!("   4. Test with: akatsuki db push --dry-run (if available)");
             println!();
         } else {
-            println!("{}", "   ✅ No multibyte characters found (safe for push)".green());
+            println!(
+                "{}",
+                "   ✅ No multibyte characters found (safe for push)".green()
+            );
         }
 
         println!();

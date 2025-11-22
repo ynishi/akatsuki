@@ -1,11 +1,19 @@
 use anyhow::Result;
 use std::path::Path;
 
+mod code_quality;
+mod docs;
 mod git;
 mod migration;
+mod refactor;
+mod test;
 
+pub use code_quality::CodeQualityDetector;
+pub use docs::DocsDetector;
 pub use git::GitDetector;
 pub use migration::MigrationDetector;
+pub use refactor::RefactorDetector;
+pub use test::TestDetector;
 
 /// Detector trait for analyzing project state
 pub trait Detector {
@@ -23,9 +31,31 @@ pub struct Detection {
 /// Detection categories
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DetectionCategory {
+    // Migration & Git
     PendingMigration,
     UncommittedChanges,
+
+    // Code Quality
+    LintError,
+    TypeCheckError,
+    FormatError,
+
+    // Testing
+    FailingTests,
+    MissingTests,
+    LowCoverage,
+
+    // Code Health
+    CodeComplexity,
+    DuplicateCode,
+    RefactoringNeeded,
+
+    // Documentation
     DesignDocument,
+    IncompleteDesignDoc,
+    MissingDesignDoc,
+
+    // General
     CheckRequired,
     Clean,
 }

@@ -24,7 +24,10 @@ impl TestCommand {
 
         // Note: Frontend tests not configured yet
         println!("{}", "  ℹ️  No frontend tests configured yet".yellow());
-        println!("{}", "  Add test framework (Vitest, Jest, etc.) to run tests".yellow());
+        println!(
+            "{}",
+            "  Add test framework (Vitest, Jest, etc.) to run tests".yellow()
+        );
 
         Ok(())
     }

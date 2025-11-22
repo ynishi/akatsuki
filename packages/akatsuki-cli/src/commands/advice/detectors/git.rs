@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 use std::process::Command;
 
-use super::{Detector, Detection, DetectionCategory};
+use super::{Detection, DetectionCategory, Detector};
 
 pub struct GitDetector;
 
@@ -26,11 +26,11 @@ impl Detector for GitDetector {
                     let code_files: Vec<&str> = lines
                         .iter()
                         .filter(|line| {
-                            line.contains(".ts") ||
-                            line.contains(".tsx") ||
-                            line.contains(".rs") ||
-                            line.contains(".jsx") ||
-                            line.contains(".js")
+                            line.contains(".ts")
+                                || line.contains(".tsx")
+                                || line.contains(".rs")
+                                || line.contains(".jsx")
+                                || line.contains(".js")
                         })
                         .copied()
                         .collect();
@@ -39,8 +39,10 @@ impl Detector for GitDetector {
                     let code_file_count = code_files.len();
 
                     let message = if code_file_count > 0 {
-                        format!("Uncommitted changes detected in {} files ({} code files)",
-                            file_count, code_file_count)
+                        format!(
+                            "Uncommitted changes detected in {} files ({} code files)",
+                            file_count, code_file_count
+                        )
                     } else {
                         format!("Uncommitted changes detected in {} files", file_count)
                     };

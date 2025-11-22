@@ -39,11 +39,19 @@ fn check_prerequisites() {
 
     // Rust
     let rust_version = get_command_output("rustc", &["--version"]);
-    display_check("Rust", rust_version.is_some(), rust_version.as_deref().unwrap_or(""));
+    display_check(
+        "Rust",
+        rust_version.is_some(),
+        rust_version.as_deref().unwrap_or(""),
+    );
 
     // Cargo
     let cargo_version = get_command_output("cargo", &["--version"]);
-    display_check("Cargo", cargo_version.is_some(), cargo_version.as_deref().unwrap_or(""));
+    display_check(
+        "Cargo",
+        cargo_version.is_some(),
+        cargo_version.as_deref().unwrap_or(""),
+    );
 
     // Shuttle CLI
     let shuttle_version = get_command_output("cargo", &["shuttle", "--version"]);
@@ -162,7 +170,11 @@ fn check_edge_functions() -> Result<()> {
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
                 entry.path().is_dir()
-                    && entry.file_name().to_str().map(|s| s != "_shared").unwrap_or(false)
+                    && entry
+                        .file_name()
+                        .to_str()
+                        .map(|s| s != "_shared")
+                        .unwrap_or(false)
             })
             .collect();
 
@@ -176,11 +188,7 @@ fn check_edge_functions() -> Result<()> {
             let fn_name = entry.file_name();
             let index_path = entry.path().join("index.ts");
             let exists = index_path.exists();
-            let icon = if exists {
-                "✓".green()
-            } else {
-                "✗".red()
-            };
+            let icon = if exists { "✓".green() } else { "✗".red() };
             println!("    - {} {}", icon, fn_name.to_string_lossy());
         }
     } else {
@@ -276,7 +284,9 @@ fn get_command_output(cmd: &str, args: &[&str]) -> Option<String> {
         .ok()
         .and_then(|output| {
             if output.status.success() {
-                String::from_utf8(output.stdout).ok().map(|s| s.trim().to_string())
+                String::from_utf8(output.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_string())
             } else {
                 None
             }
@@ -284,11 +294,7 @@ fn get_command_output(cmd: &str, args: &[&str]) -> Option<String> {
 }
 
 fn display_check(label: &str, passed: bool, details: &str) {
-    let icon = if passed {
-        "✓".green()
-    } else {
-        "✗".red()
-    };
+    let icon = if passed { "✓".green() } else { "✗".red() };
     let status = if passed {
         "OK".green()
     } else {

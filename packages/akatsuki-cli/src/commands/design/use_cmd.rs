@@ -99,7 +99,10 @@ pub fn execute() -> Result<()> {
 
     fs::write(&output_path, updated_content)?;
 
-    println!("\n{}", "✅ Design example copied successfully!".green().bold());
+    println!(
+        "\n{}",
+        "✅ Design example copied successfully!".green().bold()
+    );
     println!("\n{} {}", "📄 File:".cyan(), output_path.display());
     println!("\n{}", "💡 Next steps:".yellow().bold());
     println!("   1. Open the file and customize for your needs");

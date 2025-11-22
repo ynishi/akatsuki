@@ -10,10 +10,14 @@ pub fn check_navigation_consistency(project_root: &Path) -> Result<bool> {
     println!("{}", "  Checking navigation consistency...".cyan());
 
     let app_jsx = project_root.join("packages/app-frontend/src/App.jsx");
-    let top_nav = project_root.join("packages/app-frontend/src/components/layout/TopNavigation.tsx");
+    let top_nav =
+        project_root.join("packages/app-frontend/src/components/layout/TopNavigation.tsx");
 
     if !app_jsx.exists() || !top_nav.exists() {
-        println!("{}", "  ⏭️  Skipping navigation check (files not found)".yellow());
+        println!(
+            "{}",
+            "  ⏭️  Skipping navigation check (files not found)".yellow()
+        );
         return Ok(true);
     }
 
@@ -24,9 +28,7 @@ pub fn check_navigation_consistency(project_root: &Path) -> Result<bool> {
     let nav_links = extract_nav_links(&top_nav)?;
 
     // Filter to list routes only
-    let list_routes: Vec<String> = routes.into_iter()
-        .filter(|r| is_list_route(r))
-        .collect();
+    let list_routes: Vec<String> = routes.into_iter().filter(|r| is_list_route(r)).collect();
 
     // Check for missing links
     let mut has_errors = false;
@@ -34,7 +36,11 @@ pub fn check_navigation_consistency(project_root: &Path) -> Result<bool> {
         if !nav_links.contains(route) {
             println!(
                 "{}",
-                format!("  ❌ Route '{}' is a list page but not in TopNavigation", route).red()
+                format!(
+                    "  ❌ Route '{}' is a list page but not in TopNavigation",
+                    route
+                )
+                .red()
             );
             has_errors = true;
         }
@@ -43,7 +49,10 @@ pub fn check_navigation_consistency(project_root: &Path) -> Result<bool> {
     if !has_errors {
         println!("{}", "  ✅ Navigation consistency check passed".green());
     } else {
-        println!("{}", "  💡 Tip: Add missing routes to TopNavigation.tsx".yellow());
+        println!(
+            "{}",
+            "  💡 Tip: Add missing routes to TopNavigation.tsx".yellow()
+        );
     }
 
     Ok(!has_errors)
@@ -51,8 +60,7 @@ pub fn check_navigation_consistency(project_root: &Path) -> Result<bool> {
 
 /// Extract route paths from App.jsx
 fn extract_routes(app_jsx: &Path) -> Result<Vec<String>> {
-    let content = fs::read_to_string(app_jsx)
-        .context("Failed to read App.jsx")?;
+    let content = fs::read_to_string(app_jsx).context("Failed to read App.jsx")?;
 
     let mut routes = Vec::new();
     let mut skip_next = false;
@@ -90,8 +98,7 @@ fn extract_routes(app_jsx: &Path) -> Result<Vec<String>> {
 
 /// Extract navigation links from TopNavigation.tsx
 fn extract_nav_links(top_nav: &Path) -> Result<HashSet<String>> {
-    let content = fs::read_to_string(top_nav)
-        .context("Failed to read TopNavigation.tsx")?;
+    let content = fs::read_to_string(top_nav).context("Failed to read TopNavigation.tsx")?;
 
     let mut links = HashSet::new();
 
@@ -114,17 +121,16 @@ fn is_list_route(path: &str) -> bool {
     }
 
     // Exclude specific action routes
-    if path.ends_with("/create") ||
-       path.ends_with("/edit") ||
-       path.ends_with("/new") {
+    if path.ends_with("/create") || path.ends_with("/edit") || path.ends_with("/new") {
         return false;
     }
 
     // Exclude authentication routes
-    if path.starts_with("/login") ||
-       path.starts_with("/signup") ||
-       path.starts_with("/forgot-password") ||
-       path.starts_with("/reset-password") {
+    if path.starts_with("/login")
+        || path.starts_with("/signup")
+        || path.starts_with("/forgot-password")
+        || path.starts_with("/reset-password")
+    {
         return false;
     }
 
@@ -134,8 +140,7 @@ fn is_list_route(path: &str) -> bool {
     }
 
     // Exclude utility routes
-    if path.starts_with("/type-test") ||
-       path.starts_with("/debug") {
+    if path.starts_with("/type-test") || path.starts_with("/debug") {
         return false;
     }
 

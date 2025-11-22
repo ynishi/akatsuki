@@ -45,7 +45,10 @@ pub fn get_examples_dir() -> Result<PathBuf> {
 
 /// Validate feature name (kebab-case)
 pub fn validate_feature_name(name: &str) -> bool {
-    !name.is_empty() && name.chars().all(|c| c.is_ascii_lowercase() || c == '-' || c.is_numeric())
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c == '-' || c.is_numeric())
 }
 
 /// Convert kebab-case to Title Case
@@ -67,7 +70,8 @@ pub fn extract_markdown_metadata(content: &str) -> MarkdownMetadata {
     let title_regex = regex::Regex::new(r"(?m)^#\s+(.+)").unwrap();
     let created_regex = regex::Regex::new(r"\*\*Created:\*\*\s+(.+)").unwrap();
     let status_regex = regex::Regex::new(r"\*\*Status:\*\*\s+(.+)").unwrap();
-    let desc_regex = regex::Regex::new(r"(?m)^##\s+1\.\s+.*?\n\n\*\*WHY.*?:\*\*\n-\s+(.+)").unwrap();
+    let desc_regex =
+        regex::Regex::new(r"(?m)^##\s+1\.\s+.*?\n\n\*\*WHY.*?:\*\*\n-\s+(.+)").unwrap();
 
     let title = title_regex
         .captures(content)

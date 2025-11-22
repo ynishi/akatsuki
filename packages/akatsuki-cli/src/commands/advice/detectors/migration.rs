@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 use std::process::Command;
 
-use super::{Detector, Detection, DetectionCategory};
+use super::{Detection, DetectionCategory, Detector};
 
 pub struct MigrationDetector;
 
@@ -30,9 +30,7 @@ impl Detector for MigrationDetector {
                 // Filter for uncommitted migration files
                 let uncommitted_migrations: Vec<&str> = stdout
                     .lines()
-                    .filter(|line| {
-                        line.contains("supabase/migrations/") && line.ends_with(".sql")
-                    })
+                    .filter(|line| line.contains("supabase/migrations/") && line.ends_with(".sql"))
                     .collect();
 
                 if !uncommitted_migrations.is_empty() {

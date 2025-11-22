@@ -2,21 +2,23 @@ use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
-use crate::commands::design::DesignCommand;
-use crate::commands::setup::SetupCommand;
-use crate::commands::dev::DevCommand;
-use crate::commands::build::BuildCommand;
-use crate::commands::db::DbCommand;
-use crate::commands::function::FunctionCommand;
-use crate::commands::check::CheckCommand;
-use crate::commands::test::TestCommand;
-use crate::commands::deploy::DeployCommand;
-use crate::commands::docs::DocsCommand;
 use crate::commands::advice::AdviceCommand;
+use crate::commands::build::BuildCommand;
+use crate::commands::check::CheckCommand;
+use crate::commands::db::DbCommand;
+use crate::commands::deploy::DeployCommand;
+use crate::commands::design::DesignCommand;
+use crate::commands::dev::DevCommand;
+use crate::commands::docs::DocsCommand;
+use crate::commands::function::FunctionCommand;
+use crate::commands::setup::SetupCommand;
+use crate::commands::test::TestCommand;
 
 #[derive(Parser)]
 #[command(name = "akatsuki")]
-#[command(about = "Akatsuki - VibeCoding Development CLI", long_about = r#"Akatsuki - VibeCoding Development CLI
+#[command(
+    about = "Akatsuki - VibeCoding Development CLI",
+    long_about = r#"Akatsuki - VibeCoding Development CLI
 
 A comprehensive CLI tool for VibeCoding development workflow.
 Provides commands for design, database, development, testing, and deployment.
@@ -38,7 +40,8 @@ COMMON WORKFLOWS:
 
 For detailed command help, run:
     akatsuki <command> --help
-"#)]
+"#
+)]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -382,15 +385,9 @@ impl Cli {
                 let cmd = AdviceCommand::new();
                 cmd.execute(action)
             }
-            Commands::Completion { shell } => {
-                Self::generate_completion(shell)
-            }
-            Commands::List => {
-                Self::list_all_commands()
-            }
-            Commands::Install => {
-                Self::install_cli()
-            }
+            Commands::Completion { shell } => Self::generate_completion(shell),
+            Commands::List => Self::list_all_commands(),
+            Commands::Install => Self::install_cli(),
         }
     }
 
@@ -423,7 +420,9 @@ impl Cli {
         println!();
 
         println!("# 品質チェック");
-        println!("akatsuki check                    # すべてチェック (lint + typecheck + cargo check)");
+        println!(
+            "akatsuki check                    # すべてチェック (lint + typecheck + cargo check)"
+        );
         println!("akatsuki check frontend           # Frontend チェック (lint + typecheck)");
         println!("akatsuki check backend            # Backend チェック (cargo check)");
         println!();
@@ -436,7 +435,9 @@ impl Cli {
         println!("# データベース操作");
         println!("akatsuki db push                  # Migration 適用");
         println!("akatsuki db migration-new <name>  # Migration 作成");
-        println!("akatsuki db check                 # Migration チェック（SQL preview、multibyte検出）");
+        println!(
+            "akatsuki db check                 # Migration チェック（SQL preview、multibyte検出）"
+        );
         println!("akatsuki db status                # データベース状態確認");
         println!("akatsuki db link                  # Supabase プロジェクトにリンク");
         println!();
@@ -456,14 +457,20 @@ impl Cli {
         println!("akatsuki docs services            # Service クラス一覧");
         println!("akatsuki docs hooks               # Custom Hooks 一覧");
         println!("akatsuki docs pages               # Page コンポーネント一覧");
-        println!("akatsuki docs lint                # ドキュメント網羅率チェック（JSDoc未記載検出）");
-        println!("akatsuki docs sync                # AGENT-mini.md のコンポーネントリスト自動更新");
+        println!(
+            "akatsuki docs lint                # ドキュメント網羅率チェック（JSDoc未記載検出）"
+        );
+        println!(
+            "akatsuki docs sync                # AGENT-mini.md のコンポーネントリスト自動更新"
+        );
         println!("akatsuki docs all --search \"RAG\"  # 全レイヤー横断検索");
         println!();
 
         println!("# 開発アドバイス（AI統合）");
         println!("akatsuki advice rule              # 静的ルールベース提案（高速）");
-        println!("akatsuki advice prompt            # AI分析用プロンプト生成（Claude Codeにコピペ）");
+        println!(
+            "akatsuki advice prompt            # AI分析用プロンプト生成（Claude Codeにコピペ）"
+        );
         println!("akatsuki advice ai                # AI自動分析（claude command経由）");
         println!("akatsuki advice ai --backend=markdown  # プロンプト生成のみ");
         println!();
@@ -484,7 +491,9 @@ impl Cli {
         println!("# ユーティリティ");
         println!("akatsuki completion <shell>       # Shell completion スクリプト生成 (zsh/bash/fish/powershell)");
         println!("akatsuki list                     # 全コマンド一覧（このリスト）");
-        println!("akatsuki install                  # CLI をグローバルインストール (cargo install)");
+        println!(
+            "akatsuki install                  # CLI をグローバルインストール (cargo install)"
+        );
         println!();
 
         println!("💡 詳細なヘルプ: akatsuki <command> --help");
@@ -534,7 +543,9 @@ impl Cli {
         println!("💡 Next steps:");
         println!("   1. Make sure ~/.cargo/bin is in your PATH");
         println!("   2. Run: akatsuki --version");
-        println!("   3. Set up shell completion: akatsuki completion zsh > ~/.zsh/completions/_akatsuki");
+        println!(
+            "   3. Set up shell completion: akatsuki completion zsh > ~/.zsh/completions/_akatsuki"
+        );
         println!();
 
         Ok(())
@@ -555,8 +566,7 @@ impl Cli {
             }
 
             // Check for packages directory (monorepo indicator)
-            if current.join("packages").is_dir() &&
-               current.join("packages/app-frontend").is_dir() {
+            if current.join("packages").is_dir() && current.join("packages/app-frontend").is_dir() {
                 return current;
             }
 

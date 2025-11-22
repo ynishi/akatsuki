@@ -1,14 +1,14 @@
 use anyhow::Result;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
-use std::io::Write;
 
 mod detectors;
 mod rules;
 
-use crate::cli::{AdviceAction, AIBackend};
-use rules::{RuleEngine, Advice};
+use crate::cli::{AIBackend, AdviceAction};
+use rules::{Advice, RuleEngine};
 
 pub struct AdviceCommand {
     project_root: PathBuf,
@@ -37,8 +37,7 @@ impl AdviceCommand {
             }
 
             // Check for packages directory (monorepo indicator)
-            if current.join("packages").is_dir() &&
-               current.join("packages/app-frontend").is_dir() {
+            if current.join("packages").is_dir() && current.join("packages/app-frontend").is_dir() {
                 return current;
             }
 
@@ -61,12 +60,8 @@ impl AdviceCommand {
                     self.show_contextual_advice()
                 }
             }
-            AdviceAction::Prompt { task } => {
-                self.show_prompt_advice(task.as_deref())
-            }
-            AdviceAction::Ai { task, backend } => {
-                self.invoke_ai_backend(task.as_deref(), backend)
-            }
+            AdviceAction::Prompt { task } => self.show_prompt_advice(task.as_deref()),
+            AdviceAction::Ai { task, backend } => self.invoke_ai_backend(task.as_deref(), backend),
         }
     }
 
@@ -199,12 +194,32 @@ impl AdviceCommand {
     fn get_docs_coverage(&self) -> Result<String> {
         // Simplified version - just count files
         let layers = vec![
-            ("UI Components", self.project_root.join("packages/app-frontend/src/components")),
-            ("Models", self.project_root.join("packages/app-frontend/src/models")),
-            ("Repositories", self.project_root.join("packages/app-frontend/src/repositories")),
-            ("Services", self.project_root.join("packages/app-frontend/src/services")),
-            ("Hooks", self.project_root.join("packages/app-frontend/src/hooks")),
-            ("Pages", self.project_root.join("packages/app-frontend/src/pages")),
+            (
+                "UI Components",
+                self.project_root
+                    .join("packages/app-frontend/src/components"),
+            ),
+            (
+                "Models",
+                self.project_root.join("packages/app-frontend/src/models"),
+            ),
+            (
+                "Repositories",
+                self.project_root
+                    .join("packages/app-frontend/src/repositories"),
+            ),
+            (
+                "Services",
+                self.project_root.join("packages/app-frontend/src/services"),
+            ),
+            (
+                "Hooks",
+                self.project_root.join("packages/app-frontend/src/hooks"),
+            ),
+            (
+                "Pages",
+                self.project_root.join("packages/app-frontend/src/pages"),
+            ),
         ];
 
         let mut coverage_lines = Vec::new();

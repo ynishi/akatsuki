@@ -51,7 +51,10 @@ impl DevCommand {
     }
 
     fn run_all(&self) -> Result<()> {
-        println!("{}", "🚀 Starting both frontend and backend...".cyan().bold());
+        println!(
+            "{}",
+            "🚀 Starting both frontend and backend...".cyan().bold()
+        );
         println!("{}", "Press Ctrl+C to stop all servers".yellow());
 
         // Start backend in background

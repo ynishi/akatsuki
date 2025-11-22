@@ -12,7 +12,11 @@ impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CliError::InvalidFeatureName(name) => {
-                write!(f, "Invalid feature name: {}. Use kebab-case (lowercase, numbers, hyphens only)", name)
+                write!(
+                    f,
+                    "Invalid feature name: {}. Use kebab-case (lowercase, numbers, hyphens only)",
+                    name
+                )
             }
             CliError::FileNotFound(path) => {
                 write!(f, "File not found: {}", path)
