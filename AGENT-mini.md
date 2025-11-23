@@ -61,7 +61,7 @@ Step 6: 振り返り（docs/に整理）
 - 📡 **Event System**: L2855「Event System（イベント駆動）」
 - ⚙️ **Async Job System**: L2903「Async Job System（非同期ジョブ実行）」
 - 🤖 **Function Call System**: 「LLM Function Calling統合」（後述）
-- 🔧 **WASM Runtime System**: 「WASM Runtime Component」（後述）
+- 🔧 **WASM Edge Function**: L2292「WASM Runtime Component」→ Edge統合推奨（L2292）
 - 📦 **技術スタック全体**: L131「4. 技術スタック」
 
 **実装済みコンポーネント（すぐ使える）:**
@@ -83,6 +83,7 @@ Step 6: 振り返り（docs/に整理）
 **Edge Functions（デプロイ済み）:**
 - `ai-chat` - LLM統合（OpenAI/Anthropic/Gemini）
 - `generate-image` - 画像生成（DALL-E）
+- `wasm-executor` - WASM モジュール実行（Storage動的ロード + LRUキャッシュ）
 - `upload-file` / `delete-file` - ファイル管理
 - `get-signed-url` / `create-signed-url` - Private Storage
 - `send-email` / `slack-notify` - 外部連携
@@ -2287,6 +2288,57 @@ Storage           → public_assets / private_uploads (Supabase Storage)
 
 **設計ドキュメント:**
 - `docs/design/wasm-runtime-design.md`
+- `docs/design/wasm-edge-integration.md`
+
+### 13.8. Edge Function統合（推奨）
+
+**2025-11実装:** WASM Edge Function統合により、ブラウザ実行とサーバーサイド実行の両方をサポート。
+
+**なぜEdge Function？**
+- ✅ **シンプル**: Shuttleより設定が簡単（`wasm-executor` Edge Function 1つ）
+- ✅ **高速デプロイ**: `akatsuki function deploy` で即座にデプロイ（Dockerレス）
+- ✅ **管理が楽**: Supabase ダッシュボードで一元管理
+- ✅ **自動スケール**: Supabase Edge Runtime の恩恵
+- ✅ **Storage統合**: WASM バイナリを Storage から動的ロード + LRU キャッシュ
+
+**Shuttleとの比較:**
+| 項目 | Edge Function | Shuttle |
+|------|---------------|---------|
+| デプロイ速度 | ⚡ 即座（1-2秒） | 🐢 遅い（ビルド数分） |
+| 設定 | シンプル（Edge Function 1つ） | 複雑（Cargo.toml、プロジェクト構成） |
+| 管理 | Supabase ダッシュボード | 別サービス |
+| WASM動的ロード | ✅ Storage + キャッシュ | ❌ 静的埋め込み |
+| スケーリング | 自動 | 手動設定必要 |
+
+**推奨:** カスタムロジック実行には WASM Edge Function を優先。Shuttleは重い処理や外部API統合が必要な場合のみ。
+
+**owner_type分類:**
+```typescript
+type OwnerType = 'system' | 'admin' | 'user'
+
+// system: 全ユーザーが実行可能（公式モジュール）
+// admin:  管理者のみ実行可能（管理ツール）
+// user:   個人モジュール（Public/Private選択可）
+```
+
+**Admin UI:**
+- `/admin/wasm` - System/Admin/User タブでモジュール管理
+- アップロード、テスト実行、削除
+- Edge Function 実行結果表示（実行時間、メモリ、キャッシュヒット）
+
+**Hook拡張:**
+```typescript
+const {
+  systemModules,      // システムモジュール一覧
+  adminModules,       // 管理者モジュール一覧
+  executeOnEdge,      // Edge Function で実行
+  executeOnEdgeAsync, // Async版
+} = useWasmModule()
+```
+
+**サンプルモジュール:**
+`wasm-modules/sample-module` に5つのテスト関数を実装済み（75KB）：
+- `rgb_to_grayscale`, `sum_array`, `multiply_array`, `process_json`, `memory_test`
 
 ---
 
