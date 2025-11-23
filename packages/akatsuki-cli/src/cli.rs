@@ -106,11 +106,21 @@ enum Commands {
     /// Run tests
     ///
     /// Targets: frontend | backend | all (default)
+    /// Options: -w (watch), --ui (UI dashboard), --coverage (coverage report)
     #[command(about = "Run tests [frontend | backend | all]")]
     Test {
         /// Target to test: frontend, backend, or all (default)
         #[arg(value_enum, default_value = "all")]
         target: TestTarget,
+        /// Watch mode (re-run tests on file changes)
+        #[arg(short = 'w', long)]
+        watch: bool,
+        /// Run with UI dashboard (vitest --ui)
+        #[arg(long)]
+        ui: bool,
+        /// Generate coverage report
+        #[arg(long)]
+        coverage: bool,
     },
     /// Deploy the project
     Deploy {
@@ -369,9 +379,14 @@ impl Cli {
                 let cmd = CheckCommand::new();
                 cmd.execute(target)
             }
-            Commands::Test { target } => {
+            Commands::Test {
+                target,
+                watch,
+                ui,
+                coverage,
+            } => {
                 let cmd = TestCommand::new();
-                cmd.execute(target)
+                cmd.execute(target, watch, ui, coverage)
             }
             Commands::Deploy { target } => {
                 let cmd = DeployCommand::new();
@@ -429,6 +444,10 @@ impl Cli {
 
         println!("# テスト");
         println!("akatsuki test                     # すべてテスト");
+        println!("akatsuki test frontend            # Frontend テスト (vitest run)");
+        println!("akatsuki test frontend -w         # Frontend テスト (watch mode - VibeCoding向け)");
+        println!("akatsuki test frontend --ui       # Frontend テスト (UI dashboard)");
+        println!("akatsuki test frontend --coverage # Frontend テスト (カバレッジレポート)");
         println!("akatsuki test backend             # Backend テスト (cargo test)");
         println!();
 

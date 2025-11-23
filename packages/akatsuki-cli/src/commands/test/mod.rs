@@ -11,24 +11,46 @@ impl TestCommand {
         Self
     }
 
-    pub fn execute(&self, target: TestTarget) -> Result<()> {
+    pub fn execute(&self, target: TestTarget, watch: bool, ui: bool, coverage: bool) -> Result<()> {
         match target {
-            TestTarget::Frontend => self.test_frontend(),
+            TestTarget::Frontend => self.test_frontend(watch, ui, coverage),
             TestTarget::Backend => self.test_backend(),
-            TestTarget::All => self.test_all(),
+            TestTarget::All => self.test_all(watch, ui, coverage),
         }
     }
 
-    fn test_frontend(&self) -> Result<()> {
+    fn test_frontend(&self, watch: bool, ui: bool, coverage: bool) -> Result<()> {
         println!("{}", "🧪 Running frontend tests...".cyan());
 
-        // Note: Frontend tests not configured yet
-        println!("{}", "  ℹ️  No frontend tests configured yet".yellow());
-        println!(
-            "{}",
-            "  Add test framework (Vitest, Jest, etc.) to run tests".yellow()
-        );
+        let mut args = vec!["run"];
 
+        // Determine which command to run based on flags
+        if ui {
+            args.push("test:ui");
+            println!("{}", "  🎨 Opening UI dashboard...".blue());
+        } else if coverage {
+            args.push("test:coverage");
+            println!("{}", "  📊 Generating coverage report...".blue());
+        } else if watch {
+            args.push("test");
+            println!("{}", "  👀 Watch mode enabled...".blue());
+        } else {
+            args.push("test:run");
+        }
+
+        let status = Command::new("npm")
+            .args(&args)
+            .current_dir("packages/app-frontend")
+            .status()
+            .context("Failed to run npm test")?;
+
+        if !status.success() {
+            anyhow::bail!("Frontend tests failed");
+        }
+
+        if !watch && !ui {
+            println!("{}", "✅ Frontend tests passed!".green());
+        }
         Ok(())
     }
 
@@ -49,19 +71,21 @@ impl TestCommand {
         Ok(())
     }
 
-    fn test_all(&self) -> Result<()> {
+    fn test_all(&self, watch: bool, ui: bool, coverage: bool) -> Result<()> {
         println!("{}", "🧪 Running all tests...".cyan().bold());
 
         // Test frontend first
-        self.test_frontend()?;
+        self.test_frontend(watch, ui, coverage)?;
 
         println!();
 
         // Test backend
         self.test_backend()?;
 
-        println!();
-        println!("{}", "✨ All tests passed!".green().bold());
+        if !watch && !ui {
+            println!();
+            println!("{}", "✨ All tests passed!".green().bold());
+        }
 
         Ok(())
     }
