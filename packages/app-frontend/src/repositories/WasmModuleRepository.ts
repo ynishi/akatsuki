@@ -114,7 +114,34 @@ export class WasmModuleRepository {
       return { data: module, error: null }
     } catch (error) {
       console.error('[WasmModuleRepository] create error:', error)
-      const message = error instanceof Error ? error.message : String(error)
+
+      // Handle specific PostgreSQL errors with user-friendly messages
+      if (error && typeof error === 'object' && 'code' in error) {
+        const pgError = error as { code: string; message: string }
+
+        // 23505: unique_violation
+        if (pgError.code === '23505') {
+          return {
+            data: null,
+            error: new Error('A module with this name and version already exists. Please use a different name or version.')
+          }
+        }
+
+        // 23503: foreign_key_violation
+        if (pgError.code === '23503') {
+          return {
+            data: null,
+            error: new Error('Referenced file not found. Please try uploading again.')
+          }
+        }
+      }
+
+      // Generic error handling
+      const message = error instanceof Error
+        ? error.message
+        : (error && typeof error === 'object' && 'message' in error)
+          ? String(error.message)
+          : JSON.stringify(error)
       return { data: null, error: new Error(`Failed to create module: ${message}`) }
     }
   }

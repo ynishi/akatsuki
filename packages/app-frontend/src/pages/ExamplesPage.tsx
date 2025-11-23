@@ -477,7 +477,7 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
         max_execution_time_ms: 30000,
         is_public: isPublic,
         allowed_users: [],
-        status: 'active',
+        status: 'active' as const,
         metadata: {},
       })
 
@@ -487,7 +487,9 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
 
       console.log('[WasmModuleUploader] Module registered:', wasmModule.id)
 
-      setSuccess(`Module "${moduleName}" uploaded successfully! Exported functions: ${moduleInfo.exportedFunctions?.join(', ')}`)
+      const storageType = isPublic ? '🌐 Public (CDN)' : '🔒 Private'
+      const urlInfo = isPublic && 'publicUrl' in uploadResult ? ` • URL: ${uploadResult.publicUrl}` : ''
+      setSuccess(`✅ Module "${moduleName}" (v${version}) uploaded successfully!\n${storageType} • Functions: ${moduleInfo.exportedFunctions?.join(', ')}${urlInfo}`)
 
       // Reset form
       setSelectedFile(null)
@@ -640,8 +642,8 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
 
           {/* Success Message */}
           {success && (
-            <div className="bg-green-50 p-3 rounded-lg text-sm text-green-700">
-              <strong>Success!</strong> {success}
+            <div className="bg-green-50 p-3 rounded-lg text-sm text-green-700 whitespace-pre-line">
+              {success}
             </div>
           )}
         </div>
