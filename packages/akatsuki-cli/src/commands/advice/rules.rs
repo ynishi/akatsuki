@@ -25,13 +25,23 @@ impl RuleEngine {
         Self { detectors }
     }
 
-    pub fn analyze(&self, project_root: &Path) -> Result<Advice> {
+    pub fn analyze(&self, project_root: &Path, enable_test_coverage: bool) -> Result<Advice> {
         let mut all_detections = Vec::new();
 
         // Run all detectors
         for detector in &self.detectors {
             let detections = detector.detect(project_root)?;
             all_detections.extend(detections);
+        }
+
+        // Filter out test coverage detections if disabled (for VibeCoding)
+        if !enable_test_coverage {
+            all_detections.retain(|d| {
+                !matches!(
+                    d.category,
+                    DetectionCategory::MissingTests | DetectionCategory::LowCoverage
+                )
+            });
         }
 
         // Sort by priority (lower number = higher priority)

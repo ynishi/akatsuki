@@ -53,21 +53,31 @@ impl AdviceCommand {
 
     pub fn execute(&self, action: AdviceAction) -> Result<()> {
         match action {
-            AdviceAction::Rule { task } => {
+            AdviceAction::Rule {
+                task,
+                enable_test_coverage,
+            } => {
                 if let Some(task_name) = task {
                     self.show_task_workflow(&task_name)
                 } else {
-                    self.show_contextual_advice()
+                    self.show_contextual_advice(enable_test_coverage)
                 }
             }
-            AdviceAction::Prompt { task } => self.show_prompt_advice(task.as_deref()),
-            AdviceAction::Ai { task, backend } => self.invoke_ai_backend(task.as_deref(), backend),
+            AdviceAction::Prompt {
+                task,
+                enable_test_coverage,
+            } => self.show_prompt_advice(task.as_deref(), enable_test_coverage),
+            AdviceAction::Ai {
+                task,
+                backend,
+                enable_test_coverage,
+            } => self.invoke_ai_backend(task.as_deref(), backend, enable_test_coverage),
         }
     }
 
-    fn show_contextual_advice(&self) -> Result<()> {
+    fn show_contextual_advice(&self, enable_test_coverage: bool) -> Result<()> {
         let engine = RuleEngine::new();
-        let advice = engine.analyze(&self.project_root)?;
+        let advice = engine.analyze(&self.project_root, enable_test_coverage)?;
 
         advice.print();
 
@@ -81,10 +91,10 @@ impl AdviceCommand {
         Ok(())
     }
 
-    fn show_prompt_advice(&self, task: Option<&str>) -> Result<()> {
+    fn show_prompt_advice(&self, task: Option<&str>, enable_test_coverage: bool) -> Result<()> {
         // Generate markdown prompt for manual copy-paste
         let engine = RuleEngine::new();
-        let static_advice = engine.analyze(&self.project_root)?;
+        let static_advice = engine.analyze(&self.project_root, enable_test_coverage)?;
         let context = self.collect_ai_context()?;
         let prompt = self.build_ai_prompt(&static_advice, &context, task);
 
@@ -98,25 +108,30 @@ impl AdviceCommand {
         Ok(())
     }
 
-    fn invoke_ai_backend(&self, task: Option<&str>, backend: AIBackend) -> Result<()> {
+    fn invoke_ai_backend(
+        &self,
+        task: Option<&str>,
+        backend: AIBackend,
+        enable_test_coverage: bool,
+    ) -> Result<()> {
         match backend {
             AIBackend::Markdown => {
                 // Same as prompt subcommand
-                self.show_prompt_advice(task)
+                self.show_prompt_advice(task, enable_test_coverage)
             }
             AIBackend::Claude => {
                 // Automatic invocation via claude command
-                self.invoke_claude_command(task)
+                self.invoke_claude_command(task, enable_test_coverage)
             }
         }
     }
 
-    fn invoke_claude_command(&self, task: Option<&str>) -> Result<()> {
+    fn invoke_claude_command(&self, task: Option<&str>, enable_test_coverage: bool) -> Result<()> {
         println!("\n🤖 Invoking Claude Code AI...\n");
 
         // 1. Collect context and build prompt
         let engine = RuleEngine::new();
-        let static_advice = engine.analyze(&self.project_root)?;
+        let static_advice = engine.analyze(&self.project_root, enable_test_coverage)?;
         let context = self.collect_ai_context()?;
         let prompt = self.build_ai_prompt(&static_advice, &context, task);
 

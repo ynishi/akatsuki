@@ -332,11 +332,17 @@ pub enum AdviceAction {
     Rule {
         /// Optional task-specific workflow (e.g., feature, migration)
         task: Option<String>,
+        /// Enable test coverage checking (disabled by default for VibeCoding)
+        #[arg(long)]
+        enable_test_coverage: bool,
     },
     /// Generate AI prompt for manual copy-paste to Claude Code
     Prompt {
         /// Optional custom question
         task: Option<String>,
+        /// Enable test coverage checking (disabled by default for VibeCoding)
+        #[arg(long)]
+        enable_test_coverage: bool,
     },
     /// Automatic AI invocation (requires claude command)
     Ai {
@@ -345,6 +351,9 @@ pub enum AdviceAction {
         /// AI backend to use
         #[arg(long, value_enum, default_value = "claude")]
         backend: AIBackend,
+        /// Enable test coverage checking (disabled by default for VibeCoding)
+        #[arg(long)]
+        enable_test_coverage: bool,
     },
 }
 
