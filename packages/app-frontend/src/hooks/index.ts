@@ -13,3 +13,4 @@ export {
   usePublicStorageDelete,
 } from './usePublicStorage'
 export { useUrlAlias, useUploadWithAlias } from './useUrlAlias'
+export { useWasmModule, useWasmExecutionHistory, useWasmModuleStats } from './useWasmModule'

@@ -1,6 +1,13 @@
 import { supabase } from '@/lib/supabase'
 import { WasmModule, WasmModuleDatabase } from '@/models/WasmModule'
-import type { RepositoryResponse } from '@/types'
+
+/**
+ * Repository response type
+ */
+export interface RepositoryResponse<T> {
+  data: T | null
+  error: Error | null
+}
 
 /**
  * WasmModule Repository

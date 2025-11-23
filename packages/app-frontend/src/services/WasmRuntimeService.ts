@@ -214,14 +214,15 @@ export class WasmRuntimeService {
     try {
       console.log('[WasmRuntimeService] Fetching WASM file:', fileId)
 
-      // Download WASM file from Private Storage
-      const { data: downloadData, error: downloadError } = await PrivateStorageService.download(fileId)
-      if (downloadError || !downloadData) {
-        throw downloadError || new Error('Failed to download WASM file')
-      }
+      // Get signed URL for WASM file
+      const { signedUrl } = await PrivateStorageService.getSignedUrl(fileId)
+
+      // Fetch WASM file
+      const response = await fetch(signedUrl)
+      if (!response.ok) throw new Error('Failed to fetch WASM file')
 
       // Get file data as ArrayBuffer
-      const wasmBytes = await downloadData.blob.arrayBuffer()
+      const wasmBytes = await response.arrayBuffer()
 
       console.log('[WasmRuntimeService] WASM file downloaded, size:', wasmBytes.byteLength, 'bytes')
 

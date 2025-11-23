@@ -33,6 +33,7 @@ import {
   OpenAIProvider,
 } from '../../../ai-agent-ui/src/providers'
 import { AIFieldTrigger } from '../components/features/ai'
+import { WasmRuntimeService } from '../services/WasmRuntimeService'
 
 /**
  * AIエージェントUIデモカード（内部実装）
@@ -173,6 +174,196 @@ function AIAgentUICard({ user }: { user: any }) {
     <AIAgentProvider providers={providers}>
       <AIAgentUICardInner user={user} />
     </AIAgentProvider>
+  )
+}
+
+/**
+ * WASM Runtime Demo Card
+ * Demonstrates WebAssembly execution with WasmRuntimeService
+ */
+function WasmRuntimeCard() {
+  const [selectedFunction, setSelectedFunction] = useState('add')
+  const [arg1, setArg1] = useState('5')
+  const [arg2, setArg2] = useState('3')
+  const [result, setResult] = useState<{
+    result: number
+    executionTimeMs: number
+    memoryUsedBytes: number | null
+  } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleExecute = async () => {
+    setLoading(true)
+    setError(null)
+    setResult(null)
+
+    try {
+      // Fetch WASM file from public directory
+      const response = await fetch('/sample.wasm')
+      if (!response.ok) throw new Error('Failed to fetch WASM file')
+
+      const wasmBytes = await response.arrayBuffer()
+
+      // Load and instantiate WASM module
+      const module = await WasmRuntimeService.loadModule(wasmBytes, 'sample-wasm')
+      const instance = await WasmRuntimeService.instantiate(module)
+
+      // Parse arguments
+      const a = parseInt(arg1, 10)
+      const b = parseInt(arg2, 10)
+
+      if (isNaN(a) || isNaN(b)) {
+        throw new Error('Arguments must be integers')
+      }
+
+      // Execute WASM function
+      const { data: execResult, error: execError } = await WasmRuntimeService.execute(instance, {
+        functionName: selectedFunction,
+        args: [a, b],
+        timeoutMs: 5000
+      })
+
+      if (execError || !execResult) {
+        throw execError || new Error('Execution failed')
+      }
+
+      setResult({
+        result: execResult.result as number,
+        executionTimeMs: execResult.executionTimeMs,
+        memoryUsedBytes: execResult.memoryUsedBytes
+      })
+    } catch (err) {
+      console.error('[WasmRuntimeCard] Error:', err)
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-2xl">⚡</span>
+          WASM Runtime
+        </CardTitle>
+        <CardDescription>
+          WebAssembly execution with safety guarantees (timeout, memory management, error handling)
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="bg-white p-4 rounded-lg space-y-3">
+          <h3 className="font-semibold text-gray-700">🚀 Execute WASM Function</h3>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Function</label>
+              <select
+                value={selectedFunction}
+                onChange={(e) => setSelectedFunction(e.target.value)}
+                className="w-full mt-1 p-2 border rounded"
+              >
+                <option value="add">add(a, b) - Addition</option>
+                <option value="multiply">multiply(a, b) - Multiplication</option>
+                <option value="fibonacci">fibonacci(n) - Fibonacci sequence</option>
+              </select>
+            </div>
+
+            {selectedFunction !== 'fibonacci' ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Argument A</label>
+                  <Input
+                    type="number"
+                    value={arg1}
+                    onChange={(e) => setArg1(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Argument B</label>
+                  <Input
+                    type="number"
+                    value={arg2}
+                    onChange={(e) => setArg2(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm font-medium text-gray-700">N (Warning: fibonacci(30+) is slow)</label>
+                <Input
+                  type="number"
+                  value={arg1}
+                  onChange={(e) => setArg1(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            )}
+
+            <Button
+              onClick={handleExecute}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              {loading ? 'Executing...' : '⚡ Execute WASM'}
+            </Button>
+
+            {error && (
+              <div className="bg-red-50 p-3 rounded-lg text-sm text-red-700">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
+
+            {result && (
+              <div className="bg-green-50 p-4 rounded-lg space-y-2">
+                <p className="font-bold text-green-700">✓ Success!</p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Result:</span>
+                    <strong className="text-gray-900">{result.result}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Execution Time:</span>
+                    <strong className="text-gray-900">{result.executionTimeMs} ms</strong>
+                  </div>
+                  {result.memoryUsedBytes && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Memory Used:</span>
+                      <strong className="text-gray-900">
+                        {(result.memoryUsedBytes / 1024).toFixed(1)} KB
+                      </strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-blue-50 p-3 rounded-lg text-xs text-gray-700">
+          <p className="font-semibold mb-1">💡 WASM Runtime Features:</p>
+          <ul className="list-disc ml-4 space-y-1">
+            <li>✅ Timeout control (prevents infinite loops)</li>
+            <li>✅ Module caching (performance optimization)</li>
+            <li>✅ Error handling (safe recovery)</li>
+            <li>✅ Performance measurement</li>
+            <li>✅ Memory tracking</li>
+          </ul>
+        </div>
+
+        <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-3 rounded-lg">
+          <p className="text-xs font-semibold text-gray-700 mb-2">📦 Sample WASM Module:</p>
+          <div className="space-y-1 text-xs font-mono">
+            <code className="block">add(a: i32, b: i32) → i32</code>
+            <code className="block">multiply(a: i32, b: i32) → i32</code>
+            <code className="block">fibonacci(n: i32) → i32</code>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -3046,6 +3237,9 @@ createAlias({
             </div>
           </CardContent>
         </Card>
+
+        {/* WASM Runtime Demo Card */}
+        <WasmRuntimeCard />
     </div>
   )
 }
