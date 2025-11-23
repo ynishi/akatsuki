@@ -384,6 +384,7 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
   const [description, setDescription] = useState('')
   const [version, setVersion] = useState('1.0.0')
   const [timeoutMs, setTimeoutMs] = useState(5000)
+  const [isPublic, setIsPublic] = useState(false)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -429,8 +430,8 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
     try {
       console.log('[WasmModuleUploader] Uploading WASM file...')
 
-      // Step 1: Upload WASM file to Private Storage
-      const uploadResult = await PrivateStorageService.upload(selectedFile, {
+      // Step 1: Upload WASM file to Storage (Public or Private)
+      const uploadOptions = {
         folder: 'wasm-modules',
         allowedTypes: ['application/wasm'],
         maxSizeMB: 50, // WASM modules can be larger
@@ -439,9 +440,13 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
           module_name: moduleName,
           version,
         },
-      })
+      }
 
-      console.log('[WasmModuleUploader] File uploaded:', uploadResult.id)
+      const uploadResult = isPublic
+        ? await PublicStorageService.upload(selectedFile, uploadOptions)
+        : await PrivateStorageService.upload(selectedFile, uploadOptions)
+
+      console.log(`[WasmModuleUploader] File uploaded to ${isPublic ? 'Public' : 'Private'} Storage:`, uploadResult.id)
 
       // Step 2: Extract WASM metadata
       const wasmBytes = await selectedFile.arrayBuffer()
@@ -470,7 +475,7 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
         max_memory_pages: null,
         timeout_ms: timeoutMs,
         max_execution_time_ms: 30000,
-        is_public: false,
+        is_public: isPublic,
         allowed_users: [],
         status: 'active',
         metadata: {},
@@ -490,6 +495,7 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
       setDescription('')
       setVersion('1.0.0')
       setTimeoutMs(5000)
+      setIsPublic(false)
     } catch (err) {
       console.error('[WasmModuleUploader] Upload error:', err)
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -576,6 +582,35 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
               />
             </div>
           </div>
+
+          {/* Public/Private Toggle */}
+          <div className="flex items-center space-x-2 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="isPublic"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+              className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+            />
+            <label htmlFor="isPublic" className="text-sm font-medium cursor-pointer select-none">
+              <span className="text-purple-700">🌐 Public Module</span>
+              <span className="text-gray-500 ml-2">(Anyone can access via CDN)</span>
+            </label>
+          </div>
+
+          {isPublic && (
+            <div className="bg-blue-50 p-3 rounded-lg text-xs text-gray-700">
+              <strong>💡 Public modules:</strong> Will be accessible via CDN with permanent URL.
+              Perfect for sharing demos and open-source modules.
+            </div>
+          )}
+
+          {!isPublic && (
+            <div className="bg-purple-50 p-3 rounded-lg text-xs text-gray-700">
+              <strong>🔒 Private modules:</strong> Only you can access. Requires signed URL for execution.
+              Ideal for proprietary or sensitive code.
+            </div>
+          )}
 
           {/* Upload Button */}
           <Button
