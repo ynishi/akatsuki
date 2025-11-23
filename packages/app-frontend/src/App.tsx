@@ -17,6 +17,7 @@ import { WebhookLogsPage } from './pages/admin/WebhookLogsPage'
 import { WebhookTestPage } from './pages/admin/WebhookTestPage'
 import { FunctionCallLogsPage } from './pages/admin/FunctionCallLogsPage'
 import { FunctionDefinitionsPage } from './pages/admin/FunctionDefinitionsPage'
+import { WasmModuleAdminPage } from './pages/admin/WasmModuleAdminPage'
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
             <Route path="/admin/webhooks/test" element={<WebhookTestPage />} />
             <Route path="/admin/function-calls" element={<FunctionCallLogsPage />} />
             <Route path="/admin/function-definitions" element={<FunctionDefinitionsPage />} />
+            <Route path="/admin/wasm" element={<WasmModuleAdminPage />} />
           </Route>
         </Routes>
       </AuthProvider>

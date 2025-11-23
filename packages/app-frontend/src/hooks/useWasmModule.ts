@@ -15,6 +15,22 @@ interface ExecuteWasmParams {
 }
 
 /**
+ * Edge Function execution result
+ */
+interface EdgeExecutionResult {
+  result: unknown
+  executionTimeMs: number
+  memoryUsedBytes: number | null
+  cacheHit: boolean
+  module: {
+    id: string
+    name: string
+    version: string
+    ownerType: string
+  }
+}
+
+/**
  * useWasmModule Hook
  * WASM module management and execution
  *
@@ -62,6 +78,51 @@ export function useWasmModule() {
     queryKey: ['wasm-modules', 'own'],
     queryFn: async () => {
       const { data, error } = await WasmModuleRepository.listOwn()
+      if (error) throw error
+      return data
+    },
+  })
+
+  // List system modules
+  const {
+    data: systemModules,
+    isLoading: isLoadingSystemModules,
+    error: systemModulesError,
+    refetch: refetchSystemModules,
+  } = useQuery({
+    queryKey: ['wasm-modules', 'system'],
+    queryFn: async () => {
+      const { data, error } = await WasmModuleRepository.listSystemModules()
+      if (error) throw error
+      return data
+    },
+  })
+
+  // List admin modules
+  const {
+    data: adminModules,
+    isLoading: isLoadingAdminModules,
+    error: adminModulesError,
+    refetch: refetchAdminModules,
+  } = useQuery({
+    queryKey: ['wasm-modules', 'admin'],
+    queryFn: async () => {
+      const { data, error } = await WasmModuleRepository.listAdminModules()
+      if (error) throw error
+      return data
+    },
+  })
+
+  // List executable modules (system + own + public)
+  const {
+    data: executableModules,
+    isLoading: isLoadingExecutableModules,
+    error: executableModulesError,
+    refetch: refetchExecutableModules,
+  } = useQuery({
+    queryKey: ['wasm-modules', 'executable'],
+    queryFn: async () => {
+      const { data, error } = await WasmModuleRepository.listExecutable()
       if (error) throw error
       return data
     },
@@ -138,28 +199,79 @@ export function useWasmModule() {
     },
   })
 
+  // Execute WASM on Edge Function
+  const executeOnEdgeMutation = useMutation({
+    mutationFn: async (params: ExecuteWasmParams): Promise<EdgeExecutionResult> => {
+      const { moduleId, functionName, args, timeoutMs } = params
+
+      // Get auth token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('Authentication required')
+
+      // Call Edge Function
+      const { data, error } = await supabase.functions.invoke<EdgeExecutionResult>('wasm-executor', {
+        body: {
+          moduleId,
+          functionName,
+          args: args || [],
+          timeoutMs,
+        },
+      })
+
+      if (error) throw new Error(`Edge Function error: ${error.message}`)
+      if (!data) throw new Error('No response from Edge Function')
+
+      return data
+    },
+    onSuccess: () => {
+      // Invalidate execution history
+      queryClient.invalidateQueries({ queryKey: ['wasm-executions'] })
+    },
+  })
+
   return {
     // Module list
     modules,
     ownModules,
+    systemModules,
+    adminModules,
+    executableModules,
     isLoadingModules,
     isLoadingOwnModules,
+    isLoadingSystemModules,
+    isLoadingAdminModules,
+    isLoadingExecutableModules,
     modulesError,
     ownModulesError,
+    systemModulesError,
+    adminModulesError,
+    executableModulesError,
     refetchModules,
     refetchOwnModules,
+    refetchSystemModules,
+    refetchAdminModules,
+    refetchExecutableModules,
 
     // Delete module
     deleteModule: deleteMutation.mutate,
     deleteModuleAsync: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
 
-    // Execute WASM
+    // Execute WASM (browser)
     execute: executeMutation.mutate,
     executeAsync: executeMutation.mutateAsync,
     isExecuting: executeMutation.isPending,
     executionError: executeMutation.error,
     executionResult: executeMutation.data,
+
+    // Execute WASM (Edge Function)
+    executeOnEdge: executeOnEdgeMutation.mutate,
+    executeOnEdgeAsync: executeOnEdgeMutation.mutateAsync,
+    isExecutingOnEdge: executeOnEdgeMutation.isPending,
+    executeOnEdgeError: executeOnEdgeMutation.error,
+    executeOnEdgeResult: executeOnEdgeMutation.data,
   }
 }
 

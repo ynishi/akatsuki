@@ -465,6 +465,7 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
       // Step 4: Register in wasm_modules table
       const { data: wasmModule, error: createError } = await WasmModuleRepository.create({
         owner_id: currentUser.id,
+        owner_type: 'user',
         file_id: uploadResult.id,
         module_name: moduleName,
         description: description || null,
