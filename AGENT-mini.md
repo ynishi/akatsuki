@@ -61,6 +61,7 @@ Step 6: 振り返り（docs/に整理）
 - 📡 **Event System**: L2855「Event System（イベント駆動）」
 - ⚙️ **Async Job System**: L2903「Async Job System（非同期ジョブ実行）」
 - 🤖 **Function Call System**: 「LLM Function Calling統合」（後述）
+- 🔧 **WASM Runtime System**: 「WASM Runtime Component」（後述）
 - 📦 **技術スタック全体**: L131「4. 技術スタック」
 
 **実装済みコンポーネント（すぐ使える）:**
@@ -74,9 +75,9 @@ Step 6: 振り返り（docs/に整理）
 - ストレージ: `FileUpload`
 - Hooks: `useAIGen`, `useImageGeneration`, `usePublicProfile` (React Query)
 - UI: shadcn/ui 58コンポーネント（`components/ui/`）
-- Models: 7クラス（100%ドキュメント化）
-- Repositories: 12クラス（100%ドキュメント化）
-- Services: 13クラス（100%ドキュメント化）
+- Models: 9クラス（100%ドキュメント化）
+- Repositories: 14クラス（100%ドキュメント化）
+- Services: 14クラス（100%ドキュメント化）
 <!-- SYNC:COMPONENTS:END -->
 
 **Edge Functions（デプロイ済み）:**
@@ -2178,6 +2179,114 @@ File Search機能はai-chatに統合されています：
 - `docs/design/rag-file-search-architecture.md` - アーキテクチャ全体像
 - `docs/design/rag-provider-abstraction.md` - Provider抽象化パターン
 - `docs/design/rag-2step-upload-flow.md` - 2-step Upload Flow設計
+
+---
+
+## 13. WASM Runtime Component
+
+### 13.1. 概要
+
+**WebAssembly (WASM) Runtime Component** は、ブラウザ上で安全にWASMモジュールを実行・管理するための統合プラットフォームです。
+
+**提供価値:**
+- 🔒 **安全性**: タイムアウト制御、メモリ管理、エラーハンドリング
+- 📦 **モジュール管理**: アップロード、バージョン管理、公開/非公開設定
+- ⚡ **高性能**: モジュールキャッシング、CDN配信（Public）
+- 🎯 **簡単**: React Hooksで即座に利用可能
+
+**使用例:**
+- カスタム計算ロジックの実行
+- ユーザー提供コードのサンドボックス実行
+- 高速な数値計算処理
+- 実行可能なデモ・チュートリアル
+
+### 13.2. アーキテクチャ
+
+**レイヤー構成:**
+```
+UI Layer          → WasmRuntimeCard, WasmModuleUploaderCard
+Hook Layer        → useWasmModule (React Query)
+Service Layer     → WasmRuntimeService (実行エンジン)
+Repository Layer  → WasmModuleRepository, WasmExecutionRepository
+Model Layer       → WasmModule, WasmExecution
+Database          → wasm_modules, wasm_executions (PostgreSQL)
+Storage           → public_assets / private_uploads (Supabase Storage)
+```
+
+**主要コンポーネント:**
+
+1. **WasmRuntimeService** (`services/WasmRuntimeService.ts`)
+   - WASMモジュールのコンパイル・実行
+   - タイムアウト制御 (デフォルト5秒)
+   - メモリ使用量監視
+   - モジュールキャッシング
+   - 関数一覧取得
+
+2. **WasmModuleRepository** (`repositories/WasmModuleRepository.ts`)
+   - モジュールのCRUD操作
+   - 公開/非公開管理
+   - バージョン管理
+   - ユーザーフレンドリーなエラーメッセージ
+
+3. **useWasmModule Hook** (`hooks/useWasmModule.ts`)
+   - React Query統合
+   - モジュール一覧取得
+   - WASM関数実行
+   - モジュール削除
+
+### 13.3. データベーススキーマ
+
+**wasm_modules テーブル:**
+
+* wasm_modules
+* wasm_executions
+
+### 13.4. Storage設定
+
+**Public Storage (public_assets):**
+- CDN配信可能
+- 永続的な公開URL
+- デモ・OSS向け
+- 50MB上限
+- `allowed_mime_types`: `['application/wasm', ...]`
+
+**Private Storage (private_uploads):**
+- 署名付きURLのみアクセス可能
+- RLSで権限管理
+- 機密コード向け
+- 50MB上限
+- `allowed_mime_types`: `['application/wasm', ...]`
+
+### 13.5. 使用方法
+
+**アップロード UI:**
+- `ExamplesPage` に `WasmModuleUploaderCard` が実装済み
+- 公開/非公開選択
+- 自動的な関数検出
+- バージョン管理
+- エラーメッセージ（重複検出など）
+
+### 13.6. セキュリティ
+
+**RLS Policies:**
+- ✅ ユーザーは自分のモジュールのみ管理可能
+- ✅ 公開モジュールは誰でも読み取り可能
+- ✅ 実行履歴は所有者のみアクセス可能
+
+**実行時保護:**
+- ✅ タイムアウト制御（無限ループ防止）
+- ✅ メモリ使用量監視
+- ✅ サンドボックス実行（ブラウザWASM環境）
+
+### 13.7. ベストプラクティス
+
+**モジュール作成:**
+- ✅ `-C link-arg=-s` フラグでバイナリサイズ削減
+- ✅ 単純な計算ロジックから始める
+- ✅ 関数名は明確に（`add`, `calculate`, etc.）
+
+**設計ドキュメント:**
+- `docs/design/wasm-runtime-design.md`
 
 ---
 
