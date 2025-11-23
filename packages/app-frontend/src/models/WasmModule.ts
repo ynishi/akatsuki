@@ -9,6 +9,7 @@
 export interface WasmModuleDatabase {
   id: string
   owner_id: string
+  owner_type: 'system' | 'admin' | 'user'
   file_id: string
   module_name: string
   description: string | null
@@ -34,6 +35,7 @@ export class WasmModule {
   constructor(
     public id: string,
     public ownerId: string,
+    public ownerType: 'system' | 'admin' | 'user',
     public fileId: string,
     public moduleName: string,
     public description: string | null,
@@ -59,6 +61,7 @@ export class WasmModule {
     return new WasmModule(
       data.id,
       data.owner_id,
+      data.owner_type,
       data.file_id,
       data.module_name,
       data.description,
@@ -84,6 +87,7 @@ export class WasmModule {
   toDatabase(): Omit<WasmModuleDatabase, 'id' | 'created_at' | 'updated_at'> {
     return {
       owner_id: this.ownerId,
+      owner_type: this.ownerType,
       file_id: this.fileId,
       module_name: this.moduleName,
       description: this.description,
@@ -104,17 +108,79 @@ export class WasmModule {
   /**
    * Check if user can execute this module
    */
-  canExecute(userId: string): boolean {
-    // Owner can always execute
-    if (this.ownerId === userId) return true
+  canExecute(userId: string, isAdmin: boolean = false): boolean {
+    // System modules: accessible by all authenticated users
+    if (this.ownerType === 'system' && this.status === 'active') return true
 
-    // Public modules can be executed by anyone
-    if (this.isPublic && this.status === 'active') return true
+    // Admin modules: accessible only by admins
+    if (this.ownerType === 'admin') return isAdmin
 
-    // Check if user is in allowed list
-    if (this.allowedUsers.includes(userId)) return true
+    // User modules: check ownership, public flag, or allowed users
+    if (this.ownerType === 'user') {
+      // Owner can always execute
+      if (this.ownerId === userId) return true
+
+      // Public modules can be executed by anyone
+      if (this.isPublic && this.status === 'active') return true
+
+      // Check if user is in allowed list
+      if (this.allowedUsers.includes(userId)) return true
+    }
 
     return false
+  }
+
+  /**
+   * Check if this is a system module
+   */
+  get isSystem(): boolean {
+    return this.ownerType === 'system'
+  }
+
+  /**
+   * Check if this is an admin module
+   */
+  get isAdminOnly(): boolean {
+    return this.ownerType === 'admin'
+  }
+
+  /**
+   * Check if this is a user module
+   */
+  get isUserModule(): boolean {
+    return this.ownerType === 'user'
+  }
+
+  /**
+   * Get owner type badge color
+   */
+  get ownerTypeBadgeColor(): string {
+    switch (this.ownerType) {
+      case 'system':
+        return 'blue'
+      case 'admin':
+        return 'red'
+      case 'user':
+        return 'green'
+      default:
+        return 'gray'
+    }
+  }
+
+  /**
+   * Get owner type display name
+   */
+  get ownerTypeDisplayName(): string {
+    switch (this.ownerType) {
+      case 'system':
+        return 'System'
+      case 'admin':
+        return 'Admin'
+      case 'user':
+        return 'User'
+      default:
+        return 'Unknown'
+    }
   }
 
   /**

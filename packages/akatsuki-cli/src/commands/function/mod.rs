@@ -46,7 +46,7 @@ impl FunctionCommand {
                 );
 
                 let status = Command::new("supabase")
-                    .args(["functions", "deploy", func_name])
+                    .args(["functions", "deploy", func_name, "--use-api"])
                     .status()
                     .context("Failed to deploy function. Make sure Supabase CLI is installed.")?;
 
@@ -63,7 +63,7 @@ impl FunctionCommand {
                 println!("{}", "🚀 Deploying all edge functions...".cyan());
 
                 let status = Command::new("supabase")
-                    .args(["functions", "deploy"])
+                    .args(["functions", "deploy", "--use-api"])
                     .status()
                     .context("Failed to deploy functions. Make sure Supabase CLI is installed.")?;
 

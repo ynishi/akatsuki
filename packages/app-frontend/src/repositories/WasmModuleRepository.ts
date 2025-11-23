@@ -233,4 +233,127 @@ export class WasmModuleRepository {
       return { data: null, error: new Error(`Failed to fetch public modules: ${message}`) }
     }
   }
+
+  /**
+   * List modules by owner type (system/admin/user)
+   */
+  static async listByOwnerType(
+    ownerType: 'system' | 'admin' | 'user'
+  ): Promise<RepositoryResponse<WasmModule[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('wasm_modules')
+        .select('*')
+        .eq('owner_type', ownerType)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const modules = (data || []).map((row) => WasmModule.fromDatabase(row as WasmModuleDatabase))
+
+      return { data: modules, error: null }
+    } catch (error) {
+      console.error('[WasmModuleRepository] listByOwnerType error:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      return { data: null, error: new Error(`Failed to fetch ${ownerType} modules: ${message}`) }
+    }
+  }
+
+  /**
+   * List system modules (available to all users)
+   */
+  static async listSystemModules(): Promise<RepositoryResponse<WasmModule[]>> {
+    return this.listByOwnerType('system')
+  }
+
+  /**
+   * List admin modules (admin only)
+   */
+  static async listAdminModules(): Promise<RepositoryResponse<WasmModule[]>> {
+    return this.listByOwnerType('admin')
+  }
+
+  /**
+   * List user modules (with optional user ID filter)
+   */
+  static async listUserModules(userId?: string): Promise<RepositoryResponse<WasmModule[]>> {
+    try {
+      let query = supabase
+        .from('wasm_modules')
+        .select('*')
+        .eq('owner_type', 'user')
+        .eq('status', 'active')
+
+      if (userId) {
+        query = query.eq('owner_id', userId)
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const modules = (data || []).map((row) => WasmModule.fromDatabase(row as WasmModuleDatabase))
+
+      return { data: modules, error: null }
+    } catch (error) {
+      console.error('[WasmModuleRepository] listUserModules error:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      return { data: null, error: new Error(`Failed to fetch user modules: ${message}`) }
+    }
+  }
+
+  /**
+   * List executable modules (system + own user modules + public user modules)
+   */
+  static async listExecutable(): Promise<RepositoryResponse<WasmModule[]>> {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Authentication required')
+
+      // Fetch system modules + user's own modules + public modules
+      const { data, error } = await supabase
+        .from('wasm_modules')
+        .select('*')
+        .eq('status', 'active')
+        .or(`owner_type.eq.system,owner_id.eq.${user.id},is_public.eq.true`)
+        .order('owner_type', { ascending: true }) // system first, then user
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const modules = (data || []).map((row) => WasmModule.fromDatabase(row as WasmModuleDatabase))
+
+      return { data: modules, error: null }
+    } catch (error) {
+      console.error('[WasmModuleRepository] listExecutable error:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      return { data: null, error: new Error(`Failed to fetch executable modules: ${message}`) }
+    }
+  }
+
+  /**
+   * List all modules (for admin UI)
+   */
+  static async listAll(): Promise<RepositoryResponse<WasmModule[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('wasm_modules')
+        .select('*')
+        .order('owner_type', { ascending: true }) // system, admin, user
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const modules = (data || []).map((row) => WasmModule.fromDatabase(row as WasmModuleDatabase))
+
+      return { data: modules, error: null }
+    } catch (error) {
+      console.error('[WasmModuleRepository] listAll error:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      return { data: null, error: new Error(`Failed to fetch all modules: ${message}`) }
+    }
+  }
 }
