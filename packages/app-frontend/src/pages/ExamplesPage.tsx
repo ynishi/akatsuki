@@ -34,6 +34,8 @@ import {
 } from '../../../ai-agent-ui/src/providers'
 import { AIFieldTrigger } from '../components/features/ai'
 import { WasmRuntimeService } from '../services/WasmRuntimeService'
+import { WasmModuleRepository } from '../repositories/WasmModuleRepository'
+import { supabase } from '../lib/supabase'
 
 /**
  * AIエージェントUIデモカード（内部実装）
@@ -360,6 +362,286 @@ function WasmRuntimeCard() {
             <code className="block">add(a: i32, b: i32) → i32</code>
             <code className="block">multiply(a: i32, b: i32) → i32</code>
             <code className="block">fibonacci(n: i32) → i32</code>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * WASM Module Uploader Card
+ * Upload and register WASM modules
+ */
+function WasmModuleUploaderCard({ user }: { user: any }) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+  // Form inputs
+  const [moduleName, setModuleName] = useState('')
+  const [description, setDescription] = useState('')
+  const [version, setVersion] = useState('1.0.0')
+  const [timeoutMs, setTimeoutMs] = useState(5000)
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate WASM file
+    if (!file.name.endsWith('.wasm')) {
+      setError('Please select a WASM file (.wasm)')
+      return
+    }
+
+    setSelectedFile(file)
+    setError(null)
+    setSuccess(null)
+
+    // Auto-fill module name from filename
+    if (!moduleName) {
+      const baseName = file.name.replace('.wasm', '')
+      setModuleName(baseName)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setError('Please select a file')
+      return
+    }
+
+    if (!moduleName.trim()) {
+      setError('Please enter a module name')
+      return
+    }
+
+    if (!user) {
+      setError('Please login to upload WASM modules')
+      return
+    }
+
+    setUploading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      console.log('[WasmModuleUploader] Uploading WASM file...')
+
+      // Step 1: Upload WASM file to Private Storage
+      const uploadResult = await PrivateStorageService.upload(selectedFile, {
+        folder: 'wasm-modules',
+        allowedTypes: ['application/wasm'],
+        maxSizeMB: 50, // WASM modules can be larger
+        metadata: {
+          type: 'wasm_module',
+          module_name: moduleName,
+          version,
+        },
+      })
+
+      console.log('[WasmModuleUploader] File uploaded:', uploadResult.id)
+
+      // Step 2: Extract WASM metadata
+      const wasmBytes = await selectedFile.arrayBuffer()
+      const moduleInfo = await WasmRuntimeService.getModuleInfo(wasmBytes)
+
+      if (!moduleInfo.valid) {
+        throw new Error(`Invalid WASM module: ${moduleInfo.error}`)
+      }
+
+      console.log('[WasmModuleUploader] Exported functions:', moduleInfo.exportedFunctions)
+
+      // Step 3: Get current user
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser) throw new Error('Authentication required')
+
+      // Step 4: Register in wasm_modules table
+      const { data: wasmModule, error: createError } = await WasmModuleRepository.create({
+        owner_id: currentUser.id,
+        file_id: uploadResult.id,
+        module_name: moduleName,
+        description: description || null,
+        version,
+        wasm_size_bytes: selectedFile.size,
+        exported_functions: moduleInfo.exportedFunctions || [],
+        memory_pages: 1,
+        max_memory_pages: null,
+        timeout_ms: timeoutMs,
+        max_execution_time_ms: 30000,
+        is_public: false,
+        allowed_users: [],
+        status: 'active',
+        metadata: {},
+      })
+
+      if (createError || !wasmModule) {
+        throw createError || new Error('Failed to register module')
+      }
+
+      console.log('[WasmModuleUploader] Module registered:', wasmModule.id)
+
+      setSuccess(`Module "${moduleName}" uploaded successfully! Exported functions: ${moduleInfo.exportedFunctions?.join(', ')}`)
+
+      // Reset form
+      setSelectedFile(null)
+      setModuleName('')
+      setDescription('')
+      setVersion('1.0.0')
+      setTimeoutMs(5000)
+    } catch (err) {
+      console.error('[WasmModuleUploader] Upload error:', err)
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      setError(errorMessage)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-2xl">📤</span>
+          Upload WASM Module
+        </CardTitle>
+        <CardDescription>
+          Upload your own WebAssembly modules and execute them safely
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="bg-white p-4 rounded-lg space-y-3">
+          <h3 className="font-semibold text-gray-700">📦 Upload WASM File</h3>
+
+          {/* File Input */}
+          <div>
+            <label className="block text-sm font-medium mb-2">WASM File (.wasm)</label>
+            <input
+              type="file"
+              accept=".wasm"
+              onChange={handleFileSelect}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-purple-500 file:to-blue-500 file:text-white hover:file:opacity-90"
+            />
+            {selectedFile && (
+              <p className="text-xs text-gray-500 mt-1">
+                {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+              </p>
+            )}
+          </div>
+
+          {/* Module Name */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Module Name</label>
+            <Input
+              type="text"
+              value={moduleName}
+              onChange={(e) => setModuleName(e.target.value)}
+              placeholder="my-wasm-module"
+              className="w-full"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Description (Optional)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What does this module do?"
+              className="w-full px-3 py-2 border rounded-lg"
+              rows={3}
+            />
+          </div>
+
+          {/* Version & Timeout */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Version</label>
+              <Input
+                type="text"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                placeholder="1.0.0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Timeout (ms)</label>
+              <Input
+                type="number"
+                value={timeoutMs}
+                onChange={(e) => setTimeoutMs(Number(e.target.value))}
+                min={100}
+                max={30000}
+              />
+            </div>
+          </div>
+
+          {/* Upload Button */}
+          <Button
+            onClick={handleUpload}
+            disabled={uploading || !selectedFile || !moduleName || !user}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          >
+            {uploading ? 'Uploading...' : '📤 Upload WASM Module'}
+          </Button>
+
+          {!user && (
+            <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700">
+              <strong>Note:</strong> Please
+              <Link to="/login" className="text-blue-600 hover:underline mx-1">
+                login
+              </Link>
+              to upload WASM modules
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 p-3 rounded-lg text-sm text-red-700">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
+
+          {/* Success Message */}
+          {success && (
+            <div className="bg-green-50 p-3 rounded-lg text-sm text-green-700">
+              <strong>Success!</strong> {success}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-blue-50 p-3 rounded-lg text-xs text-gray-700">
+          <p className="font-semibold mb-1">💡 Upload Features:</p>
+          <ul className="list-disc ml-4 space-y-1">
+            <li>Automatic WASM validation</li>
+            <li>Exported functions auto-detection</li>
+            <li>Private storage (secure)</li>
+            <li>Module versioning</li>
+            <li>Configurable timeout</li>
+          </ul>
+        </div>
+
+        <div className="bg-gradient-to-r from-purple-100 to-blue-100 p-3 rounded-lg">
+          <p className="text-xs font-semibold text-gray-700 mb-2">🛠️ How to create WASM:</p>
+          <div className="space-y-2 text-xs">
+            <div>
+              <p className="text-gray-700 mb-1">1. Create lib.rs:</p>
+              <code className="block bg-white px-2 py-1 rounded font-mono text-[10px] whitespace-pre">
+{`cat > lib.rs << 'EOF'
+#[no_mangle]
+pub extern "C" fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+EOF`}
+              </code>
+            </div>
+            <div>
+              <p className="text-gray-700 mb-1">2. Compile to WASM:</p>
+              <code className="block bg-white px-2 py-1 rounded font-mono text-[10px]">
+                rustc --target wasm32-unknown-unknown -O --crate-type=cdylib lib.rs -o module.wasm -C link-arg=-s
+              </code>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -3240,6 +3522,9 @@ createAlias({
 
         {/* WASM Runtime Demo Card */}
         <WasmRuntimeCard />
+
+        {/* WASM Module Uploader Card */}
+        <WasmModuleUploaderCard user={user} />
     </div>
   )
 }
