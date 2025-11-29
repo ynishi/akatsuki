@@ -19,6 +19,8 @@ import { PrivateStorageService } from '../services/PrivateStorageService'
 import { FileUtils } from '../utils/FileUtils'
 import { useAuth } from '../contexts/AuthContext'
 import { useImageGeneration, useEventListener, usePublicStorage, useUrlAlias } from '../hooks'
+import { useExportImport } from '../hooks/useExportImport'
+import { ExportImportButtons } from '../components/common/ExportImportButtons'
 import { PublicProfile } from '../models/PublicProfile'
 import { uuidToBase62, base62ToUuid } from '../utils/base62'
 // eslint-disable-next-line no-restricted-imports
@@ -681,6 +683,147 @@ EOF`}
               </code>
             </div>
           </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * Sample Item type for demo
+ */
+interface SampleItem {
+  id: string
+  name: string
+  description: string
+}
+
+/**
+ * Export/Import Demo Card
+ * Demonstrates best practices using useExportImport hook and ExportImportButtons component
+ */
+function ExportImportDemoCard() {
+  const [sampleItems, setSampleItems] = useState<SampleItem[]>([
+    { id: '1', name: 'Sample Item 1', description: 'First demo item' },
+    { id: '2', name: 'Sample Item 2', description: 'Second demo item' },
+    { id: '3', name: 'Sample Item 3', description: 'Third demo item' },
+  ])
+  const [newItemName, setNewItemName] = useState('')
+
+  const { exportJSON, importJSON, isImporting } = useExportImport<SampleItem>({
+    entityName: 'Sample Items',
+    version: '1.0.0',
+    onImport: async (items) => {
+      setSampleItems((prev) => [...prev, ...items])
+    },
+  })
+
+  const handleAddItem = () => {
+    if (newItemName.trim()) {
+      setSampleItems((prev) => [
+        ...prev,
+        { id: Date.now().toString(), name: newItemName, description: 'User added item' },
+      ])
+      setNewItemName('')
+    }
+  }
+
+  const handleDeleteItem = (id: string) => {
+    setSampleItems((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  return (
+    <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-2xl">📤</span>
+          Export/Import
+        </CardTitle>
+        <CardDescription>
+          JSON Export/Import - データエクスポートとインポート
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Code Example */}
+        <pre className="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto">
+          <code>{`import { useExportImport } from '../hooks/useExportImport'
+import { ExportImportButtons } from '../components/common/ExportImportButtons'
+
+const { exportJSON, importJSON, isImporting } = useExportImport<Item>({
+  entityName: 'Items',
+  onImport: async (items) => { /* Save to DB */ }
+})
+
+<ExportImportButtons
+  entities={items}
+  onExportJSON={exportJSON}
+  onImportJSON={importJSON}
+  isImporting={isImporting}
+/>`}</code>
+        </pre>
+
+        {/* Interactive Demo */}
+        <div className="bg-white p-4 rounded-lg space-y-3">
+          <h3 className="font-semibold text-gray-700">🧪 Interactive Demo</h3>
+
+          {/* Current Items List */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Current Items ({sampleItems.length})
+            </label>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {sampleItems.map((item) => (
+                <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="text-xs text-gray-500">{item.description}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => handleDeleteItem(item.id)}>
+                    ×
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Add New Item */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add new item..."
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
+            />
+            <Button onClick={handleAddItem} disabled={!newItemName.trim()}>
+              Add
+            </Button>
+          </div>
+
+          {/* Best Practice: Use ExportImportButtons component */}
+          <ExportImportButtons
+            entities={sampleItems}
+            onExportJSON={exportJSON}
+            onImportJSON={importJSON}
+            isImporting={isImporting}
+            entityName="Sample Items"
+            size="default"
+          />
+        </div>
+
+        {/* Features */}
+        <div className="bg-blue-50 p-3 rounded-lg text-xs text-gray-700">
+          <p className="font-semibold mb-2">🎯 Features:</p>
+          <ul className="list-disc ml-4 space-y-1">
+            <li>
+              <strong>TypeSafe</strong>: Generics で完全な型安全性
+            </li>
+            <li>
+              <strong>バージョン管理</strong>: Export format versioning
+            </li>
+            <li>
+              <strong>メタデータ対応</strong>: 任意のコンテキスト情報を保存
+            </li>
+          </ul>
         </div>
       </CardContent>
     </Card>
@@ -3563,6 +3706,9 @@ createAlias({
 
         {/* WASM Module Uploader Card */}
         <WasmModuleUploaderCard user={user} />
+
+        {/* Generic Export/Import Card */}
+        <ExportImportDemoCard />
     </div>
   )
 }
