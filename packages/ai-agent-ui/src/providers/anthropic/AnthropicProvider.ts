@@ -75,6 +75,28 @@ export class AnthropicProvider implements IAIProvider {
   };
 
   /**
+   * SystemPrompt定義
+   *
+   * 各アクションの基本的な振る舞いとルールを定義
+   */
+  private systemPrompts = {
+    generate: `あなたは優秀なコンテンツ生成アシスタントです。
+与えられたコンテキストと関連情報に基づいて、適切な内容を生成してください。
+必ずコンテキストの制約（文字数制限、タイプ、スコープ）を守ってください。
+生成されたテキストのみを返し、説明や追加のコメントは一切含めないでください。`,
+
+    refine: `あなたは優秀な文章改善アシスタントです。
+与えられたテキストを、コンテキストと関連情報に応じて改善してください。
+必ずコンテキストの制約（文字数制限、タイプ、スコープ）を守ってください。
+改善されたテキストのみを返し、説明や追加のコメントは一切含めないでください。`,
+
+    command: `あなたは柔軟なテキスト処理アシスタントです。
+ユーザーのコマンドに従って、テキストを処理してください。
+必ずコンテキストの制約（文字数制限、タイプ、スコープ）を守ってください。
+処理結果のテキストのみを返し、説明や追加のコメントは一切含めないでください。`
+  };
+
+  /**
    * AnthropicProviderのコンストラクタ
    *
    * @param aiService - AIServiceインスタンス
@@ -272,35 +294,51 @@ export class AnthropicProvider implements IAIProvider {
     context: AIAgentContext,
     options?: AIActionOptions
   ): string {
-    if (options?.customPrompt) {
-      return options.customPrompt;
-    }
-
     const parts: string[] = [];
-    parts.push(`以下のコンテキストに基づいて、適切な内容を生成してください。`);
+
+    // ✅ 1. SystemPrompt（常に含める）
+    parts.push(this.systemPrompts.generate);
+
+    // ✅ 2. コンテキスト情報（常に含める）
     parts.push(`\n【コンテキスト】`);
     parts.push(`- スコープ: ${context.scope}`);
     parts.push(`- タイプ: ${context.type}`);
 
+    // ✅ 3. 関連データ（ユーザー入力などのフォーム状態を含む）
     if (context.relatedData && Object.keys(context.relatedData).length > 0) {
-      parts.push(
-        `- 関連情報: ${JSON.stringify(context.relatedData, null, 2)}`
-      );
+      parts.push(`\n【関連情報】`);
+      Object.entries(context.relatedData).forEach(([key, value]) => {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          parts.push(`- ${key}: ${value}`);
+        } else {
+          parts.push(`- ${key}: ${JSON.stringify(value, null, 2)}`);
+        }
+      });
     }
 
+    // ✅ 4. 現在の値（生成の参考情報として）
+    if (context.currentValue) {
+      parts.push(`\n【現在の値（参考）】`);
+      parts.push(context.currentValue);
+    }
+
+    // ✅ 5. 文字数制限（重要な制約として強調）
+    if (context.maxLength) {
+      parts.push(`\n【重要な制約】`);
+      parts.push(`生成するテキストは必ず${context.maxLength}文字以内にしてください。`);
+    }
+
+    // ✅ 6. 方向性指定（スタイル指示）
     if (options?.direction) {
-      parts.push(`\n【スタイル】`);
+      parts.push(`\n【スタイル指定】`);
       parts.push(`${options.direction}スタイルで作成してください。`);
     }
 
-    if (context.maxLength) {
-      parts.push(`\n【重要】`);
-      parts.push(`必ず${context.maxLength}文字以内で生成してください。`);
+    // ✅ 7. CustomPrompt（追加の指示として扱う）
+    if (options?.customPrompt) {
+      parts.push(`\n【追加の指示】`);
+      parts.push(options.customPrompt);
     }
-
-    parts.push(
-      `\n生成されたテキストのみを返してください。説明や追加のコメントは一切不要です。`
-    );
 
     return parts.join('\n');
   }
@@ -310,36 +348,52 @@ export class AnthropicProvider implements IAIProvider {
     context: AIAgentContext,
     options?: AIActionOptions
   ): string {
-    if (options?.customPrompt) {
-      return options.customPrompt;
-    }
-
     const parts: string[] = [];
-    parts.push(`以下のテキストを改善してください。`);
+
+    // ✅ 1. SystemPrompt（常に含める）
+    parts.push(this.systemPrompts.refine);
+
+    // ✅ 2. 現在のテキスト（必須）
     parts.push(`\n【現在のテキスト】`);
     parts.push(currentValue);
+
+    // ✅ 3. コンテキスト情報（常に含める）
     parts.push(`\n【コンテキスト】`);
     parts.push(`- スコープ: ${context.scope}`);
     parts.push(`- タイプ: ${context.type}`);
 
+    // ✅ 4. 関連データ（ユーザー入力などのフォーム状態を含む）
+    if (context.relatedData && Object.keys(context.relatedData).length > 0) {
+      parts.push(`\n【関連情報】`);
+      Object.entries(context.relatedData).forEach(([key, value]) => {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          parts.push(`- ${key}: ${value}`);
+        } else {
+          parts.push(`- ${key}: ${JSON.stringify(value, null, 2)}`);
+        }
+      });
+    }
+
+    // ✅ 5. 文字数制限（重要な制約として強調）
+    if (context.maxLength) {
+      parts.push(`\n【重要な制約】`);
+      parts.push(`改善後のテキストは必ず${context.maxLength}文字以内にしてください。`);
+    }
+
+    // ✅ 6. 改善の方向性（directionまたはデフォルト）
     if (options?.direction) {
       parts.push(`\n【改善の方向性】`);
       parts.push(`${options.direction}ように修正してください。`);
     } else {
       parts.push(`\n【改善の方向性】`);
-      parts.push(
-        `文法、表現、トーンを改善し、より洗練された内容にしてください。`
-      );
+      parts.push(`文法、表現、トーンを改善し、より洗練された内容にしてください。`);
     }
 
-    if (context.maxLength) {
-      parts.push(`\n【重要】`);
-      parts.push(`改善後のテキストは必ず${context.maxLength}文字以内にしてください。`);
+    // ✅ 7. CustomPrompt（追加の指示として扱う）
+    if (options?.customPrompt) {
+      parts.push(`\n【追加の指示】`);
+      parts.push(options.customPrompt);
     }
-
-    parts.push(
-      `\n改善されたテキストのみを返してください。説明や追加のコメントは一切不要です。`
-    );
 
     return parts.join('\n');
   }
@@ -350,27 +404,42 @@ export class AnthropicProvider implements IAIProvider {
     context: AIAgentContext
   ): string {
     const parts: string[] = [];
-    parts.push(`以下のコマンドに従って、テキストを処理してください。`);
+
+    // ✅ 1. SystemPrompt（常に含める）
+    parts.push(this.systemPrompts.command);
+
+    // ✅ 2. ユーザーコマンド（最優先の指示）
     parts.push(`\n【コマンド】`);
     parts.push(command);
 
+    // ✅ 3. 対象テキスト（存在する場合）
     if (currentValue) {
       parts.push(`\n【対象テキスト】`);
       parts.push(currentValue);
     }
 
+    // ✅ 4. コンテキスト情報（常に含める）
     parts.push(`\n【コンテキスト】`);
     parts.push(`- スコープ: ${context.scope}`);
     parts.push(`- タイプ: ${context.type}`);
 
-    if (context.maxLength) {
-      parts.push(`\n【重要】`);
-      parts.push(`結果は必ず${context.maxLength}文字以内にしてください。`);
+    // ✅ 5. 関連データ（ユーザー入力などのフォーム状態を含む）
+    if (context.relatedData && Object.keys(context.relatedData).length > 0) {
+      parts.push(`\n【関連情報】`);
+      Object.entries(context.relatedData).forEach(([key, value]) => {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          parts.push(`- ${key}: ${value}`);
+        } else {
+          parts.push(`- ${key}: ${JSON.stringify(value, null, 2)}`);
+        }
+      });
     }
 
-    parts.push(
-      `\n処理結果のテキストのみを返してください。説明や追加のコメントは一切不要です。`
-    );
+    // ✅ 6. 文字数制限（重要な制約として強調）
+    if (context.maxLength) {
+      parts.push(`\n【重要な制約】`);
+      parts.push(`結果は必ず${context.maxLength}文字以内にしてください。`);
+    }
 
     return parts.join('\n');
   }
