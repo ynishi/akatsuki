@@ -74,10 +74,12 @@ Step 6: 振り返り（docs/に整理）
   - `PrivateLayout` - 認証必須ページ用（AuthGuard + Layout）
 - ストレージ: `FileUpload`
 - Hooks: `useAIGen`, `useImageGeneration`, `usePublicProfile` (React Query)
-- UI: shadcn/ui 58コンポーネント（`components/ui/`）
+- UI: shadcn/ui 64コンポーネント（`components/ui/`）
+- **Graph & Rich Editor**: `GraphView`, `RichEditor` - Reactflowベースのグラフビューとリッチエディタのラッパー
+- **Data Export/Import**: Zip対応Export/Import機能 - ExportImportService統合
 - Models: 9クラス（100%ドキュメント化）
 - Repositories: 14クラス（100%ドキュメント化）
-- Services: 14クラス（100%ドキュメント化）
+- Services: 15クラス（100%ドキュメント化）
 <!-- SYNC:COMPONENTS:END -->
 
 **Edge Functions（デプロイ済み）:**
@@ -646,12 +648,96 @@ function MyEditor() {
 }
 ```
 
+#### フォーム連携機能（relatedData）
+
+**他のフォームフィールドの値を AI 生成に反映:**
+
+```tsx
+function BlogPostForm() {
+  const [title, setTitle] = useState('')
+  const [summary, setSummary] = useState('') // ユーザー入力
+  const [content, setContent] = useState('') // AI生成
+
+  const ai = useAIRegister({
+    context: {
+      scope: 'BlogPost.Content',
+      type: 'long_text',
+      maxLength: 2000,
+      relatedData: {
+        title: title,
+        summary: summary, // ← これらの値がAIに渡される
+      },
+    },
+    getValue: () => content,
+    setValue: (newValue) => setContent(newValue),
+  })
+
+  return (
+    <>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea value={summary} onChange={(e) => setSummary(e.target.value)} />
+      <textarea value={content} onChange={(e) => setContent(e.target.value)} />
+      <button onClick={() => ai.actions.generate()}>💫 本文を生成</button>
+    </>
+  )
+}
+```
+
+**AIに送られるプロンプト:**
+```
+【SystemPrompt】
+あなたは優秀なコンテンツ生成アシスタントです...
+
+【コンテキスト】
+- スコープ: BlogPost.Content
+- タイプ: long_text
+
+【関連情報】
+- title: React Hooksの基礎
+- summary: React Hooksを使った状態管理とライフサイクルの基本を解説
+
+【重要な制約】
+生成するテキストは必ず2000文字以内にしてください。
+```
+
+**対応する型:**
+- `string`, `number`, `boolean`: 読みやすいkey-value形式
+- `object`, `array`: 整形されたJSON形式
+
 #### 設計ドキュメント
 
 詳細は以下を参照：
 - `packages/ai-agent-ui/README.md` - セットアップ・基本的な使い方
 - `packages/ai-agent-ui/CORE_LOGIC_CONSOLIDATION.md` - Core層の設計思想
 - `packages/ai-agent-ui/TOKEN_LOGIC_CONSOLIDATION.md` - Token計算ロジック
+- `packages/ai-agent-ui/RELATEDDATA_USAGE.md` - relatedDataによるフォーム連携の詳細ガイド
+
+### 5.6. GraphView & RichEditor
+
+**Location:** `src/components/ui/GraphView.tsx`, `RichEditor.tsx`
+
+Reactflow/Lexical の軽量ラッパー。基本的な使い方のみ提供。
+
+- `GraphView` - グラフ可視化（Reactflow）
+- `RichEditor` - リッチテキストエディタ（Lexical）
+
+**使い方:** `src/app/examples/` のデモを参照
+
+### 5.7. Export/Import Service
+
+**Location:** `src/services/ExportImportService.ts`
+
+データのエクスポート/インポート機能。Zip形式対応。
+
+```typescript
+// Export
+const zipBlob = await ExportImportService.exportData(data, 'filename')
+
+// Import
+const data = await ExportImportService.importData(file)
+```
+
+**設計:** Type-safe、拡張可能なフォーマット定義
 
 ---
 ## 6. 開発ルール (Rules)
