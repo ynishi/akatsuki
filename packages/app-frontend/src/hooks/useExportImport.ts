@@ -1,39 +1,46 @@
 /**
  * useExportImport
  * Type-safe Export/Import hook with React Query integration
+ * Supports both JSON and Zip formats
  *
  * @template T - The entity type to export/import
  *
  * @example
  * ```typescript
- * // In your component
+ * // JSON only
  * const { exportJSON, importJSON, isImporting } = useExportImport<Skill>({
  *   entityName: 'Skills',
- *   version: '1.0.0',
  *   onImport: async (skills) => {
  *     for (const skill of skills) {
  *       await createSkillAsync({ ...skill, userId: user.id })
  *     }
  *   },
- *   onImportSuccess: () => {
- *     queryClient.invalidateQueries({ queryKey: ['skills'] })
- *   }
  * })
  *
- * // Use in UI
- * <Button onClick={() => exportJSON(skills)}>Export</Button>
- * <input type="file" onChange={(e) => {
- *   const file = e.target.files?.[0]
- *   if (file) importJSON(file)
- * }} />
+ * // With Zip support
+ * const { exportJSON, exportZip, importJSON, importZip, isImporting } = useExportImport<Skill>({
+ *   entityName: 'Skills',
+ *   onImport: async (skills) => { ... },
+ *   zipFormatter: {
+ *     toDirectoryName: (skill) => skill.name.toLowerCase().replace(/\s+/g, '-'),
+ *     toFileName: () => 'SKILL.md',
+ *     formatContent: (skill) => skill.content,
+ *     parseContent: (content) => ({ content }),
+ *   }
+ * })
  * ```
  *
- * @see GenericExportService - Underlying service
+ * @see ExportImportService - Underlying service
  * @see ExportImportButtons - Ready-to-use UI component
  */
 
 import { useMutation } from '@tanstack/react-query'
-import { GenericExportService, type ExportOptions } from '../services/GenericExportService'
+import {
+  ExportImportService,
+  type ExportOptions,
+  type ZipFormatter,
+  type ZipExportOptions,
+} from '../services/ExportImportService'
 import { toast } from 'sonner'
 
 /**
@@ -68,7 +75,13 @@ export interface UseExportImportOptions<T> {
    * }
    * ```
    */
-  onImport: (entities: T[]) => Promise<void>
+  onImport: (entities: Array<T | Partial<T>>) => Promise<void>
+
+  /**
+   * Optional Zip formatter for Zip export/import
+   * If provided, enables Zip functionality
+   */
+  zipFormatter?: ZipFormatter<T>
 
   /**
    * Callback after successful import
@@ -127,6 +140,20 @@ export interface UseExportImportReturn<T> {
   exportJSON: (entities: T[], options?: ExportOptions) => void
 
   /**
+   * Export entities to Zip file
+   * Only available if zipFormatter was provided
+   *
+   * @param entities - Entities to export
+   * @param options - Zip export options
+   *
+   * @example
+   * ```typescript
+   * exportZip(skills, { filename: 'all-skills.zip' })
+   * ```
+   */
+  exportZip?: (entities: T[], options?: ZipExportOptions) => Promise<void>
+
+  /**
    * Import entities from JSON file
    * Triggers mutation with loading state
    *
@@ -147,6 +174,27 @@ export interface UseExportImportReturn<T> {
   importJSON: (file: File) => void
 
   /**
+   * Import entities from Zip file
+   * Only available if zipFormatter was provided
+   * Triggers mutation with loading state
+   *
+   * @param file - Zip file from input[type="file"]
+   *
+   * @example
+   * ```typescript
+   * <input
+   *   type="file"
+   *   accept=".zip"
+   *   onChange={(e) => {
+   *     const file = e.target.files?.[0]
+   *     if (file) importZip?.(file)
+   *   }}
+   * />
+   * ```
+   */
+  importZip?: (file: File) => void
+
+  /**
    * True while import is in progress
    */
   isImporting: boolean
@@ -159,28 +207,32 @@ export interface UseExportImportReturn<T> {
   /**
    * Underlying service (for advanced use cases)
    */
-  service: GenericExportService<T>
+  service: ExportImportService<T>
 }
 
 /**
  * Hook for type-safe Export/Import with React Query
  *
  * Features:
- * - Type-safe export/import operations
+ * - Type-safe JSON and Zip export/import operations
  * - React Query mutation for import with loading/error states
  * - Toast notifications
  * - Success/error callbacks
+ * - Optional Zip support via formatter
  */
 export function useExportImport<T>({
   entityName,
   version = '1.0.0',
   onImport,
+  zipFormatter,
   onImportSuccess,
   onImportError,
   toastMessages,
 }: UseExportImportOptions<T>): UseExportImportReturn<T> {
   // Create service instance
-  const service = new GenericExportService<T>(entityName.toLowerCase(), version)
+  const service = new ExportImportService<T>(entityName.toLowerCase(), version)
+
+  // ==================== JSON Export/Import ====================
 
   // Export JSON (instant operation, no mutation needed)
   const exportJSON = (entities: T[], options?: ExportOptions) => {
@@ -192,7 +244,7 @@ export function useExportImport<T>({
   }
 
   // Import JSON with React Query mutation
-  const importMutation = useMutation({
+  const importJSONMutation = useMutation({
     mutationFn: async (file: File) => {
       // Read and parse file
       const data = await service.readJSONFile(file)
@@ -238,11 +290,69 @@ export function useExportImport<T>({
     },
   })
 
+  // ==================== Zip Export/Import ====================
+
+  // Export Zip (async operation, but no mutation needed since it's instant)
+  const exportZip = zipFormatter
+    ? async (entities: T[], options?: ZipExportOptions) => {
+        await service.exportZip(entities, zipFormatter, options)
+
+        const message =
+          toastMessages?.exportSuccess || `${entityName} exported as Zip successfully`
+        toast.success(message)
+      }
+    : undefined
+
+  // Import Zip with React Query mutation
+  const importZipMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!zipFormatter) {
+        throw new Error('Zip formatter not provided')
+      }
+
+      // Read and parse zip
+      const entities = await service.importZip(file, zipFormatter)
+
+      if (entities.length === 0) {
+        throw new Error('No valid entities found in Zip file')
+      }
+
+      // Call user-provided import handler
+      await onImport(entities)
+
+      return entities
+    },
+
+    onSuccess: (entities) => {
+      const message =
+        toastMessages?.importSuccess ||
+        `Successfully imported ${entities.length} ${entityName.toLowerCase()} from Zip`
+      toast.success(message)
+
+      onImportSuccess?.()
+    },
+
+    onError: (error: Error) => {
+      const message =
+        toastMessages?.importError ||
+        `Failed to import ${entityName.toLowerCase()} from Zip: ${error.message}`
+      toast.error(message)
+
+      onImportError?.(error)
+    },
+  })
+
+  const importZip = zipFormatter ? importZipMutation.mutate : undefined
+
+  // ==================== Return ====================
+
   return {
     exportJSON,
-    importJSON: importMutation.mutate,
-    isImporting: importMutation.isPending,
-    importError: importMutation.error,
+    exportZip,
+    importJSON: importJSONMutation.mutate,
+    importZip,
+    isImporting: importJSONMutation.isPending || importZipMutation.isPending,
+    importError: importJSONMutation.error || importZipMutation.error,
     service,
   }
 }

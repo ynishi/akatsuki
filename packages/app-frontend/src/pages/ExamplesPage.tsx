@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useImageGeneration, useEventListener, usePublicStorage, useUrlAlias } from '../hooks'
 import { useExportImport } from '../hooks/useExportImport'
 import { ExportImportButtons } from '../components/common/ExportImportButtons'
+import type { ZipFormatter } from '../services/ExportImportService'
 import { PublicProfile } from '../models/PublicProfile'
 import { uuidToBase62, base62ToUuid } from '../utils/base62'
 // eslint-disable-next-line no-restricted-imports
@@ -710,11 +711,30 @@ function ExportImportDemoCard() {
   ])
   const [newItemName, setNewItemName] = useState('')
 
-  const { exportJSON, importJSON, isImporting } = useExportImport<SampleItem>({
+  // Zip formatter for demo
+  const zipFormatter: ZipFormatter<SampleItem> = {
+    toDirectoryName: (item) => item.name.toLowerCase().replace(/\s+/g, '-'),
+    toFileName: () => 'item.json',
+    formatContent: (item) => JSON.stringify(item, null, 2),
+    parseContent: (content) => {
+      try {
+        return JSON.parse(content) as SampleItem
+      } catch {
+        return null
+      }
+    },
+  }
+
+  const { exportJSON, exportZip, importJSON, isImporting } = useExportImport<SampleItem>({
     entityName: 'Sample Items',
     version: '1.0.0',
+    zipFormatter,
     onImport: async (items) => {
-      setSampleItems((prev) => [...prev, ...items])
+      // Filter out partial items and merge with existing
+      const fullItems = items.filter((item): item is SampleItem =>
+        !!item.id && !!item.name && !!item.description
+      )
+      setSampleItems((prev) => [...prev, ...fullItems])
     },
   })
 
@@ -746,19 +766,24 @@ function ExportImportDemoCard() {
       <CardContent className="space-y-4">
         {/* Code Example */}
         <pre className="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto">
-          <code>{`import { useExportImport } from '../hooks/useExportImport'
-import { ExportImportButtons } from '../components/common/ExportImportButtons'
-
-const { exportJSON, importJSON, isImporting } = useExportImport<Item>({
+          <code>{`// JSON + Zip support
+const { exportJSON, exportZip, importJSON, isImporting } = useExportImport<Item>({
   entityName: 'Items',
-  onImport: async (items) => { /* Save to DB */ }
+  onImport: async (items) => { /* Save to DB */ },
+  zipFormatter: {  // Optional: enables Zip export/import
+    toDirectoryName: (item) => item.name.replace(/\\s+/g, '-'),
+    toFileName: () => 'item.json',
+    formatContent: (item) => JSON.stringify(item, null, 2),
+    parseContent: (content) => JSON.parse(content),
+  }
 })
 
 <ExportImportButtons
   entities={items}
   onExportJSON={exportJSON}
+  onExportZip={exportZip}  // Zip export
   onImportJSON={importJSON}
-  isImporting={isImporting}
+  showZipExport={true}
 />`}</code>
         </pre>
 
@@ -803,9 +828,11 @@ const { exportJSON, importJSON, isImporting } = useExportImport<Item>({
           <ExportImportButtons
             entities={sampleItems}
             onExportJSON={exportJSON}
+            onExportZip={exportZip ? (entities) => exportZip(entities) : undefined}
             onImportJSON={importJSON}
             isImporting={isImporting}
             entityName="Sample Items"
+            showZipExport={!!exportZip}
             size="default"
           />
         </div>
@@ -818,10 +845,13 @@ const { exportJSON, importJSON, isImporting } = useExportImport<Item>({
               <strong>TypeSafe</strong>: Generics で完全な型安全性
             </li>
             <li>
+              <strong>JSON & Zip</strong>: 両フォーマットに対応
+            </li>
+            <li>
               <strong>バージョン管理</strong>: Export format versioning
             </li>
             <li>
-              <strong>メタデータ対応</strong>: 任意のコンテキスト情報を保存
+              <strong>カスタムフォーマッター</strong>: Zipの柔軟な形式変換
             </li>
           </ul>
         </div>

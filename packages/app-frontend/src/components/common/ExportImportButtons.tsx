@@ -66,7 +66,7 @@ import {
   DialogFooter,
 } from '../ui/dialog'
 import { Download, Upload, FileArchive, Loader2, X } from 'lucide-react'
-import type { ExportOptions } from '../../services/GenericExportService'
+import type { ExportOptions } from '../../services/ExportImportService'
 
 /**
  * Props for ExportImportButtons component
