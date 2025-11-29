@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -22,6 +22,9 @@ import { useImageGeneration, useEventListener, usePublicStorage, useUrlAlias } f
 import { useExportImport } from '../hooks/useExportImport'
 import { ExportImportButtons } from '../components/common/ExportImportButtons'
 import type { ZipFormatter } from '../services/ExportImportService'
+import { GraphView } from '../components/features/graph/GraphView'
+import { RichEditor } from '../components/features/editor/RichEditor'
+import type { Node, Edge } from '@xyflow/react'
 import { PublicProfile } from '../models/PublicProfile'
 import { uuidToBase62, base62ToUuid } from '../utils/base62'
 // eslint-disable-next-line no-restricted-imports
@@ -853,6 +856,175 @@ const { exportJSON, exportZip, importJSON, isImporting } = useExportImport<Item>
             <li>
               <strong>カスタムフォーマッター</strong>: Zipの柔軟な形式変換
             </li>
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * GraphView Demo Card
+ */
+function GraphViewDemoCard() {
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  const [nodeCount, setNodeCount] = useState(5)
+
+  const graphData = useMemo(() => {
+    const nodes: Node[] = []
+    const edges: Edge[] = []
+
+    for (let i = 0; i < nodeCount; i++) {
+      nodes.push({
+        id: `node-${i}`,
+        position: { x: 0, y: 0 }, // Will be positioned by layout
+        data: { label: `Node ${i + 1}` },
+        type: 'default',
+      })
+
+      if (i > 0) {
+        edges.push({
+          id: `edge-${i}`,
+          source: `node-${Math.floor((i - 1) / 2)}`,
+          target: `node-${i}`,
+        })
+      }
+    }
+
+    return { nodes, edges }
+  }, [nodeCount])
+
+  return (
+    <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-2xl">🕸️</span>
+          Graph View
+        </CardTitle>
+        <CardDescription>React Flow wrapper - インタラクティブなグラフ可視化</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <pre className="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto">
+          <code>{`import { GraphView } from '../components/features/graph/GraphView'
+
+<GraphView
+  nodes={nodes}
+  edges={edges}
+  layout="hierarchical"
+  onNodeClick={(node) => console.log(node)}
+/>`}</code>
+        </pre>
+
+        <div className="bg-white p-4 rounded-lg space-y-3">
+          <h3 className="font-semibold text-gray-700">🧪 Interactive Demo</h3>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Node Count: {nodeCount}
+            </label>
+            <Slider
+              value={[nodeCount]}
+              onValueChange={(value) => setNodeCount(value[0])}
+              min={2}
+              max={10}
+              step={1}
+              className="w-full"
+            />
+          </div>
+
+          <div className="border rounded-lg h-96 bg-gray-50">
+            <GraphView
+              nodes={graphData.nodes}
+              edges={graphData.edges}
+              layout="hierarchical"
+              onNodeClick={(node) => setSelectedNode(node.id)}
+              className="h-full"
+            />
+          </div>
+
+          {selectedNode && (
+            <div className="bg-purple-50 p-3 rounded-lg text-sm text-purple-700">
+              Selected: {selectedNode}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-purple-50 p-3 rounded-lg text-xs text-gray-700">
+          <p className="font-semibold mb-2">🎯 Features:</p>
+          <ul className="list-disc ml-4 space-y-1">
+            <li><strong>React Flow統合</strong>: 業界標準ライブラリ</li>
+            <li><strong>自動レイアウト</strong>: Hierarchical / Force</li>
+            <li><strong>インタラクティブ</strong>: ドラッグ、ズーム、パン</li>
+            <li><strong>カスタムノード</strong>: 独自コンポーネント対応</li>
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * RichEditor Demo Card
+ */
+function RichEditorDemoCard() {
+  const [content, setContent] = useState('<p>Try editing this text! You can use <strong>bold</strong>, <em>italic</em>, <code>code</code>, and more.</p>')
+  const wordCount = useMemo(() => {
+    const text = content.replace(/<[^>]*>/g, '')
+    return text.split(/\s+/).filter(Boolean).length
+  }, [content])
+
+  return (
+    <Card className="border-pink-200 bg-gradient-to-br from-pink-50 to-rose-50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-2xl">📝</span>
+          Rich Editor
+        </CardTitle>
+        <CardDescription>Tiptap wrapper - リッチテキストエディタ</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <pre className="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto">
+          <code>{`import { RichEditor } from '../components/features/editor/RichEditor'
+
+<RichEditor
+  value={content}
+  onChange={setContent}
+  placeholder="Start typing..."
+  showToolbar={true}
+/>`}</code>
+        </pre>
+
+        <div className="bg-white p-4 rounded-lg space-y-3">
+          <h3 className="font-semibold text-gray-700">🧪 Interactive Demo</h3>
+
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700">Content</label>
+            <span className="text-xs text-gray-500">{wordCount} words</span>
+          </div>
+
+          <RichEditor
+            value={content}
+            onChange={setContent}
+            placeholder="Start typing..."
+            showToolbar={true}
+            height="200px"
+          />
+
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">HTML Output:</p>
+            <pre className="bg-gray-50 p-3 rounded-lg text-xs overflow-x-auto max-h-32">
+              <code>{content}</code>
+            </pre>
+          </div>
+        </div>
+
+        <div className="bg-pink-50 p-3 rounded-lg text-xs text-gray-700">
+          <p className="font-semibold mb-2">🎯 Features:</p>
+          <ul className="list-disc ml-4 space-y-1">
+            <li><strong>Tiptap統合</strong>: Headless、カスタマイズ可能</li>
+            <li><strong>Markdownショートカット</strong>: **bold**, *italic*</li>
+            <li><strong>Syntax Highlighting</strong>: コードブロック対応</li>
+            <li><strong>Toolbar</strong>: カスタマイズ可能なツールバー</li>
           </ul>
         </div>
       </CardContent>
@@ -3739,6 +3911,12 @@ createAlias({
 
         {/* Generic Export/Import Card */}
         <ExportImportDemoCard />
+
+        {/* Graph Visualization Card */}
+        <GraphViewDemoCard />
+
+        {/* Rich Text Editor Card */}
+        <RichEditorDemoCard />
     </div>
   )
 }
