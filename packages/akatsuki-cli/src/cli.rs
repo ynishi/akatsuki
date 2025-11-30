@@ -399,6 +399,12 @@ pub enum ApiAction {
         #[arg(long, short)]
         force: bool,
     },
+    /// Validate schema file(s) without generating
+    Check {
+        /// Schema files (YAML) to validate
+        #[arg(required = true)]
+        files: Vec<PathBuf>,
+    },
 }
 
 impl Cli {

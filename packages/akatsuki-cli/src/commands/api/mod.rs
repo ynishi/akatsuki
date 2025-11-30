@@ -41,7 +41,63 @@ impl ApiCommand {
             ApiAction::Batch { files } => self.generate_batch(files),
             ApiAction::List => self.list_apis(),
             ApiAction::Delete { entity_name, force } => self.delete_api(entity_name, force),
+            ApiAction::Check { files } => self.check_schemas(files),
         }
+    }
+
+    fn check_schemas(&self, files: Vec<PathBuf>) -> Result<()> {
+        println!("{}", "🔍 HEADLESS API Schema Validator".bright_cyan().bold());
+        println!("{}", "─".repeat(50).bright_black());
+        println!("📁 Validating {} schema file(s)...\n", files.len());
+
+        let mut valid_count = 0;
+        let mut error_count = 0;
+
+        for (index, path) in files.iter().enumerate() {
+            let file_name = path
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.display().to_string());
+
+            print!(
+                "{} [{}/{}] {}",
+                "→".bright_blue(),
+                index + 1,
+                files.len(),
+                file_name.bright_white()
+            );
+
+            match EntitySchema::from_yaml(path) {
+                Ok(schema) => {
+                    println!(" {}", "✓".green());
+                    println!(
+                        "    {} Entity: {}, Table: {}, Fields: {}, Operations: {}",
+                        "•".bright_blue(),
+                        schema.name,
+                        schema.table_name,
+                        schema.fields.len(),
+                        schema.operations.len()
+                    );
+                    valid_count += 1;
+                }
+                Err(e) => {
+                    println!(" {}", "✗".red());
+                    println!("    {} {}", "Error:".red(), e);
+                    error_count += 1;
+                }
+            }
+        }
+
+        println!("\n{}", "─".repeat(50).bright_black());
+        println!("{}", "📊 Validation Summary".bright_cyan().bold());
+        println!("  {} Valid:   {}", "✓".green(), valid_count);
+        if error_count > 0 {
+            println!("  {} Invalid: {}", "✗".red(), error_count);
+            anyhow::bail!("{} schema file(s) failed validation", error_count);
+        }
+
+        println!("\n{}", "✅ All schemas are valid!".green().bold());
+        Ok(())
     }
 
     fn generate_new(
@@ -97,9 +153,17 @@ impl ApiCommand {
 
         println!("\n{}", "🚀 Next steps:".bright_cyan());
         println!("  1. Review generated files");
-        println!("  2. Deploy Edge Function: {}", format!("akatsuki function deploy {}-crud", entity_name.to_lowercase()).bright_white());
-        println!("  3. Test in Browser: http://localhost:5173/examples");
-        println!("  4. Test with CLI: {}", format!("node packages/app-cli/examples/list-{}.js", entity_name.to_lowercase()).bright_white());
+        println!("  2. Run migration: {}", "akatsuki db push".bright_white());
+        println!("  3. Deploy Edge Function: {}", format!("akatsuki function deploy {}-crud", entity_name.to_lowercase()).bright_white());
+        println!("  4. Test in Browser: http://localhost:5173/examples");
+
+        println!("\n{}", "📌 Add routes to App.tsx:".bright_cyan());
+        println!("  {}", format!("import {{ {}AdminPage }} from './pages/admin/entities/{}AdminPage'", entity_name, entity_name).bright_white());
+        println!("  {}", format!("<Route path=\"/admin/{}s\" element={{<{}AdminPage />}} />", entity_name.to_lowercase(), entity_name).bright_white());
+
+        println!("\n{}", "📌 Add demo to ExamplesPage.tsx:".bright_cyan());
+        println!("  {}", format!("import {{ {}sDemo }} from '../components/features/{}/{}sDemo'", entity_name, entity_name.to_lowercase() + "s", entity_name).bright_white());
+        println!("  {}", format!("<{}sDemo />", entity_name).bright_white());
 
         Ok(())
     }

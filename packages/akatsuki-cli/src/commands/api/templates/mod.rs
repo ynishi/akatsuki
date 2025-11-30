@@ -7,7 +7,9 @@ use anyhow::Result;
 use minijinja::Environment;
 use serde::Serialize;
 
+pub mod admin_page;
 pub mod cli_client;
+pub mod demo_component;
 pub mod edge_function;
 pub mod hook;
 pub mod migration;
@@ -37,6 +39,10 @@ impl TemplateEngine {
 
         // Register templates - CLI
         env.add_template("cli_client", cli_client::CLI_CLIENT_TEMPLATE)?;
+
+        // Register templates - UI Components
+        env.add_template("admin_page", admin_page::ADMIN_PAGE_TEMPLATE)?;
+        env.add_template("demo_component", demo_component::DEMO_COMPONENT_TEMPLATE)?;
 
         // Register custom filters
         env.add_filter("snake_case", filters::snake_case);

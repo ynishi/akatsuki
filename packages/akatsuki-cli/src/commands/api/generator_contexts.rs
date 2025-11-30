@@ -458,3 +458,215 @@ impl EdgeFunctionContext {
         }
     }
 }
+
+/// Context for Admin Page template
+#[derive(Debug, Serialize)]
+pub struct AdminPageContext {
+    pub name: String,
+    pub table_name: String,
+    pub fields: Vec<UIFieldContext>,
+    pub writable_fields: Vec<UIFieldContext>,
+    pub updatable_fields: Vec<UIFieldContext>,
+    pub display_fields: Vec<UIFieldContext>,
+    pub enum_fields: Vec<EnumFieldContext>,
+    pub has_content_field: bool,
+    pub examples: Vec<std::collections::HashMap<String, String>>,
+}
+
+/// Extended field context for UI components
+#[derive(Debug, Serialize)]
+pub struct UIFieldContext {
+    pub name: String,
+    pub db_name: String,
+    pub typescript_type: String,
+    pub typescript_default: String,
+    pub field_type: String,
+    pub required: bool,
+    pub enum_values: Vec<String>,
+}
+
+impl AdminPageContext {
+    pub fn from_schema(schema: &super::schema::EntitySchema) -> Self {
+        let fields: Vec<UIFieldContext> = schema
+            .fields
+            .iter()
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let writable_fields: Vec<UIFieldContext> = schema
+            .writable_fields()
+            .iter()
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let updatable_fields: Vec<UIFieldContext> = schema
+            .updatable_fields()
+            .iter()
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        // Display fields: writable fields excluding userId, limited to first 4
+        let display_fields: Vec<UIFieldContext> = schema
+            .writable_fields()
+            .iter()
+            .filter(|f| f.name != "userId")
+            .take(4)
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let enum_fields: Vec<EnumFieldContext> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| EnumFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let has_content_field = schema.fields.iter().any(|f| f.name == "content");
+
+        Self {
+            name: schema.name.clone(),
+            table_name: schema.table_name.clone(),
+            fields,
+            writable_fields,
+            updatable_fields,
+            display_fields,
+            enum_fields,
+            has_content_field,
+            examples: Vec::new(), // Could be populated from schema.documentation.examples
+        }
+    }
+}
+
+/// Context for Demo Component template
+#[derive(Debug, Serialize)]
+pub struct DemoComponentContext {
+    pub name: String,
+    pub table_name: String,
+    pub fields: Vec<UIFieldContext>,
+    pub writable_fields: Vec<UIFieldContext>,
+    pub updatable_fields: Vec<UIFieldContext>,
+    pub display_fields: Vec<UIFieldContext>,
+    pub enum_fields: Vec<EnumFieldContext>,
+    pub has_content_field: bool,
+}
+
+impl DemoComponentContext {
+    pub fn from_schema(schema: &super::schema::EntitySchema) -> Self {
+        let fields: Vec<UIFieldContext> = schema
+            .fields
+            .iter()
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let writable_fields: Vec<UIFieldContext> = schema
+            .writable_fields()
+            .iter()
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let updatable_fields: Vec<UIFieldContext> = schema
+            .updatable_fields()
+            .iter()
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        // Display fields: first 3 writable fields excluding userId
+        let display_fields: Vec<UIFieldContext> = schema
+            .writable_fields()
+            .iter()
+            .filter(|f| f.name != "userId")
+            .take(3)
+            .map(|f| UIFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                field_type: format!("{:?}", f.field_type).to_lowercase(),
+                required: f.required,
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let enum_fields: Vec<EnumFieldContext> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| EnumFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        let has_content_field = schema.fields.iter().any(|f| f.name == "content");
+
+        Self {
+            name: schema.name.clone(),
+            table_name: schema.table_name.clone(),
+            fields,
+            writable_fields,
+            updatable_fields,
+            display_fields,
+            enum_fields,
+            has_content_field,
+        }
+    }
+}

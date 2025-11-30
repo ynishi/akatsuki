@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use super::schema::EntitySchema;
 use super::templates::TemplateEngine;
 use super::generator_contexts::{
-    CLIClientContext, EdgeFunctionContext, HookContext, ModelContext, RepositoryEdgeContext,
-    ServiceContext,
+    AdminPageContext, CLIClientContext, DemoComponentContext, EdgeFunctionContext, HookContext,
+    ModelContext, RepositoryEdgeContext, ServiceContext,
 };
 use crate::utils::find_project_root;
 
@@ -27,6 +27,9 @@ pub struct GeneratedFiles {
     pub model: GeneratedFile,
     pub service: GeneratedFile,
     pub hook: GeneratedFile,
+    // UI Components
+    pub admin_page: GeneratedFile,
+    pub demo_component: GeneratedFile,
     // CLI (Node.js)
     pub cli_client: GeneratedFile,
 }
@@ -49,6 +52,10 @@ impl GeneratedFiles {
         self.write_file(&self.model)?;
         self.write_file(&self.service)?;
         self.write_file(&self.hook)?;
+
+        // UI Components
+        self.write_file(&self.admin_page)?;
+        self.write_file(&self.demo_component)?;
 
         // CLI
         self.write_file(&self.cli_client)?;
@@ -86,6 +93,10 @@ impl GeneratedFiles {
         println!("    {} {}", "•".bright_blue(), self.service.description);
         println!("    {} {}", "•".bright_blue(), self.hook.description);
 
+        println!("\n  {} UI Components:", "🎨".bright_blue());
+        println!("    {} {}", "•".bright_blue(), self.admin_page.description);
+        println!("    {} {}", "•".bright_blue(), self.demo_component.description);
+
         println!("\n  {} CLI (Node.js):", "🖥️".bright_blue());
         println!("    {} {}", "•".bright_blue(), self.cli_client.description);
     }
@@ -117,6 +128,9 @@ impl CodeGenerator {
             model: self.generate_model()?,
             service: self.generate_service()?,
             hook: self.generate_hook()?,
+            // UI Components
+            admin_page: self.generate_admin_page()?,
+            demo_component: self.generate_demo_component()?,
             // CLI
             cli_client: self.generate_cli_client()?,
         })
@@ -245,6 +259,41 @@ impl CodeGenerator {
             path,
             content,
             description: format!("Hook (React Query CRUD)"),
+        })
+    }
+
+    // ================== UI Component Generators ==================
+
+    fn generate_admin_page(&self) -> Result<GeneratedFile> {
+        let context = AdminPageContext::from_schema(&self.schema);
+        let content = self.template_engine.render("admin_page", &context)?;
+
+        let project_root = find_project_root();
+        let path = project_root
+            .join("packages/app-frontend/src/pages/admin/entities")
+            .join(format!("{}AdminPage.tsx", self.schema.name));
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Admin Page (/admin/{}s)", self.schema.table_name),
+        })
+    }
+
+    fn generate_demo_component(&self) -> Result<GeneratedFile> {
+        let context = DemoComponentContext::from_schema(&self.schema);
+        let content = self.template_engine.render("demo_component", &context)?;
+
+        let project_root = find_project_root();
+        let path = project_root
+            .join("packages/app-frontend/src/components/features")
+            .join(self.schema.table_name.clone())
+            .join(format!("{}sDemo.tsx", self.schema.name));
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Demo Component (<{}sDemo />)", self.schema.name),
         })
     }
 
