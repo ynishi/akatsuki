@@ -22,8 +22,9 @@ export interface {{ name }} {
 }
 
 export interface {{ name }}Insert {
+  user_id: string
 {%- for field in writable_fields %}
-  {{ field.db_name }}{% if not field.required %}?{% endif %}: {{ field.typescript_type }}
+  {{ field.db_name }}{% if not field.required %}?{% endif %}: {{ field.typescript_type }}{% if not field.required %} | null{% endif %}
 {%- endfor %}
 }
 

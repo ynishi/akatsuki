@@ -408,7 +408,7 @@ impl MigrationContext {
             .fields
             .iter()
             .map(|f| {
-                // Quote enum/string defaults
+                // Convert defaults to PostgreSQL format
                 let default = f.default.clone().map(|d| {
                     use super::schema::FieldType;
                     match f.field_type {
@@ -421,6 +421,15 @@ impl MigrationContext {
                                 d
                             } else {
                                 format!("'{}'", d)
+                            }
+                        }
+                        FieldType::Array => {
+                            // Convert [] or empty to PostgreSQL array syntax
+                            if d == "[]" || d.is_empty() {
+                                format!("'{{}}'::{}", f.sql_type())
+                            } else {
+                                // Already in PostgreSQL format or other
+                                d
                             }
                         }
                         _ => d,

@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
             user_id: user.id,
             {%- for field in writable_fields %}
             {%- if field.name != "userId" %}
-            {{ field.name }}: input.data.{{ field.name }}{% if not field.required %} || {{ field.typescript_default }}{% endif %},
+            {{ field.db_name }}: input.data.{{ field.name }}{% if not field.required %} || {{ field.typescript_default }}{% endif %},
             {%- endif %}
             {%- endfor %}
           })
