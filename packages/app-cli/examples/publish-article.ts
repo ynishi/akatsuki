@@ -8,7 +8,8 @@
  */
 
 import 'dotenv/config'
-import { AkatsukiClient, ArticlesClient } from '../client.js'
+import { AkatsukiClient } from '../client.js'
+import { ArticlesClient } from '../clients/ArticlesClient.js'
 
 async function main(): Promise<void> {
   const client = new AkatsukiClient()
