@@ -18,6 +18,7 @@ import { WebhookTestPage } from './pages/admin/WebhookTestPage'
 import { FunctionCallLogsPage } from './pages/admin/FunctionCallLogsPage'
 import { FunctionDefinitionsPage } from './pages/admin/FunctionDefinitionsPage'
 import { WasmModuleAdminPage } from './pages/admin/WasmModuleAdminPage'
+import { ApiKeysAdminPage } from './pages/admin/ApiKeysAdminPage'
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
             <Route path="/admin/function-calls" element={<FunctionCallLogsPage />} />
             <Route path="/admin/function-definitions" element={<FunctionDefinitionsPage />} />
             <Route path="/admin/wasm" element={<WasmModuleAdminPage />} />
+            <Route path="/admin/api-keys" element={<ApiKeysAdminPage />} />
           </Route>
         </Routes>
       </AuthProvider>

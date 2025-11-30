@@ -91,6 +91,8 @@ Step 6: 振り返り（docs/に整理）
 - `upload-file` / `delete-file` - ファイル管理
 - `get-signed-url` / `create-signed-url` - Private Storage
 - `send-email` / `slack-notify` - 外部連携
+- `api-gateway` - Public API Gateway（API Key認証 + Rate Limit）
+- `cdn-gateway` - CDN Gateway（Base62 URL + OGP）
 
 **コマンド集:**
 ```bash
@@ -2517,6 +2519,53 @@ rls:
 - ✅ Zod Validation
 - ✅ Admin Page（Dummy Data生成ボタン付き）
 - ✅ Demo Component（ExamplesPage用カード）
+
+---
+
+## Public API Gateway（外部API公開）
+
+HEADLESS APIを外部サービス・モバイルアプリ向けに公開するためのAPI Key認証Gateway。
+
+**アーキテクチャ:**
+```
+External Client (X-API-Key header)
+    │
+    ▼
+┌─────────────────────────────┐
+│  api-gateway (Edge Func)    │
+│  • API Key検証 (SHA-256)    │
+│  • Rate Limit (分/日)       │
+│  • Permission Check         │
+└─────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────┐
+│  {entity}-crud (Edge Func)  │
+└─────────────────────────────┘
+```
+
+**使用例:**
+```bash
+# API Key管理: /admin/api-keys
+
+# List
+curl -X GET ".../api-gateway/articles/list" \
+  -H "X-API-Key: ak_xxxxxx_..."
+
+# Create
+curl -X POST ".../api-gateway/articles/create" \
+  -H "X-API-Key: ak_xxxxxx_..." \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Hello"}'
+```
+
+**機能:**
+- ✅ API Key発行・管理（Admin画面: `/admin/api-keys`）
+- ✅ SHA-256ハッシュ認証（フルキーは発行時のみ表示）
+- ✅ Rate Limiting（分単位・日単位）
+- ✅ 操作権限設定（list/get/create/update/delete）
+- ✅ 即時停止（isActive toggle）
+- ✅ 使用統計・最終使用日時
 
 ---
 

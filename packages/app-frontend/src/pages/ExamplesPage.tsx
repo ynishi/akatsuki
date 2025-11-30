@@ -42,6 +42,7 @@ import { AIFieldTrigger } from '../components/features/ai'
 import { WasmRuntimeService } from '../services/WasmRuntimeService'
 import { WasmModuleRepository } from '../repositories/WasmModuleRepository'
 import { supabase } from '../lib/supabase'
+import { ApiGatewayDemo } from '../components/features/api-gateway/ApiGatewayDemo'
 
 /**
  * AIエージェントUIデモカード（内部実装）
@@ -3902,6 +3903,9 @@ createAlias({
             </div>
           </CardContent>
         </Card>
+
+        {/* Public API Gateway Demo Card */}
+        <ApiGatewayDemo />
 
         {/* WASM Runtime Demo Card */}
         <WasmRuntimeCard />
