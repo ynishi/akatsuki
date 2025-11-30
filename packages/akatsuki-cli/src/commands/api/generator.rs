@@ -11,20 +11,24 @@ use std::path::PathBuf;
 
 use super::schema::EntitySchema;
 use super::templates::TemplateEngine;
-use super::generator_contexts::{EdgeFunctionContext, RepositoryEdgeContext};
+use super::generator_contexts::{
+    CLIClientContext, EdgeFunctionContext, HookContext, ModelContext, RepositoryEdgeContext,
+    ServiceContext,
+};
 use crate::utils::find_project_root;
 
 pub struct GeneratedFiles {
+    // Backend (Supabase Edge Functions)
     pub migration: GeneratedFile,
     pub zod_schema: GeneratedFile,
     pub repository_edge: GeneratedFile,
     pub edge_function: GeneratedFile,
-    // TODO: Add other files
-    // pub model: GeneratedFile,
-    // pub repository_frontend: GeneratedFile,
-    // pub service: GeneratedFile,
-    // pub hook: GeneratedFile,
-    // pub cli_client: GeneratedFile,
+    // Frontend (React)
+    pub model: GeneratedFile,
+    pub service: GeneratedFile,
+    pub hook: GeneratedFile,
+    // CLI (Node.js)
+    pub cli_client: GeneratedFile,
 }
 
 pub struct GeneratedFile {
@@ -35,19 +39,19 @@ pub struct GeneratedFile {
 
 impl GeneratedFiles {
     pub fn write_to_disk(&self) -> Result<()> {
-        // Write migration
+        // Backend
         self.write_file(&self.migration)?;
-
-        // Write zod schema
         self.write_file(&self.zod_schema)?;
-
-        // Write repository (edge)
         self.write_file(&self.repository_edge)?;
-
-        // Write edge function
         self.write_file(&self.edge_function)?;
 
-        // TODO: Write other files
+        // Frontend
+        self.write_file(&self.model)?;
+        self.write_file(&self.service)?;
+        self.write_file(&self.hook)?;
+
+        // CLI
+        self.write_file(&self.cli_client)?;
 
         Ok(())
     }
@@ -71,11 +75,19 @@ impl GeneratedFiles {
     }
 
     pub fn print_summary(&self) {
-        println!("  {} {}", "•".bright_blue(), self.migration.description);
-        println!("  {} {}", "•".bright_blue(), self.zod_schema.description);
-        println!("  {} {}", "•".bright_blue(), self.repository_edge.description);
-        println!("  {} {}", "•".bright_blue(), self.edge_function.description);
-        // TODO: Print other files
+        println!("\n  {} Backend (Supabase Edge Functions):", "📦".bright_blue());
+        println!("    {} {}", "•".bright_blue(), self.migration.description);
+        println!("    {} {}", "•".bright_blue(), self.zod_schema.description);
+        println!("    {} {}", "•".bright_blue(), self.repository_edge.description);
+        println!("    {} {}", "•".bright_blue(), self.edge_function.description);
+
+        println!("\n  {} Frontend (React):", "⚛️".bright_blue());
+        println!("    {} {}", "•".bright_blue(), self.model.description);
+        println!("    {} {}", "•".bright_blue(), self.service.description);
+        println!("    {} {}", "•".bright_blue(), self.hook.description);
+
+        println!("\n  {} CLI (Node.js):", "🖥️".bright_blue());
+        println!("    {} {}", "•".bright_blue(), self.cli_client.description);
     }
 }
 
@@ -96,11 +108,17 @@ impl CodeGenerator {
 
     pub fn generate_all(&self) -> Result<GeneratedFiles> {
         Ok(GeneratedFiles {
+            // Backend
             migration: self.generate_migration()?,
             zod_schema: self.generate_zod_schema()?,
             repository_edge: self.generate_repository_edge()?,
             edge_function: self.generate_edge_function()?,
-            // TODO: Generate other files
+            // Frontend
+            model: self.generate_model()?,
+            service: self.generate_service()?,
+            hook: self.generate_hook()?,
+            // CLI
+            cli_client: self.generate_cli_client()?,
         })
     }
 
@@ -177,6 +195,74 @@ impl CodeGenerator {
             path,
             content,
             description: format!("Edge Function (createAkatsukiHandler)"),
+        })
+    }
+
+    // ================== Frontend Generators ==================
+
+    fn generate_model(&self) -> Result<GeneratedFile> {
+        let context = ModelContext::from_schema(&self.schema);
+        let content = self.template_engine.render("model", &context)?;
+
+        let project_root = find_project_root();
+        let path = project_root
+            .join("packages/app-frontend/src/models")
+            .join(format!("{}.ts", self.schema.name));
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Model (fromDatabase/toDatabase)"),
+        })
+    }
+
+    fn generate_service(&self) -> Result<GeneratedFile> {
+        let context = ServiceContext::from_schema(&self.schema);
+        let content = self.template_engine.render("service", &context)?;
+
+        let project_root = find_project_root();
+        let path = project_root
+            .join("packages/app-frontend/src/services")
+            .join(format!("{}Service.ts", self.schema.name));
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Service (EdgeFunctionService wrapper)"),
+        })
+    }
+
+    fn generate_hook(&self) -> Result<GeneratedFile> {
+        let context = HookContext::from_schema(&self.schema);
+        let content = self.template_engine.render("hook", &context)?;
+
+        let project_root = find_project_root();
+        let path = project_root
+            .join("packages/app-frontend/src/hooks")
+            .join(format!("use{}s.ts", self.schema.name));
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Hook (React Query CRUD)"),
+        })
+    }
+
+    // ================== CLI Generator ==================
+
+    fn generate_cli_client(&self) -> Result<GeneratedFile> {
+        let context = CLIClientContext::from_schema(&self.schema);
+        let content = self.template_engine.render("cli_client", &context)?;
+
+        let project_root = find_project_root();
+        let path = project_root
+            .join("packages/app-cli/clients")
+            .join(format!("{}sClient.js", self.schema.name));
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("CLI Client ({}sClient)", self.schema.name),
         })
     }
 }

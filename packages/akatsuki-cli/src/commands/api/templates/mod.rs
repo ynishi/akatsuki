@@ -7,9 +7,13 @@ use anyhow::Result;
 use minijinja::Environment;
 use serde::Serialize;
 
+pub mod cli_client;
 pub mod edge_function;
+pub mod hook;
 pub mod migration;
+pub mod model;
 pub mod repository_edge;
+pub mod service;
 pub mod zod_schema;
 
 pub struct TemplateEngine {
@@ -20,11 +24,19 @@ impl TemplateEngine {
     pub fn new() -> Result<Self> {
         let mut env = Environment::new();
 
-        // Register templates
+        // Register templates - Backend
         env.add_template("migration", migration::MIGRATION_TEMPLATE)?;
         env.add_template("zod_schema", zod_schema::ZOD_SCHEMA_TEMPLATE)?;
         env.add_template("repository_edge", repository_edge::REPOSITORY_EDGE_TEMPLATE)?;
         env.add_template("edge_function", edge_function::EDGE_FUNCTION_TEMPLATE)?;
+
+        // Register templates - Frontend
+        env.add_template("model", model::MODEL_TEMPLATE)?;
+        env.add_template("service", service::SERVICE_TEMPLATE)?;
+        env.add_template("hook", hook::HOOK_TEMPLATE)?;
+
+        // Register templates - CLI
+        env.add_template("cli_client", cli_client::CLI_CLIENT_TEMPLATE)?;
 
         // Register custom filters
         env.add_filter("snake_case", filters::snake_case);
@@ -33,6 +45,7 @@ impl TemplateEngine {
         env.add_filter("kebab_case", filters::kebab_case);
         env.add_filter("singular", filters::singular);
         env.add_filter("upper", filters::upper);
+        env.add_filter("lower", filters::lower);
 
         Ok(Self { env })
     }
@@ -146,6 +159,17 @@ mod filters {
         })?;
 
         Ok(Value::from(s.to_uppercase()))
+    }
+
+    pub fn lower(value: Value) -> Result<Value, minijinja::Error> {
+        let s = value.as_str().ok_or_else(|| {
+            minijinja::Error::new(
+                minijinja::ErrorKind::InvalidOperation,
+                "lower filter requires string",
+            )
+        })?;
+
+        Ok(Value::from(s.to_lowercase()))
     }
 }
 

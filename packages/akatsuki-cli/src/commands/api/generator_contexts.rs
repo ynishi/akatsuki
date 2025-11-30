@@ -128,6 +128,293 @@ pub struct EdgeFunctionContext {
     pub writable_fields: Vec<FieldContext>,
 }
 
+/// Context for Frontend Model template
+#[derive(Debug, Serialize)]
+pub struct ModelContext {
+    pub name: String,
+    pub table_name: String,
+    pub fields: Vec<FieldContext>,
+    pub writable_fields: Vec<FieldContext>,
+    pub updatable_fields: Vec<FieldContext>,
+    pub enum_fields: Vec<EnumFieldContext>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EnumFieldContext {
+    pub name: String,
+    pub db_name: String,
+    pub enum_values: Vec<String>,
+}
+
+impl ModelContext {
+    pub fn from_schema(schema: &super::schema::EntitySchema) -> Self {
+        let fields: Vec<FieldContext> = schema
+            .fields
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let writable_fields: Vec<FieldContext> = schema
+            .writable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let updatable_fields: Vec<FieldContext> = schema
+            .updatable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let enum_fields: Vec<EnumFieldContext> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| EnumFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        Self {
+            name: schema.name.clone(),
+            table_name: schema.table_name.clone(),
+            fields,
+            writable_fields,
+            updatable_fields,
+            enum_fields,
+        }
+    }
+}
+
+/// Context for Frontend Service template
+#[derive(Debug, Serialize)]
+pub struct ServiceContext {
+    pub name: String,
+    pub table_name: String,
+    pub operations: Vec<OperationContext>,
+    pub writable_fields: Vec<FieldContext>,
+    pub updatable_fields: Vec<FieldContext>,
+    pub enum_fields: Vec<EnumFieldContext>,
+}
+
+impl ServiceContext {
+    pub fn from_schema(schema: &super::schema::EntitySchema) -> Self {
+        let writable_fields: Vec<FieldContext> = schema
+            .writable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let updatable_fields: Vec<FieldContext> = schema
+            .updatable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let operations: Vec<OperationContext> = schema
+            .operations
+            .iter()
+            .map(|op| OperationContext {
+                op_type: format!("{:?}", op.op_type).to_lowercase(),
+                name: op.name.clone(),
+                description: op.description.clone(),
+                filters: op.filters.clone(),
+                limit: op.limit,
+            })
+            .collect();
+
+        let enum_fields: Vec<EnumFieldContext> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| EnumFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        Self {
+            name: schema.name.clone(),
+            table_name: schema.table_name.clone(),
+            operations,
+            writable_fields,
+            updatable_fields,
+            enum_fields,
+        }
+    }
+}
+
+/// Context for Frontend Hook template (React Query)
+#[derive(Debug, Serialize)]
+pub struct HookContext {
+    pub name: String,
+    pub table_name: String,
+    pub operations: Vec<OperationContext>,
+    pub writable_fields: Vec<FieldContext>,
+    pub updatable_fields: Vec<FieldContext>,
+    pub enum_fields: Vec<EnumFieldContext>,
+}
+
+impl HookContext {
+    pub fn from_schema(schema: &super::schema::EntitySchema) -> Self {
+        let writable_fields: Vec<FieldContext> = schema
+            .writable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let updatable_fields: Vec<FieldContext> = schema
+            .updatable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let operations: Vec<OperationContext> = schema
+            .operations
+            .iter()
+            .map(|op| OperationContext {
+                op_type: format!("{:?}", op.op_type).to_lowercase(),
+                name: op.name.clone(),
+                description: op.description.clone(),
+                filters: op.filters.clone(),
+                limit: op.limit,
+            })
+            .collect();
+
+        let enum_fields: Vec<EnumFieldContext> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| EnumFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        Self {
+            name: schema.name.clone(),
+            table_name: schema.table_name.clone(),
+            operations,
+            writable_fields,
+            updatable_fields,
+            enum_fields,
+        }
+    }
+}
+
+/// Context for CLI Client template (Node.js)
+#[derive(Debug, Serialize)]
+pub struct CLIClientContext {
+    pub name: String,
+    pub table_name: String,
+    pub operations: Vec<OperationContext>,
+    pub writable_fields: Vec<FieldContext>,
+    pub updatable_fields: Vec<FieldContext>,
+    pub enum_fields: Vec<EnumFieldContext>,
+}
+
+impl CLIClientContext {
+    pub fn from_schema(schema: &super::schema::EntitySchema) -> Self {
+        let writable_fields: Vec<FieldContext> = schema
+            .writable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let updatable_fields: Vec<FieldContext> = schema
+            .updatable_fields()
+            .iter()
+            .map(|f| FieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                typescript_type: f.typescript_type(),
+                typescript_default: f.typescript_default(),
+                required: f.required,
+            })
+            .collect();
+
+        let operations: Vec<OperationContext> = schema
+            .operations
+            .iter()
+            .map(|op| OperationContext {
+                op_type: format!("{:?}", op.op_type).to_lowercase(),
+                name: op.name.clone(),
+                description: op.description.clone(),
+                filters: op.filters.clone(),
+                limit: op.limit,
+            })
+            .collect();
+
+        let enum_fields: Vec<EnumFieldContext> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| EnumFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                enum_values: f.enum_values.clone().unwrap_or_default(),
+            })
+            .collect();
+
+        Self {
+            name: schema.name.clone(),
+            table_name: schema.table_name.clone(),
+            operations,
+            writable_fields,
+            updatable_fields,
+            enum_fields,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct OperationContext {
     pub op_type: String,
