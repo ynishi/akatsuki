@@ -80,6 +80,13 @@ impl ApiCommand {
                         schema.fields.len(),
                         schema.operations.len()
                     );
+
+                    // Check for recommended fields
+                    let suggestions = Self::check_recommended_fields(&schema);
+                    for suggestion in &suggestions {
+                        println!("    {} {}", "⚠".yellow(), suggestion.yellow());
+                    }
+
                     valid_count += 1;
                 }
                 Err(e) => {
@@ -100,6 +107,30 @@ impl ApiCommand {
 
         println!("\n{}", "✅ All schemas are valid!".green().bold());
         Ok(())
+    }
+
+    /// Check for recommended fields and return suggestions
+    fn check_recommended_fields(schema: &EntitySchema) -> Vec<String> {
+        let mut suggestions = Vec::new();
+
+        let field_names: Vec<&str> = schema.fields.iter().map(|f| f.name.as_str()).collect();
+
+        // Check for id field
+        if !field_names.contains(&"id") {
+            suggestions.push("Consider adding 'id' field (UUID PRIMARY KEY)".to_string());
+        }
+
+        // Check for createdAt field
+        if !field_names.contains(&"createdAt") {
+            suggestions.push("Consider adding 'createdAt' field for audit tracking".to_string());
+        }
+
+        // Check for updatedAt field
+        if !field_names.contains(&"updatedAt") {
+            suggestions.push("Consider adding 'updatedAt' field for change tracking".to_string());
+        }
+
+        suggestions
     }
 
     fn generate_new(

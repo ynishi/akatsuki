@@ -7,6 +7,7 @@ pub mod deploy;
 pub mod design;
 pub mod dev;
 pub mod docs;
+pub mod fmt;
 pub mod function;
 pub mod setup;
 pub mod test;

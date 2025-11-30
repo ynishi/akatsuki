@@ -11,6 +11,7 @@ use crate::commands::deploy::DeployCommand;
 use crate::commands::design::DesignCommand;
 use crate::commands::dev::DevCommand;
 use crate::commands::docs::DocsCommand;
+use crate::commands::fmt::FmtCommand;
 use crate::commands::function::FunctionCommand;
 use crate::commands::setup::SetupCommand;
 use crate::commands::test::TestCommand;
@@ -112,6 +113,15 @@ enum Commands {
         /// Target to check: frontend, backend, or all (default)
         #[arg(value_enum, default_value = "all")]
         target: CheckTarget,
+    },
+    /// Format code (prettier, cargo fmt)
+    ///
+    /// Targets: frontend | backend | cli | rust-cli | all (default)
+    #[command(about = "Format code [frontend | backend | cli | rust-cli | all]")]
+    Fmt {
+        /// Target to format: frontend, backend, cli, rust-cli, or all (default)
+        #[arg(value_enum, default_value = "all")]
+        target: FmtTarget,
     },
     /// Run tests
     ///
@@ -282,6 +292,21 @@ pub enum CheckTarget {
 }
 
 #[derive(Debug, Clone, ValueEnum)]
+pub enum FmtTarget {
+    /// Format frontend only (prettier)
+    Frontend,
+    /// Format backend only (cargo fmt)
+    Backend,
+    /// Format CLI only (prettier)
+    Cli,
+    /// Format akatsuki-cli only (cargo fmt)
+    #[value(name = "rust-cli")]
+    RustCli,
+    /// Format all targets
+    All,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
 pub enum TestTarget {
     /// Test frontend only
     Frontend,
@@ -444,6 +469,10 @@ impl Cli {
                 let cmd = CheckCommand::new();
                 cmd.execute(target)
             }
+            Commands::Fmt { target } => {
+                let cmd = FmtCommand::new();
+                cmd.execute(target)
+            }
             Commands::Test {
                 target,
                 watch,
@@ -505,6 +534,14 @@ impl Cli {
         );
         println!("akatsuki check frontend           # Frontend チェック (lint + typecheck)");
         println!("akatsuki check backend            # Backend チェック (cargo check)");
+        println!();
+
+        println!("# フォーマット");
+        println!("akatsuki fmt                      # すべてフォーマット");
+        println!("akatsuki fmt frontend             # Frontend フォーマット (prettier)");
+        println!("akatsuki fmt backend              # Backend フォーマット (cargo fmt)");
+        println!("akatsuki fmt cli                  # CLI フォーマット (prettier)");
+        println!("akatsuki fmt rust-cli             # akatsuki-cli フォーマット (cargo fmt)");
         println!();
 
         println!("# テスト");

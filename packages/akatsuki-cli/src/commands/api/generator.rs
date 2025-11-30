@@ -369,42 +369,8 @@ struct DocumentationContext {
 
 impl MigrationContext {
     fn from_schema(schema: &EntitySchema) -> Self {
-        // === 1. Standard fields (id, user_id) at the beginning ===
-        let mut fields: Vec<FieldContext> = vec![
-            // id UUID PRIMARY KEY
-            FieldContext {
-                name: "id".to_string(),
-                db_name: "id".to_string(),
-                sql_type: "UUID".to_string(),
-                required: true,
-                default: Some("gen_random_uuid()".to_string()),
-                primary_key: true,
-                unique: false,
-                references: None,
-                on_delete: None,
-                enum_values: None,
-                index: false,
-                index_type: None,
-            },
-            // user_id UUID REFERENCES auth.users(id)
-            FieldContext {
-                name: "userId".to_string(),
-                db_name: "user_id".to_string(),
-                sql_type: "UUID".to_string(),
-                required: true,
-                default: None,
-                primary_key: false,
-                unique: false,
-                references: Some("auth.users(id)".to_string()),
-                on_delete: Some("CASCADE".to_string()),
-                enum_values: None,
-                index: true,
-                index_type: None,
-            },
-        ];
-
-        // === 2. User-defined fields from schema ===
-        let user_fields: Vec<FieldContext> = schema
+        // === 1. All fields from schema (no auto-generation) ===
+        let fields: Vec<FieldContext> = schema
             .fields
             .iter()
             .map(|f| {
@@ -452,58 +418,9 @@ impl MigrationContext {
                 }
             })
             .collect();
-        fields.extend(user_fields);
 
-        // === 3. Timestamp fields at the end ===
-        fields.push(FieldContext {
-            name: "createdAt".to_string(),
-            db_name: "created_at".to_string(),
-            sql_type: "TIMESTAMPTZ".to_string(),
-            required: false,
-            default: Some("NOW()".to_string()),
-            primary_key: false,
-            unique: false,
-            references: None,
-            on_delete: None,
-            enum_values: None,
-            index: false,
-            index_type: None,
-        });
-        fields.push(FieldContext {
-            name: "updatedAt".to_string(),
-            db_name: "updated_at".to_string(),
-            sql_type: "TIMESTAMPTZ".to_string(),
-            required: false,
-            default: Some("NOW()".to_string()),
-            primary_key: false,
-            unique: false,
-            references: None,
-            on_delete: None,
-            enum_values: None,
-            index: false,
-            index_type: None,
-        });
-
-        // === 4. Build indexed_fields (user_id + user-defined indexes) ===
-        let mut indexed_fields: Vec<FieldContext> = vec![
-            // user_id index
-            FieldContext {
-                name: "userId".to_string(),
-                db_name: "user_id".to_string(),
-                sql_type: "UUID".to_string(),
-                required: true,
-                default: None,
-                primary_key: false,
-                unique: false,
-                references: None,
-                on_delete: None,
-                enum_values: None,
-                index: true,
-                index_type: None,
-            },
-        ];
-        // Add user-defined indexed fields
-        let user_indexed: Vec<FieldContext> = schema
+        // === 2. Build indexed_fields from schema ===
+        let indexed_fields: Vec<FieldContext> = schema
             .indexed_fields()
             .iter()
             .map(|f| FieldContext {
@@ -521,9 +438,8 @@ impl MigrationContext {
                 index_type: f.index_type.clone(),
             })
             .collect();
-        indexed_fields.extend(user_indexed);
 
-        // === 5. RLS policies ===
+        // === 3. RLS policies ===
         let rls: Vec<RLSPolicyContext> = schema
             .rls
             .iter()
@@ -535,8 +451,8 @@ impl MigrationContext {
             })
             .collect();
 
-        // === 6. Always enable updated_at trigger (standard fields include updated_at) ===
-        let has_updated_at = true;
+        // === 4. Check if schema has updatedAt field (for trigger generation) ===
+        let has_updated_at = schema.fields.iter().any(|f| f.name == "updatedAt");
 
         Self {
             name: schema.name.clone(),
