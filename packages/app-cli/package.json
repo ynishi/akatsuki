@@ -1,0 +1,25 @@
+{
+  "name": "app-cli",
+  "version": "1.0.0",
+  "description": "CLI tools for Akatsuki Application (HEADLESS API)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "list": "node examples/list-articles.js",
+    "create": "node examples/create-article.js",
+    "publish": "node examples/publish-article.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "akatsuki",
+    "cli",
+    "headless-api",
+    "articles",
+    "crud"
+  ],
+  "author": "",
+  "license": "MIT"
+}
