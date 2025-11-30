@@ -8,20 +8,19 @@
  * - Frontend (Model + Repository + Service + Hook + Component)
  * - CLI Tools (Client + Examples)
  */
-
 use anyhow::Result;
 use colored::Colorize;
 use std::path::PathBuf;
 
 use crate::cli::ApiAction;
 
-mod schema;
 mod generator;
 mod generator_contexts;
+mod schema;
 mod templates;
 
-use schema::EntitySchema;
 use generator::CodeGenerator;
+use schema::EntitySchema;
 
 pub struct ApiCommand;
 
@@ -46,7 +45,10 @@ impl ApiCommand {
     }
 
     fn check_schemas(&self, files: Vec<PathBuf>) -> Result<()> {
-        println!("{}", "🔍 HEADLESS API Schema Validator".bright_cyan().bold());
+        println!(
+            "{}",
+            "🔍 HEADLESS API Schema Validator".bright_cyan().bold()
+        );
         println!("{}", "─".repeat(50).bright_black());
         println!("📁 Validating {} schema file(s)...\n", files.len());
 
@@ -121,18 +123,16 @@ impl ApiCommand {
             println!("🗄️  Reading from Database Types");
             EntitySchema::from_database_types(&entity_name)?
         } else {
-            anyhow::bail!(
-                "Please specify one of: --schema <file>, --interactive, or --from-db"
-            );
+            anyhow::bail!("Please specify one of: --schema <file>, --interactive, or --from-db");
         };
 
-        println!("\n{} Entity: {}", "✓".green(), entity_schema.name.bright_white());
-        println!("{} Table: {}", "✓".green(), entity_schema.table_name);
         println!(
-            "{} Fields: {}",
+            "\n{} Entity: {}",
             "✓".green(),
-            entity_schema.fields.len()
+            entity_schema.name.bright_white()
         );
+        println!("{} Table: {}", "✓".green(), entity_schema.table_name);
+        println!("{} Fields: {}", "✓".green(), entity_schema.fields.len());
         println!(
             "{} Operations: {}",
             "✓".green(),
@@ -154,15 +154,46 @@ impl ApiCommand {
         println!("\n{}", "🚀 Next steps:".bright_cyan());
         println!("  1. Review generated files");
         println!("  2. Run migration: {}", "akatsuki db push".bright_white());
-        println!("  3. Deploy Edge Function: {}", format!("akatsuki function deploy {}-crud", entity_name.to_lowercase()).bright_white());
+        println!(
+            "  3. Deploy Edge Function: {}",
+            format!(
+                "akatsuki function deploy {}-crud",
+                entity_name.to_lowercase()
+            )
+            .bright_white()
+        );
         println!("  4. Test in Browser: http://localhost:5173/examples");
 
         println!("\n{}", "📌 Add routes to App.tsx:".bright_cyan());
-        println!("  {}", format!("import {{ {}AdminPage }} from './pages/admin/entities/{}AdminPage'", entity_name, entity_name).bright_white());
-        println!("  {}", format!("<Route path=\"/admin/{}s\" element={{<{}AdminPage />}} />", entity_name.to_lowercase(), entity_name).bright_white());
+        println!(
+            "  {}",
+            format!(
+                "import {{ {}AdminPage }} from './pages/admin/entities/{}AdminPage'",
+                entity_name, entity_name
+            )
+            .bright_white()
+        );
+        println!(
+            "  {}",
+            format!(
+                "<Route path=\"/admin/{}s\" element={{<{}AdminPage />}} />",
+                entity_name.to_lowercase(),
+                entity_name
+            )
+            .bright_white()
+        );
 
         println!("\n{}", "📌 Add demo to ExamplesPage.tsx:".bright_cyan());
-        println!("  {}", format!("import {{ {}sDemo }} from '../components/features/{}/{}sDemo'", entity_name, entity_name.to_lowercase() + "s", entity_name).bright_white());
+        println!(
+            "  {}",
+            format!(
+                "import {{ {}sDemo }} from '../components/features/{}/{}sDemo'",
+                entity_name,
+                entity_name.to_lowercase() + "s",
+                entity_name
+            )
+            .bright_white()
+        );
         println!("  {}", format!("<{}sDemo />", entity_name).bright_white());
 
         Ok(())
@@ -202,7 +233,8 @@ impl ApiCommand {
         let mut results: Vec<(String, bool, String)> = Vec::new();
 
         for (index, path) in files.iter().enumerate() {
-            let file_name = path.file_name()
+            let file_name = path
+                .file_name()
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| path.display().to_string());
 
@@ -222,48 +254,31 @@ impl ApiCommand {
                     // Generate code
                     let generator = CodeGenerator::new(entity_schema);
                     match generator.generate_all() {
-                        Ok(generated_files) => {
-                            match generated_files.write_to_disk() {
-                                Ok(_) => {
-                                    println!(
-                                        "  {} {} generated successfully",
-                                        "✓".green(),
-                                        entity_name.bright_white()
-                                    );
-                                    success_count += 1;
-                                    results.push((entity_name, true, "OK".to_string()));
-                                }
-                                Err(e) => {
-                                    println!(
-                                        "  {} {} failed to write: {}",
-                                        "✗".red(),
-                                        entity_name,
-                                        e
-                                    );
-                                    error_count += 1;
-                                    results.push((entity_name, false, e.to_string()));
-                                }
+                        Ok(generated_files) => match generated_files.write_to_disk() {
+                            Ok(_) => {
+                                println!(
+                                    "  {} {} generated successfully",
+                                    "✓".green(),
+                                    entity_name.bright_white()
+                                );
+                                success_count += 1;
+                                results.push((entity_name, true, "OK".to_string()));
                             }
-                        }
+                            Err(e) => {
+                                println!("  {} {} failed to write: {}", "✗".red(), entity_name, e);
+                                error_count += 1;
+                                results.push((entity_name, false, e.to_string()));
+                            }
+                        },
                         Err(e) => {
-                            println!(
-                                "  {} {} generation failed: {}",
-                                "✗".red(),
-                                entity_name,
-                                e
-                            );
+                            println!("  {} {} generation failed: {}", "✗".red(), entity_name, e);
                             error_count += 1;
                             results.push((entity_name, false, e.to_string()));
                         }
                     }
                 }
                 Err(e) => {
-                    println!(
-                        "  {} Failed to parse {}: {}",
-                        "✗".red(),
-                        file_name,
-                        e
-                    );
+                    println!("  {} Failed to parse {}: {}", "✗".red(), file_name, e);
                     error_count += 1;
                     results.push((file_name, false, e.to_string()));
                 }
@@ -282,7 +297,10 @@ impl ApiCommand {
             println!("\n{}", "🚀 Next steps:".bright_cyan());
             println!("  1. Review generated files");
             println!("  2. Run migrations: {}", "akatsuki db push".bright_white());
-            println!("  3. Deploy Edge Functions: {}", "akatsuki function deploy".bright_white());
+            println!(
+                "  3. Deploy Edge Functions: {}",
+                "akatsuki function deploy".bright_white()
+            );
         }
 
         if error_count > 0 {

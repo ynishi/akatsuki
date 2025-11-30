@@ -2,7 +2,6 @@
  * Template Engine for Code Generation
  * Using minijinja (Jinja2-compatible)
  */
-
 use anyhow::Result;
 use minijinja::Environment;
 use serde::Serialize;

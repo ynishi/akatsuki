@@ -2,19 +2,18 @@
  * Code Generator
  * HEADLESS API Generator
  */
-
 use anyhow::Result;
 use colored::Colorize;
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 
-use super::schema::EntitySchema;
-use super::templates::TemplateEngine;
 use super::generator_contexts::{
     AdminPageContext, CLIClientContext, DemoComponentContext, EdgeFunctionContext, HookContext,
     ModelContext, RepositoryEdgeContext, ServiceContext,
 };
+use super::schema::EntitySchema;
+use super::templates::TemplateEngine;
 use crate::utils::find_project_root;
 
 pub struct GeneratedFiles {
@@ -82,11 +81,22 @@ impl GeneratedFiles {
     }
 
     pub fn print_summary(&self) {
-        println!("\n  {} Backend (Supabase Edge Functions):", "📦".bright_blue());
+        println!(
+            "\n  {} Backend (Supabase Edge Functions):",
+            "📦".bright_blue()
+        );
         println!("    {} {}", "•".bright_blue(), self.migration.description);
         println!("    {} {}", "•".bright_blue(), self.zod_schema.description);
-        println!("    {} {}", "•".bright_blue(), self.repository_edge.description);
-        println!("    {} {}", "•".bright_blue(), self.edge_function.description);
+        println!(
+            "    {} {}",
+            "•".bright_blue(),
+            self.repository_edge.description
+        );
+        println!(
+            "    {} {}",
+            "•".bright_blue(),
+            self.edge_function.description
+        );
 
         println!("\n  {} Frontend (React):", "⚛️".bright_blue());
         println!("    {} {}", "•".bright_blue(), self.model.description);
@@ -95,7 +105,11 @@ impl GeneratedFiles {
 
         println!("\n  {} UI Components:", "🎨".bright_blue());
         println!("    {} {}", "•".bright_blue(), self.admin_page.description);
-        println!("    {} {}", "•".bright_blue(), self.demo_component.description);
+        println!(
+            "    {} {}",
+            "•".bright_blue(),
+            self.demo_component.description
+        );
 
         println!("\n  {} CLI (Node.js):", "🖥️".bright_blue());
         println!("    {} {}", "•".bright_blue(), self.cli_client.description);
@@ -142,11 +156,7 @@ impl CodeGenerator {
 
         // Generate migration filename with timestamp
         let timestamp = chrono::Local::now().format("%Y%m%d%H%M%S");
-        let filename = format!(
-            "{}_create_{}_table.sql",
-            timestamp,
-            self.schema.table_name
-        );
+        let filename = format!("{}_create_{}_table.sql", timestamp, self.schema.table_name);
 
         // Use project root for absolute path
         let project_root = find_project_root();
@@ -359,9 +369,42 @@ struct DocumentationContext {
 
 impl MigrationContext {
     fn from_schema(schema: &EntitySchema) -> Self {
-        use super::schema::Field;
+        // === 1. Standard fields (id, user_id) at the beginning ===
+        let mut fields: Vec<FieldContext> = vec![
+            // id UUID PRIMARY KEY
+            FieldContext {
+                name: "id".to_string(),
+                db_name: "id".to_string(),
+                sql_type: "UUID".to_string(),
+                required: true,
+                default: Some("gen_random_uuid()".to_string()),
+                primary_key: true,
+                unique: false,
+                references: None,
+                on_delete: None,
+                enum_values: None,
+                index: false,
+                index_type: None,
+            },
+            // user_id UUID REFERENCES auth.users(id)
+            FieldContext {
+                name: "userId".to_string(),
+                db_name: "user_id".to_string(),
+                sql_type: "UUID".to_string(),
+                required: true,
+                default: None,
+                primary_key: false,
+                unique: false,
+                references: Some("auth.users(id)".to_string()),
+                on_delete: Some("CASCADE".to_string()),
+                enum_values: None,
+                index: true,
+                index_type: None,
+            },
+        ];
 
-        let fields: Vec<FieldContext> = schema
+        // === 2. User-defined fields from schema ===
+        let user_fields: Vec<FieldContext> = schema
             .fields
             .iter()
             .map(|f| {
@@ -371,7 +414,10 @@ impl MigrationContext {
                     match f.field_type {
                         FieldType::Enum | FieldType::String => {
                             // Check if already quoted
-                            if d.starts_with('\'') || d.starts_with("gen_random_uuid") || d.starts_with("NOW") {
+                            if d.starts_with('\'')
+                                || d.starts_with("gen_random_uuid")
+                                || d.starts_with("NOW")
+                            {
                                 d
                             } else {
                                 format!("'{}'", d)
@@ -397,8 +443,58 @@ impl MigrationContext {
                 }
             })
             .collect();
+        fields.extend(user_fields);
 
-        let indexed_fields: Vec<FieldContext> = schema
+        // === 3. Timestamp fields at the end ===
+        fields.push(FieldContext {
+            name: "createdAt".to_string(),
+            db_name: "created_at".to_string(),
+            sql_type: "TIMESTAMPTZ".to_string(),
+            required: false,
+            default: Some("NOW()".to_string()),
+            primary_key: false,
+            unique: false,
+            references: None,
+            on_delete: None,
+            enum_values: None,
+            index: false,
+            index_type: None,
+        });
+        fields.push(FieldContext {
+            name: "updatedAt".to_string(),
+            db_name: "updated_at".to_string(),
+            sql_type: "TIMESTAMPTZ".to_string(),
+            required: false,
+            default: Some("NOW()".to_string()),
+            primary_key: false,
+            unique: false,
+            references: None,
+            on_delete: None,
+            enum_values: None,
+            index: false,
+            index_type: None,
+        });
+
+        // === 4. Build indexed_fields (user_id + user-defined indexes) ===
+        let mut indexed_fields: Vec<FieldContext> = vec![
+            // user_id index
+            FieldContext {
+                name: "userId".to_string(),
+                db_name: "user_id".to_string(),
+                sql_type: "UUID".to_string(),
+                required: true,
+                default: None,
+                primary_key: false,
+                unique: false,
+                references: None,
+                on_delete: None,
+                enum_values: None,
+                index: true,
+                index_type: None,
+            },
+        ];
+        // Add user-defined indexed fields
+        let user_indexed: Vec<FieldContext> = schema
             .indexed_fields()
             .iter()
             .map(|f| FieldContext {
@@ -416,7 +512,9 @@ impl MigrationContext {
                 index_type: f.index_type.clone(),
             })
             .collect();
+        indexed_fields.extend(user_indexed);
 
+        // === 5. RLS policies ===
         let rls: Vec<RLSPolicyContext> = schema
             .rls
             .iter()
@@ -428,10 +526,8 @@ impl MigrationContext {
             })
             .collect();
 
-        let has_updated_at = schema
-            .fields
-            .iter()
-            .any(|f| f.name == "updatedAt" && f.auto_update);
+        // === 6. Always enable updated_at trigger (standard fields include updated_at) ===
+        let has_updated_at = true;
 
         Self {
             name: schema.name.clone(),
@@ -530,6 +626,13 @@ impl ZodSchemaContext {
             })
             .collect();
 
+        // Collect enum field names to filter out duplicates from operation filters
+        let enum_field_names: std::collections::HashSet<String> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| f.name.clone())
+            .collect();
+
         let operations: Vec<OperationContext> = schema
             .operations
             .iter()
@@ -537,7 +640,13 @@ impl ZodSchemaContext {
                 op_type: format!("{:?}", op.op_type).to_lowercase(),
                 name: op.name.clone(),
                 description: op.description.clone(),
-                filters: op.filters.clone(),
+                // Filter out filters that are already defined as enum_fields to avoid duplicates
+                filters: op
+                    .filters
+                    .iter()
+                    .filter(|f| !enum_field_names.contains(*f))
+                    .cloned()
+                    .collect(),
                 limit: op.limit,
             })
             .collect();
