@@ -2,7 +2,6 @@
  * Project utilities
  * プロジェクトルート検出など
  */
-
 use std::path::PathBuf;
 
 /// Find Akatsuki project root directory

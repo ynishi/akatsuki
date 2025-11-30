@@ -510,7 +510,9 @@ impl Cli {
         println!("# テスト");
         println!("akatsuki test                     # すべてテスト");
         println!("akatsuki test frontend            # Frontend テスト (vitest run)");
-        println!("akatsuki test frontend -w         # Frontend テスト (watch mode - VibeCoding向け)");
+        println!(
+            "akatsuki test frontend -w         # Frontend テスト (watch mode - VibeCoding向け)"
+        );
         println!("akatsuki test frontend --ui       # Frontend テスト (UI dashboard)");
         println!("akatsuki test frontend --coverage # Frontend テスト (カバレッジレポート)");
         println!("akatsuki test backend             # Backend テスト (cargo test)");

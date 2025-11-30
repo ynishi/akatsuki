@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::Local;
 
-const DESIGN_TEMPLATE: &str = include_str!("../../templates/design-template.md");
+const DESIGN_TEMPLATE: &str = include_str!("../../../../docs/templates/design-template.md");
 
 pub fn process_template(feature_name: &str) -> String {
     let title = crate::utils::to_title_case(feature_name);
