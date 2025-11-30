@@ -98,6 +98,7 @@ pub struct Field {
 pub enum FieldType {
     String,
     Number,
+    Integer,
     Boolean,
     Uuid,
     Timestamp,
@@ -112,6 +113,7 @@ impl FieldType {
         match self {
             FieldType::String => "string",
             FieldType::Number => "number",
+            FieldType::Integer => "integer",
             FieldType::Boolean => "boolean",
             FieldType::Uuid => "uuid",
             FieldType::Timestamp => "timestamp",
@@ -290,7 +292,8 @@ impl Field {
     pub fn sql_type(&self) -> String {
         match self.field_type {
             FieldType::String => "TEXT".to_string(),
-            FieldType::Number => "INTEGER".to_string(),
+            FieldType::Number => "NUMERIC".to_string(),
+            FieldType::Integer => "INTEGER".to_string(),
             FieldType::Boolean => "BOOLEAN".to_string(),
             FieldType::Uuid => "UUID".to_string(),
             FieldType::Timestamp => "TIMESTAMPTZ".to_string(),
@@ -321,6 +324,7 @@ impl Field {
         match self.field_type {
             FieldType::String => "string".to_string(),
             FieldType::Number => "number".to_string(),
+            FieldType::Integer => "number".to_string(),
             FieldType::Boolean => "boolean".to_string(),
             FieldType::Uuid => "string".to_string(),
             FieldType::Timestamp => "string".to_string(),
@@ -362,6 +366,7 @@ impl Field {
         match self.field_type {
             FieldType::String => "''".to_string(),
             FieldType::Number => "0".to_string(),
+            FieldType::Integer => "0".to_string(),
             FieldType::Boolean => "false".to_string(),
             FieldType::Array => "[]".to_string(),
             FieldType::Json => "{}".to_string(),
@@ -398,6 +403,7 @@ impl Field {
                 zod
             }
             FieldType::Number => "z.number()".to_string(),
+            FieldType::Integer => "z.number().int()".to_string(),
             FieldType::Boolean => "z.boolean()".to_string(),
             FieldType::Uuid => "z.string().uuid()".to_string(),
             FieldType::Timestamp => "z.string()".to_string(),
