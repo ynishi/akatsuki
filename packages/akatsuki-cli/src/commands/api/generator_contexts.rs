@@ -394,13 +394,32 @@ impl CLIClientContext {
             })
             .collect();
 
+        // Collect operation names to avoid generating duplicate enum helper methods
+        let operation_names: Vec<String> = schema
+            .operations
+            .iter()
+            .filter_map(|op| op.name.clone())
+            .collect();
+
+        // Filter enum_fields to exclude those whose enum values conflict with operation names
+        // e.g., if schema has custom operation "published" and enum field with values ['draft', 'published'],
+        // skip the enum field to avoid generating duplicate published() method
         let enum_fields: Vec<EnumFieldContext> = schema
             .enum_fields()
             .iter()
-            .map(|f| EnumFieldContext {
-                name: f.name.clone(),
-                db_name: f.db_name.clone(),
-                enum_values: f.enum_values.clone().unwrap_or_default(),
+            .filter_map(|f| {
+                let enum_values = f.enum_values.clone().unwrap_or_default();
+                // Check if any enum value (index 1+, used for helper method names) conflicts with operations
+                let has_conflict = enum_values.iter().skip(1).any(|v| operation_names.contains(v));
+                if has_conflict {
+                    None // Skip this enum field to avoid duplicate method generation
+                } else {
+                    Some(EnumFieldContext {
+                        name: f.name.clone(),
+                        db_name: f.db_name.clone(),
+                        enum_values,
+                    })
+                }
             })
             .collect();
 
