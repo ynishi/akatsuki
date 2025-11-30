@@ -109,9 +109,112 @@
 
 ---
 
-## 4. Database Design
+## 4. API Schema Design (HEADLESS API Generator)
 
-### Table Definitions (SQL)
+**💡 New! Define API Schema for automatic code generation**
+
+### Entity Schema (YAML)
+
+Use this schema to auto-generate:
+- Migration (Table + RLS + Indexes)
+- Edge Function (CRUD API)
+- Frontend (Model + Repository + Service + Hook)
+- CLI Tools (Client + Examples)
+
+```yaml
+# Save as: workspace/[entity-name]-schema.yaml
+name: Article              # Entity name (PascalCase)
+tableName: articles        # DB table name (snake_case)
+
+fields:
+  - name: title            # Field name (camelCase)
+    dbName: title          # DB column name (snake_case)
+    type: string           # string | number | boolean | uuid | timestamp | enum | array | json
+    required: true
+    validation:
+      minLength: 1
+
+  - name: content
+    dbName: content
+    type: string
+    required: true
+
+  - name: status
+    dbName: status
+    type: enum
+    enumValues: [draft, published]
+    default: draft
+    required: true
+    index: true            # Create index for this field
+
+  - name: tags
+    dbName: tags
+    type: array
+    arrayType: string
+    required: false
+    default: "[]"
+    index: true            # GIN index for array search
+    indexType: gin
+
+operations:
+  - type: list             # GET all with filters
+    filters: [status, userId, tag]
+  - type: get              # GET by ID
+  - type: create           # POST
+  - type: update           # PUT/PATCH
+  - type: delete           # DELETE
+  - type: custom           # Custom operation
+    name: my               # Operation name
+    filters: [status]
+  - type: custom
+    name: published
+
+rls:
+  - action: SELECT
+    name: "Users can view own articles"
+    using: "auth.uid() = user_id"
+
+  - action: SELECT
+    name: "Anyone can view published articles"
+    using: "status = 'published'"
+
+  - action: INSERT
+    name: "Users can insert own articles"
+    withCheck: "auth.uid() = user_id"
+
+  - action: UPDATE
+    name: "Users can update own articles"
+    using: "auth.uid() = user_id"
+    withCheck: "auth.uid() = user_id"
+
+  - action: DELETE
+    name: "Users can delete own articles"
+    using: "auth.uid() = user_id"
+```
+
+### Generate API
+
+```bash
+# Generate from YAML schema
+akatsuki api new Article --schema workspace/article-schema.yaml
+
+# Interactive mode (CLI prompts)
+akatsuki api new Product --interactive
+
+# From Database Types (if table exists)
+akatsuki api new User --from-db
+```
+
+**Generated Files (17 files):**
+- ✅ Migration (1 file)
+- ✅ Edge Function (3 files: index.ts, schema.ts, repository)
+- ✅ Frontend (5 files: Model, Repository, Service, Hook, Component)
+- ✅ CLI (3 files: Client, Examples)
+- ✅ Documentation (2 files: README, API docs)
+
+---
+
+## 5. Database Design (Legacy - for manual implementation)
 
 **💡 Reuse existing tables as much as possible!**
 

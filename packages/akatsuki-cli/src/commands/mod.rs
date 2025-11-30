@@ -1,4 +1,5 @@
 pub mod advice;
+pub mod api;
 pub mod build;
 pub mod check;
 pub mod db;

@@ -1,0 +1,143 @@
+# Article Entity Schema (Example)
+# This is a working example for HEADLESS API Generator
+#
+# Generate full CRUD API with:
+#   akatsuki api new Article --schema article-schema-example.yaml
+
+name: Article
+tableName: articles
+
+fields:
+  # Auto-generated fields (included by default)
+  - name: id
+    dbName: id
+    type: uuid
+    required: true
+    primaryKey: true
+    default: gen_random_uuid()
+
+  - name: userId
+    dbName: user_id
+    type: uuid
+    required: true
+    references: auth.users(id)
+    onDelete: CASCADE
+    index: true
+
+  - name: createdAt
+    dbName: created_at
+    type: timestamp
+    required: true
+    default: NOW()
+    index: true
+
+  - name: updatedAt
+    dbName: updated_at
+    type: timestamp
+    required: true
+    default: NOW()
+    autoUpdate: true  # Trigger for auto-update
+
+  # Custom fields
+  - name: title
+    dbName: title
+    type: string
+    required: true
+    validation:
+      minLength: 1
+      maxLength: 200
+
+  - name: content
+    dbName: content
+    type: string
+    required: true
+
+  - name: status
+    dbName: status
+    type: enum
+    enumValues: [draft, published]
+    default: draft
+    required: true
+    index: true
+
+  - name: tags
+    dbName: tags
+    type: array
+    arrayType: string
+    required: false
+    default: "'{}'"
+    index: true
+    indexType: gin  # GIN index for array operations
+
+# CRUD Operations
+operations:
+  # Standard CRUD
+  - type: list
+    filters: [status, userId, tag]
+    limit: 100
+
+  - type: get
+
+  - type: create
+
+  - type: update
+
+  - type: delete
+
+  # Custom operations
+  - type: custom
+    name: my
+    description: "Get current user's articles"
+    filters: [status]
+
+  - type: custom
+    name: published
+    description: "Get all published articles"
+    limit: 50
+
+# Row Level Security Policies
+rls:
+  # SELECT policies
+  - action: SELECT
+    name: "Users can view own articles"
+    using: "auth.uid() = user_id"
+
+  - action: SELECT
+    name: "Anyone can view published articles"
+    using: "status = 'published'"
+
+  # INSERT policy
+  - action: INSERT
+    name: "Users can insert own articles"
+    withCheck: "auth.uid() = user_id"
+
+  # UPDATE policy
+  - action: UPDATE
+    name: "Users can update own articles"
+    using: "auth.uid() = user_id"
+    withCheck: "auth.uid() = user_id"
+
+  # DELETE policy
+  - action: DELETE
+    name: "Users can delete own articles"
+    using: "auth.uid() = user_id"
+
+# Documentation
+documentation:
+  description: "User-created articles with draft/published status"
+  examples:
+    - title: "Create draft article"
+      code: |
+        const article = await articles.create({
+          title: "My Article",
+          content: "Article content here",
+          status: "draft"
+        })
+
+    - title: "Publish article"
+      code: |
+        await articles.publish(articleId)
+
+    - title: "Get my drafts"
+      code: |
+        const drafts = await articles.getMyArticles({ status: 'draft' })

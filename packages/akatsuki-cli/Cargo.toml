@@ -17,10 +17,12 @@ dialoguer = "0.11"
 colored = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml = "0.9"
 walkdir = "2"
 chrono = "0.4"
 anyhow = "1"
 regex = "1"
+minijinja = { version = "2.1", features = ["builtins"] }
 
 [dev-dependencies]
 assert_cmd = "2"

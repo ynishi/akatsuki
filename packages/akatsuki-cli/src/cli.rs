@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 use crate::commands::advice::AdviceCommand;
+use crate::commands::api::ApiCommand;
 use crate::commands::build::BuildCommand;
 use crate::commands::check::CheckCommand;
 use crate::commands::db::DbCommand;
@@ -13,6 +14,7 @@ use crate::commands::docs::DocsCommand;
 use crate::commands::function::FunctionCommand;
 use crate::commands::setup::SetupCommand;
 use crate::commands::test::TestCommand;
+use crate::utils::find_project_root;
 
 #[derive(Parser)]
 #[command(name = "akatsuki")]
@@ -93,6 +95,14 @@ enum Commands {
     Function {
         #[command(subcommand)]
         action: FunctionAction,
+    },
+    /// HEADLESS API Generator
+    ///
+    /// Commands: new, list, delete
+    #[command(about = "HEADLESS API Generator (new | list | delete)")]
+    Api {
+        #[command(subcommand)]
+        action: ApiAction,
     },
     /// Run checks (lint, typecheck, cargo check)
     ///
@@ -357,6 +367,34 @@ pub enum AdviceAction {
     },
 }
 
+#[derive(Subcommand)]
+pub enum ApiAction {
+    /// Generate new CRUD API from entity schema
+    New {
+        /// Entity name (e.g., Article, User, Product)
+        entity_name: String,
+        /// Schema definition file (YAML)
+        #[arg(long, short)]
+        schema: Option<PathBuf>,
+        /// Interactive mode (prompt for fields)
+        #[arg(long, short)]
+        interactive: bool,
+        /// Generate from existing database types
+        #[arg(long)]
+        from_db: bool,
+    },
+    /// List all generated APIs
+    List,
+    /// Delete generated API files
+    Delete {
+        /// Entity name to delete
+        entity_name: String,
+        /// Skip confirmation prompt
+        #[arg(long, short)]
+        force: bool,
+    },
+}
+
 impl Cli {
     pub fn run(self) -> Result<()> {
         match self.command {
@@ -382,6 +420,10 @@ impl Cli {
             }
             Commands::Function { action } => {
                 let cmd = FunctionCommand::new();
+                cmd.execute(action)
+            }
+            Commands::Api { action } => {
+                let cmd = ApiCommand::new();
                 cmd.execute(action)
             }
             Commands::Check { target } => {
@@ -536,7 +578,7 @@ impl Cli {
         println!("\n🔧 Installing akatsuki CLI globally...\n");
 
         // Find project root
-        let project_root = Self::find_project_root();
+        let project_root = find_project_root();
         let cli_path = project_root.join("packages/akatsuki-cli");
 
         // Verify we're in the project root
@@ -577,34 +619,5 @@ impl Cli {
         println!();
 
         Ok(())
-    }
-
-    fn find_project_root() -> PathBuf {
-        let mut current = std::env::current_dir().unwrap();
-
-        loop {
-            // Check for package.json with workspaces
-            let package_json = current.join("package.json");
-            if package_json.exists() {
-                if let Ok(content) = std::fs::read_to_string(&package_json) {
-                    if content.contains("\"workspaces\"") {
-                        return current;
-                    }
-                }
-            }
-
-            // Check for packages directory (monorepo indicator)
-            if current.join("packages").is_dir() && current.join("packages/app-frontend").is_dir() {
-                return current;
-            }
-
-            // Move up to parent directory
-            if let Some(parent) = current.parent() {
-                current = parent.to_path_buf();
-            } else {
-                // Reached filesystem root, return original
-                return std::env::current_dir().unwrap();
-            }
-        }
     }
 }
