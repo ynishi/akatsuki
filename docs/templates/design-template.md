@@ -109,9 +109,13 @@
 
 ---
 
-## 4. API Schema Design (HEADLESS API Generator)
+## 4. API Schema Design (Recommend for Basic CRUD design)
 
 **💡 New! Define API Schema for automatic code generation**
+- ✅ Migration
+- ✅ Frontend (Model, Repository, Service, Hook, Component)
+- ✅ Edge Function
+- ✅ CLI 
 
 ### Entity Schema (YAML)
 
@@ -214,7 +218,7 @@ akatsuki api new User --from-db
 
 ---
 
-## 5. Database Design (Legacy - for manual implementation)
+## 5. Database Design (Legacy - for manual implementation or complex design needed)
 
 **💡 Reuse existing tables as much as possible!**
 

@@ -22,14 +22,14 @@
 
 **主な機能:**
 - 🚀 **ワンコマンド起動**: `akatsuki dev` でフロント・バックエンド同時起動
-- ⚡ **HEADLESS API Generator**: `akatsuki api new` でYAMLからフルスタックCRUD自動生成
+- ⚡ **Entityベース生成**: `akatsuki api new` でYAMLからフロント・バックエンドCRUD自動生成
 - 📚 **ドキュメント探索**: `akatsuki docs all` で実装済みコンポーネントを即座に発見
 - 🤖 **AI統合**: `akatsuki advice ai` でプロジェクト状態を分析し次のステップを提案
 - 🗄️ **DB管理**: `akatsuki db check` でマイグレーションを適用前にプレビュー
 - 🎨 **設計支援**: `akatsuki design new` でテンプレートベースの設計ドキュメント生成
 
 **なぜ重要？**
-- 新規CRUD機能を5分で実装（`api new` でMigration〜Hook〜UIまで一括生成）
+- 新規Entityを5分で実装（`api new` でMigration〜Hook〜UIまで一括生成）
 - AIコーディング時の「どのコンポーネントが使える？」を解決（`docs` コマンド）
 - 「次何すべき？」の迷いをなくす（`advice` コマンド）
 - マイグレーション失敗を防ぐ（`db check` でマルチバイト文字検出）
@@ -45,8 +45,9 @@
 Step 1: 要件整理 → workspace/[feature]-design.md
 Step 2: テンプレート参考 → L2018「8.9 Design Templates」で近いパターンを参考にする
 Step 3: 設計（画面・DB・アーキテクチャ層）
-Step 4: 実装（Model → Repository → Service → Hook → Component → Page）
-Step 5: 動作確認（workspace/でダミーデータ生成）
+Step 4: CRUD生成（Model → Repository → Service → Hook & DEMOが自動生成される）
+Step 4: 実装（Hook → Component → Page）
+Step 5: 動作確認（ダミーデータは自動生成）
 Step 6: 振り返り（docs/に整理）
 
 ※ テンプレートは「参考」であり、要件に応じて自由にカスタマイズ
@@ -110,6 +111,7 @@ akatsuki build backend            # Backend リリースビルド
 akatsuki check                    # すべてチェック (lint + typecheck + cargo check)
 akatsuki check frontend           # Frontend チェック (lint + typecheck)
 akatsuki check backend            # Backend チェック (cargo check)
+akatsuki check cli                # Cli チェック (lint + typecheck)
 
 # テスト
 akatsuki test                     # すべてテスト
@@ -788,7 +790,7 @@ export async function callMyFunction(payload) {
 
 #### 開発用ダミーデータ生成
 
-動作確認用のダミーデータは、**`workspace/` に使い捨てスクリプト**を作成して生成。
+動作確認用のダミーデータは、`akatsuki api`で作成すると自動生成される。
 
 **基本方針:**
 - Seed (seed.sql) = 本当の初期データ（マスターデータ、固定データ）
@@ -870,17 +872,19 @@ asdf install      # asdf/miseの場合
 
 □ Step 3: 設計整理
    → 画面数・ルーティング（3-5画面推奨）
-   → DB設計（Migration + RLS）
-   → アーキテクチャ層（Model → Repository → Service → Hook → Component → Page）
-
+   → アーキテクチャ設計（Entity・DB/データフロー・レイヤー）
+   → Schema設計（Entity + RLS）
+   → コンポーネント設計（Hook → Component → Page）
+ 
 □ Step 4: TodoWrite でタスク管理開始
    → Phase分割は内部管理、ユーザーへの中間報告は不要
 
 □ Step 5: 設計をもとに実装
+   → CRUDコード自動生成他`akatsuki`コマンドを利用
    → 詰まったら報告、それ以外は進める
 
 □ Step 6: 動作確認
-   → workspace/ でダミーデータ生成 → 画面確認
+   → 自動生成されたダミーデータ → 画面確認
 
 □ Step 7: 振り返り（完了後）
    → docs/ に設計ドキュメント整理
