@@ -275,7 +275,9 @@ pub enum CheckTarget {
     Frontend,
     /// Check backend only (cargo check)
     Backend,
-    /// Check both frontend and backend
+    /// Check CLI only (typecheck)
+    Cli,
+    /// Check all targets
     All,
 }
 

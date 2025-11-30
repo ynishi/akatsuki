@@ -50,6 +50,7 @@ impl CheckCommand {
         match target {
             CheckTarget::Frontend => self.check_frontend(),
             CheckTarget::Backend => self.check_backend(),
+            CheckTarget::Cli => self.check_cli(),
             CheckTarget::All => self.check_all(),
         }
     }
@@ -106,11 +107,34 @@ impl CheckCommand {
         Ok(())
     }
 
+    fn check_cli(&self) -> Result<()> {
+        println!("{}", "📟 Checking CLI...".cyan());
+
+        // Run typecheck for app-cli
+        println!("{}", "  Running typecheck...".cyan());
+        let typecheck_status = Command::new("npm")
+            .args(["run", "typecheck", "--workspace=app-cli"])
+            .status()
+            .context("Failed to run typecheck")?;
+
+        if !typecheck_status.success() {
+            anyhow::bail!("CLI typecheck failed");
+        }
+
+        println!("{}", "✅ CLI check passed!".green());
+        Ok(())
+    }
+
     fn check_all(&self) -> Result<()> {
         println!("{}", "🔍 Running all checks...".cyan().bold());
 
         // Check frontend first (faster)
         self.check_frontend()?;
+
+        println!();
+
+        // Check CLI
+        self.check_cli()?;
 
         println!();
 
