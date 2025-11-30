@@ -22,12 +22,14 @@
 
 **主な機能:**
 - 🚀 **ワンコマンド起動**: `akatsuki dev` でフロント・バックエンド同時起動
+- ⚡ **HEADLESS API Generator**: `akatsuki api new` でYAMLからフルスタックCRUD自動生成
 - 📚 **ドキュメント探索**: `akatsuki docs all` で実装済みコンポーネントを即座に発見
 - 🤖 **AI統合**: `akatsuki advice ai` でプロジェクト状態を分析し次のステップを提案
 - 🗄️ **DB管理**: `akatsuki db check` でマイグレーションを適用前にプレビュー
 - 🎨 **設計支援**: `akatsuki design new` でテンプレートベースの設計ドキュメント生成
 
 **なぜ重要？**
+- 新規CRUD機能を5分で実装（`api new` でMigration〜Hook〜UIまで一括生成）
 - AIコーディング時の「どのコンポーネントが使える？」を解決（`docs` コマンド）
 - 「次何すべき？」の迷いをなくす（`advice` コマンド）
 - マイグレーション失敗を防ぐ（`db check` でマルチバイト文字検出）
@@ -138,6 +140,14 @@ akatsuki advice rule              # 静的ルールベース提案（高速）
 akatsuki advice prompt            # AI分析用プロンプト生成（Claude Codeにコピペ）
 akatsuki advice ai                # AI自動分析（claude command経由）
 akatsuki advice ai --backend=markdown  # プロンプト生成のみ
+
+# HEADLESS API Generator（フルスタックCRUD自動生成）
+akatsuki api new <Entity> --schema <file.yaml>  # YAMLスキーマからCRUD API生成
+akatsuki api new <Entity> --interactive         # 対話モードでスキーマ定義
+akatsuki api batch <files...>                   # 複数スキーマを一括生成
+akatsuki api check <files...>                   # スキーマファイルの検証のみ
+akatsuki api list                               # 生成済みAPI一覧
+akatsuki api delete <Entity>                    # 生成ファイル削除
 
 # Edge Functions
 akatsuki function new <name>      # Edge Function 作成
@@ -2425,6 +2435,88 @@ const {
 **サンプルモジュール:**
 `wasm-modules/sample-module` に5つのテスト関数を実装済み（75KB）：
 - `rgb_to_grayscale`, `sum_array`, `multiply_array`, `process_json`, `memory_test`
+
+---
+
+## HEADLESS API Generator（フルスタックCRUD自動生成）
+
+YAMLスキーマから、Backend（Migration + Edge Function）〜 Frontend（Model + Service + Hook + UI）まで一括生成する最速開発ツール。
+
+**生成されるファイル:**
+```
+Backend (Supabase):
+├── supabase/migrations/YYYYMMDD_create_{table}_table.sql  # Migration + RLS + Indexes
+├── supabase/functions/{table}-crud/index.ts               # Edge Function (createAkatsukiHandler)
+├── supabase/functions/{table}-crud/schema.ts              # Zod Validation Schema
+└── supabase/functions/_shared/repositories/{Entity}Repository.ts
+
+Frontend (React):
+├── src/models/{Entity}.ts              # Model (fromDatabase/toDatabase)
+├── src/services/{Entity}Service.ts     # Service (EdgeFunctionService wrapper)
+├── src/hooks/use{Entity}s.ts           # React Query Hook (CRUD + mutations)
+├── src/pages/admin/entities/{Entity}AdminPage.tsx    # Admin管理画面
+└── src/components/features/{table}/{Entity}sDemo.tsx # Demo Card
+
+CLI:
+└── packages/app-cli/clients/{Entity}sClient.js  # Node.js CLIクライアント
+```
+
+**使用例:**
+```bash
+# 1. スキーマファイル作成 (docs/templates/article-schema-example.yaml 参照)
+# 2. コード生成
+akatsuki api new Article --schema article-schema.yaml
+
+# 3. 生成後のNext steps:
+akatsuki db push                           # Migration適用
+akatsuki function deploy articles-crud     # Edge Function デプロイ
+# App.tsx に Route 追加、ExamplesPage に Demo 追加
+```
+
+**スキーマ例 (YAML):**
+```yaml
+name: Article
+tableName: articles
+
+fields:
+  - name: id
+    type: uuid
+    primaryKey: true
+    default: gen_random_uuid()
+  - name: userId
+    type: uuid
+    references: auth.users(id)
+    onDelete: CASCADE
+  - name: title
+    type: string
+    required: true
+  - name: status
+    type: enum
+    enumValues: [draft, published]
+    default: draft
+
+operations:
+  - type: list
+  - type: get
+  - type: create
+  - type: update
+  - type: delete
+
+rls:
+  - action: SELECT
+    using: "auth.uid() = user_id"
+  - action: INSERT
+    withCheck: "auth.uid() = user_id"
+```
+
+**機能:**
+- ✅ Full CRUD (Create, Read, Update, Delete)
+- ✅ RLS Policy自動生成
+- ✅ Enum型サポート（Toggle操作自動生成）
+- ✅ React Query統合（キャッシュ・楽観的更新）
+- ✅ Zod Validation
+- ✅ Admin Page（Dummy Data生成ボタン付き）
+- ✅ Demo Component（ExamplesPage用カード）
 
 ---
 
