@@ -1,18 +1,18 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx tsx
 /**
  * List Articles CLI Example
  * PoC: HEADLESS API Generator
  *
  * Usage:
- *   node cli/examples/list-articles.js
- *   node cli/examples/list-articles.js --status=draft
- *   node cli/examples/list-articles.js --status=published
+ *   npx tsx examples/list-articles.ts
+ *   npx tsx examples/list-articles.ts --status=draft
+ *   npx tsx examples/list-articles.ts --status=published
  */
 
 import 'dotenv/config'
-import { AkatsukiClient, ArticlesClient } from '../client.js'
+import { AkatsukiClient, ArticlesClient, Article } from '../client.js'
 
-async function main() {
+async function main(): Promise<void> {
   const client = new AkatsukiClient()
   const articles = new ArticlesClient(client)
 
@@ -20,7 +20,7 @@ async function main() {
     // Parse command line args
     const args = process.argv.slice(2)
     const statusArg = args.find(arg => arg.startsWith('--status='))
-    const status = statusArg ? statusArg.split('=')[1] : undefined
+    const status = statusArg ? statusArg.split('=')[1] as 'draft' | 'published' : undefined
 
     console.log('📝 Articles List CLI')
     console.log('─'.repeat(50))
@@ -45,7 +45,7 @@ async function main() {
     if (myArticles.length === 0) {
       console.log('  No articles yet. Create one first!')
     } else {
-      myArticles.forEach((article, i) => {
+      myArticles.forEach((article: Article, i: number) => {
         console.log(`${i + 1}. ${article.title}`)
         console.log(`   Status: ${article.status}`)
         console.log(`   Created: ${new Date(article.created_at).toLocaleDateString()}`)
@@ -61,7 +61,8 @@ async function main() {
     await client.logout()
 
   } catch (error) {
-    console.error('❌ Error:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('❌ Error:', message)
     process.exit(1)
   }
 }

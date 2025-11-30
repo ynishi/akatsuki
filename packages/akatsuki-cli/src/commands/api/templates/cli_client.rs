@@ -1,10 +1,10 @@
-/// CLI Client Template for app-cli (Node.js)
+/// CLI Client Template for app-cli (TypeScript)
 ///
-/// Generates JavaScript Client class with:
+/// Generates TypeScript Client class with:
 /// - AkatsukiClient wrapper
 /// - CRUD operations
 /// - Custom operations from schema
-/// - JSDoc type hints
+/// - Full type safety
 
 pub const CLI_CLIENT_TEMPLATE: &str = r#"/**
  * {{ name }}s API Client (app-cli)
@@ -13,10 +13,12 @@ pub const CLI_CLIENT_TEMPLATE: &str = r#"/**
  * Convenience wrapper for {{ table_name }}-crud Edge Function
  * - Supabase Auth integrated
  * - AkatsukiResponse parsing
+ * - Full TypeScript support
  *
  * Usage:
- * ```javascript
- * import { AkatsukiClient, {{ name }}sClient } from '../client.js'
+ * ```typescript
+ * import { AkatsukiClient } from '../client.js'
+ * import { {{ name }}sClient } from './{{ name }}sClient.js'
  *
  * const client = new AkatsukiClient()
  * await client.login(email, password)
@@ -26,30 +28,59 @@ pub const CLI_CLIENT_TEMPLATE: &str = r#"/**
  * ```
  */
 
+import { AkatsukiClient } from '../client.js'
+
+/**
+ * {{ name }} type
+ */
+export interface {{ name }} {
+  id: string
+  user_id: string
+{%- for field in writable_fields %}
+{%- if field.name != "userId" %}
+  {{ field.db_name }}: {{ field.typescript_type }}{% if not field.required %} | null{% endif %}
+{%- endif %}
+{%- endfor %}
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * {{ name }} create input
+ */
+export interface {{ name }}CreateInput {
+{%- for field in writable_fields %}
+{%- if field.name != "userId" %}
+  {{ field.name }}{% if not field.required %}?{% endif %}: {{ field.typescript_type }}
+{%- endif %}
+{%- endfor %}
+}
+
+/**
+ * {{ name }} update input
+ */
+export interface {{ name }}UpdateInput {
+{%- for field in updatable_fields %}
+  {{ field.name }}?: {{ field.typescript_type }}
+{%- endfor %}
+}
+
 /**
  * {{ name }}s API Client
  */
 export class {{ name }}sClient {
-  /**
-   * @param {import('./client.js').AkatsukiClient} akatsukiClient
-   */
-  constructor(akatsukiClient) {
-    this.client = akatsukiClient
-  }
+  constructor(private client: AkatsukiClient) {}
 {%- for op in operations %}
 {%- if op.op_type == "list" %}
 
   /**
    * Get {{ name | lower }}s with filters
-   * @param {Object} [filters] - Optional filters
-{%- for filter in op.filters %}
-   * @param {string} [filters.{{ filter }}] - Filter by {{ filter }}
-{%- endfor %}
-   * @param {number} [limit=20] - Max number of results
-   * @returns {Promise<Array>} {{ name }}s array
    */
-  async list(filters = {}, limit = 20) {
-    return this.client.invoke('{{ table_name }}-crud', {
+  async list(
+    filters: { {% for filter in op.filters %}{{ filter }}?: string{% if not loop.last %}, {% endif %}{% endfor %} } = {},
+    limit: number = 20
+  ): Promise<{{ name }}[]> {
+    return this.client.invoke<{{ name }}[]>('{{ table_name }}-crud', {
       action: 'list',
       filters,
       limit,
@@ -59,11 +90,9 @@ export class {{ name }}sClient {
 
   /**
    * Get {{ name | lower }} by ID
-   * @param {string} id - {{ name }} UUID
-   * @returns {Promise<Object>} {{ name }} object
    */
-  async getById(id) {
-    return this.client.invoke('{{ table_name }}-crud', {
+  async getById(id: string): Promise<{{ name }}> {
+    return this.client.invoke<{{ name }}>('{{ table_name }}-crud', {
       action: 'get',
       id,
     })
@@ -72,16 +101,9 @@ export class {{ name }}sClient {
 
   /**
    * Create {{ name | lower }}
-   * @param {Object} data - {{ name }} data
-{%- for field in writable_fields %}
-{%- if field.name != "userId" %}
-   * @param {{ "{" }}{{ field.typescript_type }}{% if not field.required %}={{ "}" }}{% else %}{{ "}" }}{% endif %} data.{{ field.name }} - {{ field.name }}
-{%- endif %}
-{%- endfor %}
-   * @returns {Promise<Object>} Created {{ name | lower }}
    */
-  async create(data) {
-    return this.client.invoke('{{ table_name }}-crud', {
+  async create(data: {{ name }}CreateInput): Promise<{{ name }}> {
+    return this.client.invoke<{{ name }}>('{{ table_name }}-crud', {
       action: 'create',
       data,
     })
@@ -90,15 +112,9 @@ export class {{ name }}sClient {
 
   /**
    * Update {{ name | lower }}
-   * @param {string} id - {{ name }} UUID
-   * @param {Object} data - Update data
-{%- for field in updatable_fields %}
-   * @param {{ "{" }}{{ field.typescript_type }}={{ "}" }} data.{{ field.name }} - {{ field.name }}
-{%- endfor %}
-   * @returns {Promise<Object>} Updated {{ name | lower }}
    */
-  async update(id, data) {
-    return this.client.invoke('{{ table_name }}-crud', {
+  async update(id: string, data: {{ name }}UpdateInput): Promise<{{ name }}> {
+    return this.client.invoke<{{ name }}>('{{ table_name }}-crud', {
       action: 'update',
       id,
       data,
@@ -108,11 +124,9 @@ export class {{ name }}sClient {
 
   /**
    * Delete {{ name | lower }}
-   * @param {string} id - {{ name }} UUID
-   * @returns {Promise<Object>} Delete result
    */
-  async delete(id) {
-    return this.client.invoke('{{ table_name }}-crud', {
+  async delete(id: string): Promise<{ deleted: boolean }> {
+    return this.client.invoke<{ deleted: boolean }>('{{ table_name }}-crud', {
       action: 'delete',
       id,
     })
@@ -121,17 +135,9 @@ export class {{ name }}sClient {
 
   /**
    * {{ op.description | default(value="Custom operation: " ~ op.name) }}
-   * @param {Object} [filters] - Optional filters
-{%- for filter in op.filters %}
-   * @param {string} [filters.{{ filter }}] - Filter by {{ filter }}
-{%- endfor %}
-{%- if op.limit %}
-   * @param {number} [limit={{ op.limit }}] - Max number of results
-{%- endif %}
-   * @returns {Promise<Array>} {{ name }}s array
    */
-  async {{ op.name }}({% if op.filters | length > 0 %}filters = {}{% endif %}{% if op.limit %}{% if op.filters | length > 0 %}, {% endif %}limit = {{ op.limit }}{% endif %}) {
-    return this.client.invoke('{{ table_name }}-crud', {
+  async {{ op.name }}({% if op.filters | length > 0 %}filters: { {% for filter in op.filters %}{{ filter }}?: string{% if not loop.last %}, {% endif %}{% endfor %} } = {}{% endif %}{% if op.limit %}{% if op.filters | length > 0 %}, {% endif %}limit: number = {{ op.limit }}{% endif %}): Promise<{{ name }}[]> {
+    return this.client.invoke<{{ name }}[]>('{{ table_name }}-crud', {
       action: '{{ op.name }}',
 {%- if op.filters | length > 0 %}
       filters,
@@ -148,19 +154,15 @@ export class {{ name }}sClient {
 
   /**
    * Set {{ name | lower }} {{ field.name }} to '{{ field.enum_values[1] }}'
-   * @param {string} id - {{ name }} UUID
-   * @returns {Promise<Object>} Updated {{ name | lower }}
    */
-  async {{ field.enum_values[1] }}(id) {
+  async {{ field.enum_values[1] }}(id: string): Promise<{{ name }}> {
     return this.update(id, { {{ field.name }}: '{{ field.enum_values[1] }}' })
   }
 
   /**
    * Set {{ name | lower }} {{ field.name }} to '{{ field.enum_values[0] }}'
-   * @param {string} id - {{ name }} UUID
-   * @returns {Promise<Object>} Updated {{ name | lower }}
    */
-  async un{{ field.enum_values[1] }}(id) {
+  async un{{ field.enum_values[1] }}(id: string): Promise<{{ name }}> {
     return this.update(id, { {{ field.name }}: '{{ field.enum_values[0] }}' })
   }
 {%- endif %}
@@ -176,5 +178,6 @@ mod tests {
     fn test_template_syntax() {
         assert!(CLI_CLIENT_TEMPLATE.contains("{{ name }}sClient"));
         assert!(CLI_CLIENT_TEMPLATE.contains("AkatsukiClient"));
+        assert!(CLI_CLIENT_TEMPLATE.contains("interface {{ name }}"));
     }
 }

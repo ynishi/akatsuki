@@ -1,17 +1,17 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx tsx
 /**
  * Create Article CLI Example
  * PoC: HEADLESS API Generator
  *
  * Usage:
- *   node cli/examples/create-article.js "My Title" "My Content"
- *   node cli/examples/create-article.js "My Title" "My Content" --publish
+ *   npx tsx examples/create-article.ts "My Title" "My Content"
+ *   npx tsx examples/create-article.ts "My Title" "My Content" --publish
  */
 
 import 'dotenv/config'
 import { AkatsukiClient, ArticlesClient } from '../client.js'
 
-async function main() {
+async function main(): Promise<void> {
   const client = new AkatsukiClient()
   const articles = new ArticlesClient(client)
 
@@ -23,10 +23,10 @@ async function main() {
     const shouldPublish = args.includes('--publish')
 
     if (!title || !content) {
-      console.log('Usage: node create-article.js "Title" "Content" [--publish]')
+      console.log('Usage: npx tsx create-article.ts "Title" "Content" [--publish]')
       console.log('\nExample:')
-      console.log('  node create-article.js "Hello World" "My first article"')
-      console.log('  node create-article.js "Hello World" "My first article" --publish')
+      console.log('  npx tsx create-article.ts "Hello World" "My first article"')
+      console.log('  npx tsx create-article.ts "Hello World" "My first article" --publish')
       process.exit(1)
     }
 
@@ -67,7 +67,8 @@ async function main() {
     await client.logout()
 
   } catch (error) {
-    console.error('❌ Error:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('❌ Error:', message)
     process.exit(1)
   }
 }

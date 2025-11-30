@@ -6,7 +6,7 @@
  * Browser (Frontend) と同じAPIをCLIから利用可能
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient, Session, User } from '@supabase/supabase-js'
 import { SupabaseAuth } from './auth.js'
 
 const supabaseUrl = process.env.SUPABASE_URL
@@ -17,24 +17,36 @@ if (!supabaseUrl || !supabaseAnonKey) {
   process.exit(1)
 }
 
+/**
+ * AkatsukiResponse from Edge Function
+ */
+interface AkatsukiResponse<T = unknown> {
+  success: boolean
+  result?: T
+  error?: {
+    message: string
+    code?: string
+  }
+}
+
 export class AkatsukiClient {
+  private client: SupabaseClient
+  private auth: SupabaseAuth
+  private session: Session | null = null
+
   constructor() {
-    this.client = createClient(supabaseUrl, supabaseAnonKey)
+    this.client = createClient(supabaseUrl!, supabaseAnonKey!)
     this.auth = new SupabaseAuth()
-    this.session = null
   }
 
   /**
    * Login and set session
-   * @param {string} email
-   * @param {string} password
-   * @returns {Promise<object>} Session object
    */
-  async login(email, password) {
+  async login(email: string, password: string): Promise<Session> {
     this.session = await this.auth.login(email, password)
 
     // Update client with auth header
-    this.client = createClient(supabaseUrl, supabaseAnonKey, {
+    this.client = createClient(supabaseUrl!, supabaseAnonKey!, {
       global: {
         headers: {
           Authorization: `Bearer ${this.session.access_token}`
@@ -49,10 +61,10 @@ export class AkatsukiClient {
   /**
    * Interactive login
    */
-  async loginInteractive() {
+  async loginInteractive(): Promise<Session> {
     this.session = await this.auth.loginInteractive()
 
-    this.client = createClient(supabaseUrl, supabaseAnonKey, {
+    this.client = createClient(supabaseUrl!, supabaseAnonKey!, {
       global: {
         headers: {
           Authorization: `Bearer ${this.session.access_token}`
@@ -66,16 +78,13 @@ export class AkatsukiClient {
 
   /**
    * Call Edge Function (authenticated)
-   * @param {string} functionName - Edge Function name (e.g., 'articles-crud')
-   * @param {object} body - Request body
-   * @returns {Promise<any>} Response data
    */
-  async invoke(functionName, body) {
+  async invoke<T = unknown>(functionName: string, body: Record<string, unknown>): Promise<T> {
     if (!this.session) {
       throw new Error('Not authenticated. Please call login() first.')
     }
 
-    const { data, error } = await this.client.functions.invoke(functionName, {
+    const { data, error } = await this.client.functions.invoke<AkatsukiResponse<T>>(functionName, {
       body: JSON.stringify(body),
       headers: {
         'Content-Type': 'application/json',
@@ -92,16 +101,16 @@ export class AkatsukiClient {
         const errorMsg = data.error?.message || 'Function call failed'
         throw new Error(errorMsg)
       }
-      return data.result
+      return data.result as T
     }
 
-    return data
+    return data as T
   }
 
   /**
    * Logout
    */
-  async logout() {
+  async logout(): Promise<void> {
     await this.auth.logout()
     this.session = null
     console.log('✅ Logged out')
@@ -110,29 +119,56 @@ export class AkatsukiClient {
   /**
    * Get current user
    */
-  async getCurrentUser() {
+  getCurrentUser(): User {
     if (!this.session) {
       throw new Error('Not authenticated')
     }
     return this.session.user
   }
+
+  /**
+   * Get current session
+   */
+  getSession(): Session | null {
+    return this.session
+  }
+}
+
+/**
+ * Article type
+ */
+export interface Article {
+  id: string
+  user_id: string
+  title: string
+  content: string
+  status: 'draft' | 'published'
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Article create/update input
+ */
+export interface ArticleInput {
+  title: string
+  content: string
+  status?: 'draft' | 'published'
+  tags?: string[]
 }
 
 /**
  * Articles API Client (convenience wrapper)
  */
 export class ArticlesClient {
-  constructor(akatsukiClient) {
-    this.client = akatsukiClient
-  }
+  constructor(private client: AkatsukiClient) {}
 
   /**
    * Get my articles
-   * @param {object} filters - Optional filters { status: 'draft' | 'published' }
-   * @returns {Promise<Array>} Articles array
    */
-  async getMyArticles(filters = {}) {
-    return this.client.invoke('articles-crud', {
+  async getMyArticles(filters: { status?: 'draft' | 'published' } = {}): Promise<Article[]> {
+    return this.client.invoke<Article[]>('articles-crud', {
       action: 'my',
       filters
     })
@@ -140,11 +176,9 @@ export class ArticlesClient {
 
   /**
    * Get published articles
-   * @param {number} limit - Max number of articles
-   * @returns {Promise<Array>} Articles array
    */
-  async getPublished(limit = 20) {
-    return this.client.invoke('articles-crud', {
+  async getPublished(limit: number = 20): Promise<Article[]> {
+    return this.client.invoke<Article[]>('articles-crud', {
       action: 'published',
       limit
     })
@@ -152,11 +186,9 @@ export class ArticlesClient {
 
   /**
    * Get article by ID
-   * @param {string} id - Article UUID
-   * @returns {Promise<object>} Article object
    */
-  async getById(id) {
-    return this.client.invoke('articles-crud', {
+  async getById(id: string): Promise<Article> {
+    return this.client.invoke<Article>('articles-crud', {
       action: 'get',
       id
     })
@@ -164,11 +196,9 @@ export class ArticlesClient {
 
   /**
    * Create article
-   * @param {object} data - Article data { title, content, status?, tags? }
-   * @returns {Promise<object>} Created article
    */
-  async create(data) {
-    return this.client.invoke('articles-crud', {
+  async create(data: ArticleInput): Promise<Article> {
+    return this.client.invoke<Article>('articles-crud', {
       action: 'create',
       data
     })
@@ -176,12 +206,9 @@ export class ArticlesClient {
 
   /**
    * Update article
-   * @param {string} id - Article UUID
-   * @param {object} data - Update data { title?, content?, status?, tags? }
-   * @returns {Promise<object>} Updated article
    */
-  async update(id, data) {
-    return this.client.invoke('articles-crud', {
+  async update(id: string, data: Partial<ArticleInput>): Promise<Article> {
+    return this.client.invoke<Article>('articles-crud', {
       action: 'update',
       id,
       data
@@ -190,11 +217,9 @@ export class ArticlesClient {
 
   /**
    * Delete article
-   * @param {string} id - Article UUID
-   * @returns {Promise<object>} Delete result
    */
-  async delete(id) {
-    return this.client.invoke('articles-crud', {
+  async delete(id: string): Promise<{ deleted: boolean }> {
+    return this.client.invoke<{ deleted: boolean }>('articles-crud', {
       action: 'delete',
       id
     })
@@ -202,19 +227,15 @@ export class ArticlesClient {
 
   /**
    * Publish article
-   * @param {string} id - Article UUID
-   * @returns {Promise<object>} Updated article
    */
-  async publish(id) {
+  async publish(id: string): Promise<Article> {
     return this.update(id, { status: 'published' })
   }
 
   /**
    * Unpublish article (set to draft)
-   * @param {string} id - Article UUID
-   * @returns {Promise<object>} Updated article
    */
-  async unpublish(id) {
+  async unpublish(id: string): Promise<Article> {
     return this.update(id, { status: 'draft' })
   }
 }

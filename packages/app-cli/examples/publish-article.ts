@@ -1,16 +1,16 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx tsx
 /**
  * Publish Article CLI Example
  * PoC: HEADLESS API Generator
  *
  * Usage:
- *   node cli/examples/publish-article.js <article-id>
+ *   npx tsx examples/publish-article.ts <article-id>
  */
 
 import 'dotenv/config'
 import { AkatsukiClient, ArticlesClient } from '../client.js'
 
-async function main() {
+async function main(): Promise<void> {
   const client = new AkatsukiClient()
   const articles = new ArticlesClient(client)
 
@@ -20,9 +20,9 @@ async function main() {
     const articleId = args[0]
 
     if (!articleId) {
-      console.log('Usage: node publish-article.js <article-id>')
+      console.log('Usage: npx tsx publish-article.ts <article-id>')
       console.log('\nExample:')
-      console.log('  node publish-article.js 550e8400-e29b-41d4-a716-446655440000')
+      console.log('  npx tsx publish-article.ts 550e8400-e29b-41d4-a716-446655440000')
       process.exit(1)
     }
 
@@ -67,7 +67,8 @@ async function main() {
     await client.logout()
 
   } catch (error) {
-    console.error('❌ Error:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('❌ Error:', message)
     process.exit(1)
   }
 }

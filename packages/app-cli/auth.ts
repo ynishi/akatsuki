@@ -5,7 +5,7 @@
  * CLI ToolからSupabase Authを使ってログイン・認証を行う
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient, Session, User } from '@supabase/supabase-js'
 import * as readline from 'readline'
 
 const supabaseUrl = process.env.SUPABASE_URL
@@ -20,17 +20,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export class SupabaseAuth {
+  private client: SupabaseClient
+
   constructor() {
-    this.client = createClient(supabaseUrl, supabaseAnonKey)
+    this.client = createClient(supabaseUrl!, supabaseAnonKey!)
   }
 
   /**
    * Login with email/password
-   * @param {string} email
-   * @param {string} password
-   * @returns {Promise<object>} Session object
    */
-  async login(email, password) {
+  async login(email: string, password: string): Promise<Session> {
     const { data, error } = await this.client.auth.signInWithPassword({
       email,
       password
@@ -40,20 +39,23 @@ export class SupabaseAuth {
       throw new Error(`Login failed: ${error.message}`)
     }
 
+    if (!data.session) {
+      throw new Error('Login failed: No session returned')
+    }
+
     return data.session
   }
 
   /**
    * Interactive login (prompts for email/password)
-   * @returns {Promise<object>} Session object
    */
-  async loginInteractive() {
+  async loginInteractive(): Promise<Session> {
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     })
 
-    const question = (prompt) => new Promise((resolve) => {
+    const question = (prompt: string): Promise<string> => new Promise((resolve) => {
       rl.question(prompt, resolve)
     })
 
@@ -67,9 +69,8 @@ export class SupabaseAuth {
 
   /**
    * Get current session
-   * @returns {Promise<object|null>} Session object or null
    */
-  async getSession() {
+  async getSession(): Promise<Session | null> {
     const { data, error } = await this.client.auth.getSession()
     if (error) throw error
     return data.session
@@ -78,16 +79,15 @@ export class SupabaseAuth {
   /**
    * Logout
    */
-  async logout() {
+  async logout(): Promise<void> {
     const { error } = await this.client.auth.signOut()
     if (error) throw error
   }
 
   /**
    * Get current user
-   * @returns {Promise<object|null>} User object or null
    */
-  async getUser() {
+  async getUser(): Promise<User | null> {
     const { data, error } = await this.client.auth.getUser()
     if (error) throw error
     return data.user
