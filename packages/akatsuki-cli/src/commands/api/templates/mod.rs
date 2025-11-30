@@ -7,7 +7,10 @@ use anyhow::Result;
 use minijinja::Environment;
 use serde::Serialize;
 
+pub mod edge_function;
 pub mod migration;
+pub mod repository_edge;
+pub mod zod_schema;
 
 pub struct TemplateEngine {
     env: Environment<'static>,
@@ -19,12 +22,17 @@ impl TemplateEngine {
 
         // Register templates
         env.add_template("migration", migration::MIGRATION_TEMPLATE)?;
+        env.add_template("zod_schema", zod_schema::ZOD_SCHEMA_TEMPLATE)?;
+        env.add_template("repository_edge", repository_edge::REPOSITORY_EDGE_TEMPLATE)?;
+        env.add_template("edge_function", edge_function::EDGE_FUNCTION_TEMPLATE)?;
 
         // Register custom filters
         env.add_filter("snake_case", filters::snake_case);
         env.add_filter("camel_case", filters::camel_case);
         env.add_filter("pascal_case", filters::pascal_case);
         env.add_filter("kebab_case", filters::kebab_case);
+        env.add_filter("singular", filters::singular);
+        env.add_filter("upper", filters::upper);
 
         Ok(Self { env })
     }
@@ -105,6 +113,39 @@ mod filters {
         let snake = snake_case(value)?;
         let result = snake.as_str().unwrap().replace('_', "-");
         Ok(Value::from(result))
+    }
+
+    pub fn singular(value: Value) -> Result<Value, minijinja::Error> {
+        let s = value.as_str().ok_or_else(|| {
+            minijinja::Error::new(
+                minijinja::ErrorKind::InvalidOperation,
+                "singular filter requires string",
+            )
+        })?;
+
+        // Simple pluralization rules (English)
+        let result = if s.ends_with("ies") {
+            s[..s.len() - 3].to_string() + "y"
+        } else if s.ends_with("ses") || s.ends_with("zes") || s.ends_with("xes") {
+            s[..s.len() - 2].to_string()
+        } else if s.ends_with('s') {
+            s[..s.len() - 1].to_string()
+        } else {
+            s.to_string()
+        };
+
+        Ok(Value::from(result))
+    }
+
+    pub fn upper(value: Value) -> Result<Value, minijinja::Error> {
+        let s = value.as_str().ok_or_else(|| {
+            minijinja::Error::new(
+                minijinja::ErrorKind::InvalidOperation,
+                "upper filter requires string",
+            )
+        })?;
+
+        Ok(Value::from(s.to_uppercase()))
     }
 }
 

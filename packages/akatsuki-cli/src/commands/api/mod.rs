@@ -17,6 +17,7 @@ use crate::cli::ApiAction;
 
 mod schema;
 mod generator;
+mod generator_contexts;
 mod templates;
 
 use schema::EntitySchema;

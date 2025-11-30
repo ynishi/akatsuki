@@ -11,14 +11,15 @@ use std::path::PathBuf;
 
 use super::schema::EntitySchema;
 use super::templates::TemplateEngine;
+use super::generator_contexts::{EdgeFunctionContext, RepositoryEdgeContext};
 use crate::utils::find_project_root;
 
 pub struct GeneratedFiles {
     pub migration: GeneratedFile,
+    pub zod_schema: GeneratedFile,
+    pub repository_edge: GeneratedFile,
+    pub edge_function: GeneratedFile,
     // TODO: Add other files
-    // pub zod_schema: GeneratedFile,
-    // pub repository_edge: GeneratedFile,
-    // pub edge_function: GeneratedFile,
     // pub model: GeneratedFile,
     // pub repository_frontend: GeneratedFile,
     // pub service: GeneratedFile,
@@ -36,6 +37,15 @@ impl GeneratedFiles {
     pub fn write_to_disk(&self) -> Result<()> {
         // Write migration
         self.write_file(&self.migration)?;
+
+        // Write zod schema
+        self.write_file(&self.zod_schema)?;
+
+        // Write repository (edge)
+        self.write_file(&self.repository_edge)?;
+
+        // Write edge function
+        self.write_file(&self.edge_function)?;
 
         // TODO: Write other files
 
@@ -62,6 +72,9 @@ impl GeneratedFiles {
 
     pub fn print_summary(&self) {
         println!("  {} {}", "•".bright_blue(), self.migration.description);
+        println!("  {} {}", "•".bright_blue(), self.zod_schema.description);
+        println!("  {} {}", "•".bright_blue(), self.repository_edge.description);
+        println!("  {} {}", "•".bright_blue(), self.edge_function.description);
         // TODO: Print other files
     }
 }
@@ -84,6 +97,9 @@ impl CodeGenerator {
     pub fn generate_all(&self) -> Result<GeneratedFiles> {
         Ok(GeneratedFiles {
             migration: self.generate_migration()?,
+            zod_schema: self.generate_zod_schema()?,
+            repository_edge: self.generate_repository_edge()?,
+            edge_function: self.generate_edge_function()?,
             // TODO: Generate other files
         })
     }
@@ -108,6 +124,59 @@ impl CodeGenerator {
             path,
             content,
             description: format!("Migration (Table + RLS + Indexes)"),
+        })
+    }
+
+    fn generate_zod_schema(&self) -> Result<GeneratedFile> {
+        let context = ZodSchemaContext::from_schema(&self.schema);
+        let content = self.template_engine.render("zod_schema", &context)?;
+
+        // Use project root for absolute path
+        let project_root = find_project_root();
+        let path = project_root
+            .join("supabase/functions")
+            .join(format!("{}-crud", self.schema.table_name))
+            .join("schema.ts");
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Zod Schema (Validation)"),
+        })
+    }
+
+    fn generate_repository_edge(&self) -> Result<GeneratedFile> {
+        let context = RepositoryEdgeContext::from_schema(&self.schema);
+        let content = self.template_engine.render("repository_edge", &context)?;
+
+        // Use project root for absolute path
+        let project_root = find_project_root();
+        let path = project_root
+            .join("supabase/functions/_shared/repositories")
+            .join(format!("{}Repository.ts", self.schema.name));
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Repository (Edge Functions)"),
+        })
+    }
+
+    fn generate_edge_function(&self) -> Result<GeneratedFile> {
+        let context = EdgeFunctionContext::from_schema(&self.schema);
+        let content = self.template_engine.render("edge_function", &context)?;
+
+        // Use project root for absolute path
+        let project_root = find_project_root();
+        let path = project_root
+            .join("supabase/functions")
+            .join(format!("{}-crud", self.schema.table_name))
+            .join("index.ts");
+
+        Ok(GeneratedFile {
+            path,
+            content,
+            description: format!("Edge Function (createAkatsukiHandler)"),
         })
     }
 }
@@ -242,6 +311,110 @@ impl MigrationContext {
                     .as_ref()
                     .and_then(|d| d.description.clone()),
             },
+        }
+    }
+}
+
+/// Context for Zod Schema template
+#[derive(Debug, Serialize)]
+struct ZodSchemaContext {
+    name: String,
+    table_name: String,
+    fields: Vec<ZodFieldContext>,
+    enum_fields: Vec<ZodFieldContext>,
+    writable_fields: Vec<ZodFieldContext>,
+    updatable_fields: Vec<ZodFieldContext>,
+    operations: Vec<OperationContext>,
+}
+
+#[derive(Debug, Serialize)]
+struct ZodFieldContext {
+    name: String,
+    db_name: String,
+    zod_type: String,
+    required: bool,
+    enum_values: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+struct OperationContext {
+    op_type: String,
+    name: Option<String>,
+    description: Option<String>,
+    filters: Vec<String>,
+    limit: Option<usize>,
+}
+
+impl ZodSchemaContext {
+    fn from_schema(schema: &EntitySchema) -> Self {
+        let fields: Vec<ZodFieldContext> = schema
+            .fields
+            .iter()
+            .map(|f| ZodFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                zod_type: f.zod_type(),
+                required: f.required,
+                enum_values: f.enum_values.clone(),
+            })
+            .collect();
+
+        let enum_fields: Vec<ZodFieldContext> = schema
+            .enum_fields()
+            .iter()
+            .map(|f| ZodFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                zod_type: f.zod_type(),
+                required: f.required,
+                enum_values: f.enum_values.clone(),
+            })
+            .collect();
+
+        let writable_fields: Vec<ZodFieldContext> = schema
+            .writable_fields()
+            .iter()
+            .map(|f| ZodFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                zod_type: f.zod_type(),
+                required: f.required,
+                enum_values: f.enum_values.clone(),
+            })
+            .collect();
+
+        let updatable_fields: Vec<ZodFieldContext> = schema
+            .updatable_fields()
+            .iter()
+            .map(|f| ZodFieldContext {
+                name: f.name.clone(),
+                db_name: f.db_name.clone(),
+                zod_type: f.zod_type(),
+                required: f.required,
+                enum_values: f.enum_values.clone(),
+            })
+            .collect();
+
+        let operations: Vec<OperationContext> = schema
+            .operations
+            .iter()
+            .map(|op| OperationContext {
+                op_type: format!("{:?}", op.op_type).to_lowercase(),
+                name: op.name.clone(),
+                description: op.description.clone(),
+                filters: op.filters.clone(),
+                limit: op.limit,
+            })
+            .collect();
+
+        Self {
+            name: schema.name.clone(),
+            table_name: schema.table_name.clone(),
+            fields,
+            enum_fields,
+            writable_fields,
+            updatable_fields,
+            operations,
         }
     }
 }

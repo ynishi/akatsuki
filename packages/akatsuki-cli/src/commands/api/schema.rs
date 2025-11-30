@@ -322,6 +322,25 @@ impl Field {
         }
     }
 
+    /// Get TypeScript default value
+    pub fn typescript_default(&self) -> String {
+        match self.field_type {
+            FieldType::String => "''".to_string(),
+            FieldType::Number => "0".to_string(),
+            FieldType::Boolean => "false".to_string(),
+            FieldType::Array => "[]".to_string(),
+            FieldType::Json => "{}".to_string(),
+            FieldType::Enum => {
+                if let Some(ref values) = self.enum_values {
+                    format!("'{}'", values.first().unwrap_or(&"".to_string()))
+                } else {
+                    "''".to_string()
+                }
+            }
+            _ => "undefined".to_string(),
+        }
+    }
+
     /// Get Zod type
     pub fn zod_type(&self) -> String {
         match self.field_type {
