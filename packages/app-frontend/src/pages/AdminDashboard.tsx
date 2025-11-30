@@ -187,6 +187,13 @@ export function AdminDashboard() {
               >
                 📝 Function Call実行ログ
               </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate('/admin/api-keys')}
+              >
+                🔐 API Keys管理
+              </Button>
               <Button variant="secondary" className="w-full">
                 📊 統計・レポート
               </Button>
