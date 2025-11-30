@@ -35,7 +35,7 @@ export interface {{ name }}DatabaseRecord {
   id: string
 {%- for field in fields %}
 {%- if field.name != "id" and field.name != "createdAt" and field.name != "updatedAt" %}
-  {{ field.db_name }}: {{ field.typescript_type }}
+  {{ field.db_name }}: {{ field.typescript_type }}{% if not field.required %} | null{% endif %}
 {%- endif %}
 {%- endfor %}
   created_at: string

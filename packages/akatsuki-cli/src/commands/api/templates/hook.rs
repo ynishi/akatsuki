@@ -39,6 +39,10 @@ interface Use{{ name }}sOptions {
 {%- if op.op_type == "custom" %}
   /** Use '{{ op.name }}' query */
   {{ op.name }}?: boolean
+{%- for filter in op.filters %}
+  /** Filter for {{ op.name }}: {{ filter }} */
+  {{ filter }}?: string
+{%- endfor %}
 {%- endif %}
 {%- endfor %}
   /** Limit number of results */
@@ -112,6 +116,9 @@ export function use{{ name }}s(options: Use{{ name }}sOptions = {}): Use{{ name 
 {%- for op in operations %}
 {%- if op.op_type == "custom" %}
     {{ op.name }} = false,
+{%- for filter in op.filters %}
+    {{ filter }},
+{%- endfor %}
 {%- endif %}
 {%- endfor %}
     limit = 20,

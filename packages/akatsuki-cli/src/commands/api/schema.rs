@@ -324,6 +324,11 @@ impl Field {
 
     /// Get TypeScript default value
     pub fn typescript_default(&self) -> String {
+        // For optional fields (nullable), default to null
+        if !self.required {
+            return "null".to_string();
+        }
+
         match self.field_type {
             FieldType::String => "''".to_string(),
             FieldType::Number => "0".to_string(),
@@ -337,7 +342,7 @@ impl Field {
                     "''".to_string()
                 }
             }
-            _ => "undefined".to_string(),
+            _ => "null".to_string(),
         }
     }
 
