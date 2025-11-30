@@ -38,6 +38,7 @@ impl ApiCommand {
                 interactive,
                 from_db,
             } => self.generate_new(entity_name, schema, interactive, from_db),
+            ApiAction::Batch { files } => self.generate_batch(files),
             ApiAction::List => self.list_apis(),
             ApiAction::Delete { entity_name, force } => self.delete_api(entity_name, force),
         }
@@ -122,6 +123,106 @@ impl ApiCommand {
         if !force {
             println!("\n{}", "Not implemented yet".yellow());
             println!("This will delete all generated files for the entity");
+        }
+
+        Ok(())
+    }
+
+    fn generate_batch(&self, files: Vec<std::path::PathBuf>) -> Result<()> {
+        println!("{}", "🚀 HEADLESS API Batch Generator".bright_cyan().bold());
+        println!("{}", "─".repeat(50).bright_black());
+        println!("📁 Processing {} schema files...\n", files.len());
+
+        let mut success_count = 0;
+        let mut error_count = 0;
+        let mut results: Vec<(String, bool, String)> = Vec::new();
+
+        for (index, path) in files.iter().enumerate() {
+            let file_name = path.file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.display().to_string());
+
+            println!(
+                "{} [{}/{}] Processing: {}",
+                "→".bright_blue(),
+                index + 1,
+                files.len(),
+                file_name.bright_white()
+            );
+
+            // Parse schema
+            match EntitySchema::from_yaml(path) {
+                Ok(entity_schema) => {
+                    let entity_name = entity_schema.name.clone();
+
+                    // Generate code
+                    let generator = CodeGenerator::new(entity_schema);
+                    match generator.generate_all() {
+                        Ok(generated_files) => {
+                            match generated_files.write_to_disk() {
+                                Ok(_) => {
+                                    println!(
+                                        "  {} {} generated successfully",
+                                        "✓".green(),
+                                        entity_name.bright_white()
+                                    );
+                                    success_count += 1;
+                                    results.push((entity_name, true, "OK".to_string()));
+                                }
+                                Err(e) => {
+                                    println!(
+                                        "  {} {} failed to write: {}",
+                                        "✗".red(),
+                                        entity_name,
+                                        e
+                                    );
+                                    error_count += 1;
+                                    results.push((entity_name, false, e.to_string()));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!(
+                                "  {} {} generation failed: {}",
+                                "✗".red(),
+                                entity_name,
+                                e
+                            );
+                            error_count += 1;
+                            results.push((entity_name, false, e.to_string()));
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!(
+                        "  {} Failed to parse {}: {}",
+                        "✗".red(),
+                        file_name,
+                        e
+                    );
+                    error_count += 1;
+                    results.push((file_name, false, e.to_string()));
+                }
+            }
+        }
+
+        // Summary
+        println!("\n{}", "─".repeat(50).bright_black());
+        println!("{}", "📊 Batch Generation Summary".bright_cyan().bold());
+        println!("  {} Success: {}", "✓".green(), success_count);
+        if error_count > 0 {
+            println!("  {} Failed:  {}", "✗".red(), error_count);
+        }
+
+        if success_count > 0 {
+            println!("\n{}", "🚀 Next steps:".bright_cyan());
+            println!("  1. Review generated files");
+            println!("  2. Run migrations: {}", "akatsuki db push".bright_white());
+            println!("  3. Deploy Edge Functions: {}", "akatsuki function deploy".bright_white());
+        }
+
+        if error_count > 0 {
+            anyhow::bail!("{} schema file(s) failed to generate", error_count);
         }
 
         Ok(())

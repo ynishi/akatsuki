@@ -383,6 +383,12 @@ pub enum ApiAction {
         #[arg(long)]
         from_db: bool,
     },
+    /// Batch generate multiple CRUD APIs from schema files
+    Batch {
+        /// Schema files (YAML) - processed in order
+        #[arg(required = true)]
+        files: Vec<PathBuf>,
+    },
     /// List all generated APIs
     List,
     /// Delete generated API files
