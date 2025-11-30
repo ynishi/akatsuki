@@ -194,6 +194,20 @@ export function AdminDashboard() {
               >
                 🔐 API Keys管理
               </Button>
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => navigate('/admin/products')}
+              >
+                🛍️ 商品管理
+              </Button>
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => navigate('/admin/orders')}
+              >
+                📦 注文管理
+              </Button>
               <Button variant="secondary" className="w-full">
                 📊 統計・レポート
               </Button>

@@ -19,6 +19,11 @@ import { FunctionCallLogsPage } from './pages/admin/FunctionCallLogsPage'
 import { FunctionDefinitionsPage } from './pages/admin/FunctionDefinitionsPage'
 import { WasmModuleAdminPage } from './pages/admin/WasmModuleAdminPage'
 import { ApiKeysAdminPage } from './pages/admin/ApiKeysAdminPage'
+import { ProductManagementPage } from './pages/admin/ProductManagementPage'
+import { OrderManagementPage } from './pages/admin/OrderManagementPage'
+import { ShopPage } from './pages/purchase/ShopPage'
+import { PurchaseSuccessPage } from './pages/purchase/PurchaseSuccessPage'
+import { PurchaseCancelPage } from './pages/purchase/PurchaseCancelPage'
 
 function App() {
   return (
@@ -37,6 +42,11 @@ function App() {
 
           {/* Private Routes with PrivateLayout */}
           <Route element={<PrivateLayout />}>
+            {/* Shop Routes */}
+            <Route path="/shop" element={<ShopPage />} />
+            <Route path="/purchase/success" element={<PurchaseSuccessPage />} />
+            <Route path="/purchase/cancel" element={<PurchaseCancelPage />} />
+
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/models" element={<ModelManagementPage />} />
@@ -49,6 +59,8 @@ function App() {
             <Route path="/admin/function-definitions" element={<FunctionDefinitionsPage />} />
             <Route path="/admin/wasm" element={<WasmModuleAdminPage />} />
             <Route path="/admin/api-keys" element={<ApiKeysAdminPage />} />
+            <Route path="/admin/products" element={<ProductManagementPage />} />
+            <Route path="/admin/orders" element={<OrderManagementPage />} />
           </Route>
         </Routes>
       </AuthProvider>
