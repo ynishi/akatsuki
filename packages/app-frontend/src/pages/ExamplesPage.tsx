@@ -40,8 +40,7 @@ import {
 } from '../../../ai-agent-ui/src/providers'
 import { AIFieldTrigger } from '../components/features/ai'
 import { WasmRuntimeService } from '../services/WasmRuntimeService'
-import { WasmModuleRepository } from '../repositories/WasmModuleRepository'
-import { supabase } from '../lib/supabase'
+import { useWasmModule } from '../hooks/useWasmModule'
 import { ApiGatewayDemo } from '../components/features/api-gateway/ApiGatewayDemo'
 
 /**
@@ -380,8 +379,8 @@ function WasmRuntimeCard() {
  * WASM Module Uploader Card
  * Upload and register WASM modules
  */
-function WasmModuleUploaderCard({ user }: { user: any }) {
-  const [uploading, setUploading] = useState(false)
+function WasmModuleUploaderCard({ user }: { user: { id: string } | null }) {
+  const { createModuleAsync, isCreating } = useWasmModule()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -430,7 +429,6 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
       return
     }
 
-    setUploading(true)
     setError(null)
     setSuccess(null)
 
@@ -465,13 +463,9 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
 
       console.log('[WasmModuleUploader] Exported functions:', moduleInfo.exportedFunctions)
 
-      // Step 3: Get current user
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (!currentUser) throw new Error('Authentication required')
-
-      // Step 4: Register in wasm_modules table
-      const { data: wasmModule, error: createError } = await WasmModuleRepository.create({
-        owner_id: currentUser.id,
+      // Step 3: Register in wasm_modules table (using user from props)
+      const wasmModule = await createModuleAsync({
+        owner_id: user.id,
         owner_type: 'user',
         file_id: uploadResult.id,
         module_name: moduleName,
@@ -489,11 +483,7 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
         metadata: {},
       })
 
-      if (createError || !wasmModule) {
-        throw createError || new Error('Failed to register module')
-      }
-
-      console.log('[WasmModuleUploader] Module registered:', wasmModule.id)
+      console.log('[WasmModuleUploader] Module registered:', wasmModule?.id)
 
       const storageType = isPublic ? '🌐 Public (CDN)' : '🔒 Private'
       const urlInfo = isPublic && 'publicUrl' in uploadResult ? ` • URL: ${uploadResult.publicUrl}` : ''
@@ -510,8 +500,6 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
       console.error('[WasmModuleUploader] Upload error:', err)
       const errorMessage = err instanceof Error ? err.message : String(err)
       setError(errorMessage)
-    } finally {
-      setUploading(false)
     }
   }
 
@@ -625,10 +613,10 @@ function WasmModuleUploaderCard({ user }: { user: any }) {
           {/* Upload Button */}
           <Button
             onClick={handleUpload}
-            disabled={uploading || !selectedFile || !moduleName || !user}
+            disabled={isCreating || !selectedFile || !moduleName || !user}
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
           >
-            {uploading ? 'Uploading...' : '📤 Upload WASM Module'}
+            {isCreating ? 'Uploading...' : '📤 Upload WASM Module'}
           </Button>
 
           {!user && (

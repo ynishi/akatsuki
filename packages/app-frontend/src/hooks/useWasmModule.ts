@@ -128,6 +128,18 @@ export function useWasmModule() {
     },
   })
 
+  // Create module
+  const createMutation = useMutation({
+    mutationFn: async (moduleData: Parameters<typeof WasmModuleRepository.create>[0]) => {
+      const { data, error } = await WasmModuleRepository.create(moduleData)
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wasm-modules'] })
+    },
+  })
+
   // Delete module
   const deleteMutation = useMutation({
     mutationFn: async (moduleId: string) => {
@@ -253,6 +265,12 @@ export function useWasmModule() {
     refetchSystemModules,
     refetchAdminModules,
     refetchExecutableModules,
+
+    // Create module
+    createModule: createMutation.mutate,
+    createModuleAsync: createMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    createError: createMutation.error,
 
     // Delete module
     deleteModule: deleteMutation.mutate,
