@@ -9,5 +9,7 @@ pub mod dev;
 pub mod docs;
 pub mod fmt;
 pub mod function;
+pub mod lint;
+pub mod preflight;
 pub mod setup;
 pub mod test;

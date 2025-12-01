@@ -13,6 +13,8 @@ use crate::commands::dev::DevCommand;
 use crate::commands::docs::DocsCommand;
 use crate::commands::fmt::FmtCommand;
 use crate::commands::function::FunctionCommand;
+use crate::commands::lint::LintCommand;
+use crate::commands::preflight::PreflightCommand;
 use crate::commands::setup::SetupCommand;
 use crate::commands::test::TestCommand;
 use crate::utils::find_project_root;
@@ -105,23 +107,44 @@ enum Commands {
         #[command(subcommand)]
         action: ApiAction,
     },
-    /// Run checks (lint, typecheck, cargo check)
+    /// Run type checks (tsc, cargo check)
     ///
-    /// Targets: frontend | backend | all (default)
-    #[command(about = "Run checks [frontend | backend | all]")]
+    /// Targets: frontend | backend | cli | admin-cli | all (default)
+    #[command(about = "Run type checks [frontend | backend | cli | admin-cli | all]")]
     Check {
-        /// Target to check: frontend, backend, or all (default)
+        /// Target to check
         #[arg(value_enum, default_value = "all")]
         target: CheckTarget,
     },
+    /// Run linters (eslint, clippy)
+    ///
+    /// Targets: frontend | backend | cli | admin-cli | all (default)
+    #[command(about = "Run linters [frontend | backend | cli | admin-cli | all]")]
+    Lint {
+        /// Target to lint
+        #[arg(value_enum, default_value = "all")]
+        target: LintTarget,
+        /// Auto-fix issues where possible
+        #[arg(long)]
+        fix: bool,
+    },
     /// Format code (prettier, cargo fmt)
     ///
-    /// Targets: frontend | backend | cli | rust-cli | all (default)
-    #[command(about = "Format code [frontend | backend | cli | rust-cli | all]")]
+    /// Targets: frontend | backend | cli | admin-cli | all (default)
+    #[command(about = "Format code [frontend | backend | cli | admin-cli | all]")]
     Fmt {
-        /// Target to format: frontend, backend, cli, rust-cli, or all (default)
+        /// Target to format
         #[arg(value_enum, default_value = "all")]
         target: FmtTarget,
+    },
+    /// Run preflight checks (fmt + lint + check + test)
+    ///
+    /// Targets: frontend | backend | cli | admin-cli | all (default)
+    #[command(about = "Run preflight checks [frontend | backend | cli | admin-cli | all]")]
+    Preflight {
+        /// Target for preflight checks
+        #[arg(value_enum, default_value = "all")]
+        target: PreflightTarget,
     },
     /// Run tests
     ///
@@ -281,13 +304,31 @@ pub enum FunctionAction {
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum CheckTarget {
-    /// Check frontend only (lint + typecheck)
+    /// Check frontend only (tsc --noEmit)
     Frontend,
     /// Check backend only (cargo check)
     Backend,
-    /// Check CLI only (typecheck)
+    /// Check CLI only (tsc --noEmit)
     Cli,
+    /// Check admin-cli only (cargo check)
+    #[value(name = "admin-cli")]
+    AdminCli,
     /// Check all targets
+    All,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum LintTarget {
+    /// Lint frontend only (eslint)
+    Frontend,
+    /// Lint backend only (cargo clippy)
+    Backend,
+    /// Lint CLI only (eslint)
+    Cli,
+    /// Lint admin-cli only (cargo clippy)
+    #[value(name = "admin-cli")]
+    AdminCli,
+    /// Lint all targets
     All,
 }
 
@@ -299,10 +340,25 @@ pub enum FmtTarget {
     Backend,
     /// Format CLI only (prettier)
     Cli,
-    /// Format akatsuki-cli only (cargo fmt)
-    #[value(name = "rust-cli")]
-    RustCli,
+    /// Format admin-cli only (cargo fmt)
+    #[value(name = "admin-cli")]
+    AdminCli,
     /// Format all targets
+    All,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum PreflightTarget {
+    /// Preflight frontend only
+    Frontend,
+    /// Preflight backend only
+    Backend,
+    /// Preflight CLI only
+    Cli,
+    /// Preflight admin-cli only
+    #[value(name = "admin-cli")]
+    AdminCli,
+    /// Preflight all targets
     All,
 }
 
@@ -469,8 +525,16 @@ impl Cli {
                 let cmd = CheckCommand::new();
                 cmd.execute(target)
             }
+            Commands::Lint { target, fix } => {
+                let cmd = LintCommand::new();
+                cmd.execute(target, fix)
+            }
             Commands::Fmt { target } => {
                 let cmd = FmtCommand::new();
+                cmd.execute(target)
+            }
+            Commands::Preflight { target } => {
+                let cmd = PreflightCommand::new();
                 cmd.execute(target)
             }
             Commands::Test {
@@ -528,20 +592,36 @@ impl Cli {
         println!("akatsuki build backend            # Backend リリースビルド");
         println!();
 
-        println!("# 品質チェック");
-        println!(
-            "akatsuki check                    # すべてチェック (lint + typecheck + cargo check)"
-        );
-        println!("akatsuki check frontend           # Frontend チェック (lint + typecheck)");
-        println!("akatsuki check backend            # Backend チェック (cargo check)");
+        println!("# 型チェック");
+        println!("akatsuki check                    # すべて型チェック");
+        println!("akatsuki check frontend           # Frontend (tsc --noEmit)");
+        println!("akatsuki check backend            # Backend (cargo check)");
+        println!("akatsuki check cli                # CLI (tsc --noEmit)");
+        println!("akatsuki check admin-cli          # admin-cli (cargo check)");
+        println!();
+
+        println!("# Lint（静的解析）");
+        println!("akatsuki lint                     # すべて lint");
+        println!("akatsuki lint frontend            # Frontend (eslint)");
+        println!("akatsuki lint backend             # Backend (cargo clippy)");
+        println!("akatsuki lint cli                 # CLI (eslint)");
+        println!("akatsuki lint admin-cli           # admin-cli (cargo clippy)");
+        println!("akatsuki lint --fix               # 自動修正あり");
         println!();
 
         println!("# フォーマット");
         println!("akatsuki fmt                      # すべてフォーマット");
-        println!("akatsuki fmt frontend             # Frontend フォーマット (prettier)");
-        println!("akatsuki fmt backend              # Backend フォーマット (cargo fmt)");
-        println!("akatsuki fmt cli                  # CLI フォーマット (prettier)");
-        println!("akatsuki fmt rust-cli             # akatsuki-cli フォーマット (cargo fmt)");
+        println!("akatsuki fmt frontend             # Frontend (prettier)");
+        println!("akatsuki fmt backend              # Backend (cargo fmt)");
+        println!("akatsuki fmt cli                  # CLI (prettier)");
+        println!("akatsuki fmt admin-cli            # admin-cli (cargo fmt)");
+        println!();
+
+        println!("# Preflight（総合チェック: fmt + lint + check + test）");
+        println!("akatsuki preflight                # すべて preflight");
+        println!("akatsuki preflight frontend       # Frontend のみ");
+        println!("akatsuki preflight backend        # Backend のみ");
+        println!("akatsuki preflight admin-cli      # admin-cli のみ");
         println!();
 
         println!("# テスト");

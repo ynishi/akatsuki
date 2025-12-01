@@ -107,11 +107,31 @@ akatsuki build                    # 両方ビルド
 akatsuki build frontend           # Frontend 本番ビルド
 akatsuki build backend            # Backend リリースビルド
 
-# 品質チェック
-akatsuki check                    # すべてチェック (lint + typecheck + cargo check)
-akatsuki check frontend           # Frontend チェック (lint + typecheck)
-akatsuki check backend            # Backend チェック (cargo check)
-akatsuki check cli                # Cli チェック (lint + typecheck)
+# 型チェック
+akatsuki check                    # すべて型チェック
+akatsuki check frontend           # Frontend (tsc --noEmit)
+akatsuki check backend            # Backend (cargo check)
+akatsuki check cli                # CLI (tsc --noEmit)
+akatsuki check admin-cli          # admin-cli (cargo check)
+
+# Lint（静的解析）
+akatsuki lint                     # すべて lint
+akatsuki lint frontend            # Frontend (eslint)
+akatsuki lint backend             # Backend (cargo clippy)
+akatsuki lint admin-cli           # admin-cli (cargo clippy)
+akatsuki lint --fix               # 自動修正あり
+
+# フォーマット
+akatsuki fmt                      # すべてフォーマット
+akatsuki fmt frontend             # Frontend (prettier)
+akatsuki fmt backend              # Backend (cargo fmt)
+akatsuki fmt admin-cli            # admin-cli (cargo fmt)
+
+# Preflight（総合チェック: fmt + lint + check + test）
+akatsuki preflight                # すべて preflight ★推奨
+akatsuki preflight frontend       # Frontend のみ
+akatsuki preflight backend        # Backend のみ
+akatsuki preflight admin-cli      # admin-cli のみ
 
 # テスト
 akatsuki test                     # すべてテスト
@@ -173,9 +193,11 @@ cd workspace && node generate-dummy-data.js  # ダミーデータ生成
 1. Edge Function エラー → `npx supabase functions logs <name> --tail`
 2. RLS エラー → Supabase Dashboard → Database → Policies
 3. TypeScript型エラー → `akatsuki check frontend` で詳細確認
-4. Model型エラー → Model の `fromDatabase()` 実装確認
-5. 再レンダリング → useEffect 依存配列確認
-6. ビルドエラー → `akatsuki build frontend` で詳細確認
+4. Lint エラー → `akatsuki lint frontend` で詳細確認
+5. Model型エラー → Model の `fromDatabase()` 実装確認
+6. 再レンダリング → useEffect 依存配列確認
+7. ビルドエラー → `akatsuki build frontend` で詳細確認
+8. コミット前の総合チェック → `akatsuki preflight` ★推奨
 
 **🎯 よくあるシチュエーション別クイックジャンプ:**
 - 「新しい画面を作りたい」 → L693「ルーティングパターン」（Layout使用） + L2018 Template 1: CRUD画面

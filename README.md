@@ -176,19 +176,48 @@ akatsuki build frontend   # Frontend production build
 akatsuki build backend    # Backend release build
 ```
 
-### Quality Checks
+### Type Checking
 
 ```bash
-akatsuki check            # Run all checks (lint, typecheck, cargo check)
-akatsuki check frontend   # Frontend checks only (lint + typecheck)
-akatsuki check backend    # Backend check only (cargo check)
+akatsuki check            # Run all type checks
+akatsuki check frontend   # Frontend (tsc --noEmit)
+akatsuki check backend    # Backend (cargo check)
+akatsuki check admin-cli  # Admin CLI (cargo check)
+```
+
+### Linting
+
+```bash
+akatsuki lint             # Run all linters
+akatsuki lint frontend    # Frontend (eslint)
+akatsuki lint backend     # Backend (cargo clippy)
+akatsuki lint admin-cli   # Admin CLI (cargo clippy)
+akatsuki lint --fix       # Auto-fix issues
+```
+
+### Formatting
+
+```bash
+akatsuki fmt              # Format all code
+akatsuki fmt frontend     # Frontend (prettier)
+akatsuki fmt backend      # Backend (cargo fmt)
+akatsuki fmt admin-cli    # Admin CLI (cargo fmt)
+```
+
+### Preflight (Recommended before commit)
+
+```bash
+akatsuki preflight        # Run fmt + lint + check + test (all)
+akatsuki preflight frontend
+akatsuki preflight backend
+akatsuki preflight admin-cli
 ```
 
 ### Testing
 
 ```bash
 akatsuki test             # Run all tests
-akatsuki test frontend    # Frontend tests (not configured yet)
+akatsuki test frontend    # Frontend tests (vitest)
 akatsuki test backend     # Backend tests (cargo test)
 ```
 

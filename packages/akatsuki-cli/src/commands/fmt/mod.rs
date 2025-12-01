@@ -17,7 +17,7 @@ impl FmtCommand {
             FmtTarget::Frontend => self.fmt_frontend(),
             FmtTarget::Backend => self.fmt_backend(),
             FmtTarget::Cli => self.fmt_cli(),
-            FmtTarget::RustCli => self.fmt_rust_cli(),
+            FmtTarget::AdminCli => self.fmt_admin_cli(),
             FmtTarget::All => self.fmt_all(),
         }
     }
@@ -73,8 +73,8 @@ impl FmtCommand {
         Ok(())
     }
 
-    fn fmt_rust_cli(&self) -> Result<()> {
-        println!("{}", "🦀 Formatting akatsuki-cli (Rust)...".cyan());
+    fn fmt_admin_cli(&self) -> Result<()> {
+        println!("{}", "🦀 Formatting admin-cli (Rust)...".cyan());
 
         let project_root = find_project_root();
         let manifest_path = project_root.join("packages/akatsuki-cli/Cargo.toml");
@@ -82,13 +82,13 @@ impl FmtCommand {
         let status = Command::new("cargo")
             .args(["fmt", "--manifest-path", manifest_path.to_str().unwrap()])
             .status()
-            .context("Failed to run cargo fmt for akatsuki-cli")?;
+            .context("Failed to run cargo fmt for admin-cli")?;
 
         if !status.success() {
-            anyhow::bail!("akatsuki-cli format failed");
+            anyhow::bail!("admin-cli format failed");
         }
 
-        println!("{}", "✅ akatsuki-cli formatted!".green());
+        println!("{}", "✅ admin-cli formatted!".green());
         Ok(())
     }
 
@@ -104,7 +104,7 @@ impl FmtCommand {
         self.fmt_backend()?;
         println!();
 
-        self.fmt_rust_cli()?;
+        self.fmt_admin_cli()?;
         println!();
 
         println!("{}", "✨ All formatted!".green().bold());
