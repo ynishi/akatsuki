@@ -181,7 +181,7 @@ akatsuki function deploy [name]   # Edge Function デプロイ
 akatsuki deploy backend           # Backend を Shuttle にデプロイ
 
 # セットアップ
-npm run setup                     # 初回セットアップウィザード
+akatsuki setup init               # 初回セットアップウィザード
 akatsuki setup check              # セットアップ状態確認
 
 # その他

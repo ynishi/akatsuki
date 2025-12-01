@@ -76,7 +76,7 @@ npm install
 Supabase プロジェクトの準備ができたら、以下を実行：
 
 ```bash
-npm run setup
+akatsuki setup init
 ```
 
 **このコマンド一つで全て完了！** 自動的に：
@@ -96,11 +96,12 @@ npm run setup
 **以上！** 開発サーバーを起動してアプリを確認：
 
 ```bash
-# ターミナル1: フロントエンド
-npm run dev:frontend  # http://localhost:5173
+# 両方同時に起動
+akatsuki dev  # Frontend: http://localhost:5173, Backend: http://localhost:8000
 
-# ターミナル2: バックエンド
-npm run dev:backend   # http://localhost:8000
+# または個別に起動
+akatsuki dev frontend  # Frontend のみ
+akatsuki dev backend   # Backend のみ
 ```
 
 ---
@@ -110,7 +111,7 @@ npm run dev:backend   # http://localhost:8000
 いつでも以下のコマンドでセットアップ状況を確認できます：
 
 ```bash
-npm run setup:check
+akatsuki setup check
 ```
 
 ### 詳細なセットアップ手順

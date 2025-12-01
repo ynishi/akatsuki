@@ -76,7 +76,7 @@ See [`docs/setup.md`](docs/setup.md) for details.
 Once you have your Supabase project ready, run:
 
 ```bash
-npm run setup
+akatsuki setup init
 ```
 
 **This single command handles everything!** It automatically:

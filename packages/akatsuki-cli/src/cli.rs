@@ -249,6 +249,8 @@ pub enum DesignAction {
 pub enum SetupAction {
     /// Check setup status and prerequisites
     Check,
+    /// Interactive setup wizard for new projects
+    Init,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -689,6 +691,7 @@ impl Cli {
 
         println!("# セットアップ");
         println!("akatsuki setup check              # セットアップ状態確認");
+        println!("akatsuki setup init               # 対話式セットアップウィザード");
         println!();
 
         println!("# ユーティリティ");

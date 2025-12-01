@@ -266,7 +266,7 @@ fn display_summary() -> Result<()> {
         println!(
             "  {} Setup is incomplete. Run: {}",
             "⚠".yellow(),
-            "npm run setup".cyan()
+            "akatsuki setup init".cyan()
         );
     }
 

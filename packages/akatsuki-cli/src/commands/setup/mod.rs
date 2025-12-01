@@ -1,4 +1,5 @@
 mod check;
+mod init;
 
 use anyhow::Result;
 
@@ -14,6 +15,7 @@ impl SetupCommand {
     pub fn execute(&self, action: SetupAction) -> Result<()> {
         match action {
             SetupAction::Check => check::execute(),
+            SetupAction::Init => init::execute(),
         }
     }
 }
