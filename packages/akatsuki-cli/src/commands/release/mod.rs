@@ -91,30 +91,54 @@ impl ReleaseCommand {
             anyhow::bail!("Failed to stage Cargo.toml");
         }
 
-        let commit_msg = format!("chore(akatsuki-cli): Release v{}", version);
-        let status = Command::new("git")
-            .args(["commit", "-m", &commit_msg])
+        // Check if there are staged changes
+        let diff_output = Command::new("git")
+            .args(["diff", "--cached", "--quiet"])
             .current_dir(&root)
             .status()?;
 
-        if !status.success() {
-            anyhow::bail!("Failed to create commit");
+        let commit_msg = format!("chore(akatsuki-cli): Release v{}", version);
+        if !diff_output.success() {
+            // There are staged changes, create commit
+            let status = Command::new("git")
+                .args(["commit", "-m", &commit_msg])
+                .current_dir(&root)
+                .status()?;
+
+            if !status.success() {
+                anyhow::bail!("Failed to create commit");
+            }
+            println!("{} Created commit: {}", "✓".green(), commit_msg);
+        } else {
+            // No changes (version already updated)
+            println!("{} No changes to commit (version already up to date)", "ℹ".blue());
         }
-        println!("{} Created commit: {}", "✓".green(), commit_msg);
 
         // Step 3: Create tag
         println!("\n{} Creating tag...", "▸".magenta());
         let tag = format!("cli-v{}", version);
 
-        let status = Command::new("git")
-            .args(["tag", "-a", &tag, "-m", &format!("Release {}", tag)])
+        // Check if tag already exists
+        let tag_exists = Command::new("git")
+            .args(["rev-parse", &tag])
             .current_dir(&root)
-            .status()?;
+            .output()?
+            .status
+            .success();
 
-        if !status.success() {
-            anyhow::bail!("Failed to create tag");
+        if tag_exists {
+            println!("{} Tag {} already exists", "ℹ".blue(), tag);
+        } else {
+            let status = Command::new("git")
+                .args(["tag", "-a", &tag, "-m", &format!("Release {}", tag)])
+                .current_dir(&root)
+                .status()?;
+
+            if !status.success() {
+                anyhow::bail!("Failed to create tag");
+            }
+            println!("{} Created tag: {}", "✓".green(), tag);
         }
-        println!("{} Created tag: {}", "✓".green(), tag);
 
         // Step 4: Push commit and tag
         println!("\n{} Pushing to origin...", "▸".magenta());
