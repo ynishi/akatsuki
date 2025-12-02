@@ -11,5 +11,6 @@ pub mod fmt;
 pub mod function;
 pub mod lint;
 pub mod preflight;
+pub mod release;
 pub mod setup;
 pub mod test;

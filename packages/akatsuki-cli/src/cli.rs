@@ -15,6 +15,7 @@ use crate::commands::fmt::FmtCommand;
 use crate::commands::function::FunctionCommand;
 use crate::commands::lint::LintCommand;
 use crate::commands::preflight::PreflightCommand;
+use crate::commands::release::ReleaseCommand;
 use crate::commands::setup::SetupCommand;
 use crate::commands::test::TestCommand;
 use crate::utils::find_project_root;
@@ -204,6 +205,18 @@ enum Commands {
     /// Install akatsuki CLI globally (cargo install --path packages/akatsuki-cli)
     #[command(about = "Install akatsuki CLI globally")]
     Install,
+    /// Release CLI: update version, create tag, and push
+    ///
+    /// Usage: akatsuki release --version 1.0.0
+    #[command(about = "Release CLI (update version, tag, push)")]
+    Release {
+        /// New version (e.g., 1.0.0)
+        #[arg(long, short)]
+        version: String,
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -563,6 +576,10 @@ impl Cli {
             Commands::Completion { shell } => Self::generate_completion(shell),
             Commands::List => Self::list_all_commands(),
             Commands::Install => Self::install_cli(),
+            Commands::Release { version, yes } => {
+                let cmd = ReleaseCommand::new();
+                cmd.execute(&version, yes)
+            }
         }
     }
 
@@ -700,6 +717,10 @@ impl Cli {
         println!(
             "akatsuki install                  # CLI をグローバルインストール (cargo install)"
         );
+        println!();
+
+        println!("# リリース");
+        println!("akatsuki release -v <VERSION>     # CLI リリース（バージョン更新、タグ作成、push）");
         println!();
 
         println!("💡 詳細なヘルプ: akatsuki <command> --help");
