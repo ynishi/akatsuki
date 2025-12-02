@@ -47,6 +47,19 @@
 - **Shuttle CLI** (`cargo install cargo-shuttle`)
 - **Supabase CLI** (`npm install -g supabase`) ← **これを忘れがち！**
 
+### Akatsuki CLI のインストール
+
+`akatsuki` CLI は全ての開発コマンドを提供します。Homebrew（推奨）または Cargo でインストール:
+
+```bash
+# Homebrew (macOS/Linux)
+brew tap ynishi/akatsuki
+brew install akatsuki
+
+# またはソースからビルド
+cargo install --path packages/akatsuki-cli
+```
+
 ### ステップ 1: クローンとインストール
 
 ⚠️ **重要:** アプリ名を指定してクローン！

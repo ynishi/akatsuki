@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
     name: Build ${{ matrix.target }}
@@ -20,25 +23,25 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: akatsuki
-            asset_name: akatsuki-macos-x86_64
+            asset_name: akatsuki-x86_64-apple-darwin
 
           # macOS ARM64 (Apple Silicon)
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: akatsuki
-            asset_name: akatsuki-macos-aarch64
+            asset_name: akatsuki-aarch64-apple-darwin
 
           # Linux x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: akatsuki
-            asset_name: akatsuki-linux-x86_64
+            asset_name: akatsuki-x86_64-unknown-linux-gnu
 
           # Windows x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: akatsuki.exe
-            asset_name: akatsuki-windows-x86_64.exe
+            asset_name: akatsuki-x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout code
@@ -56,11 +59,37 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Upload binary as artifact
+      - name: Create tarball (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czvf ${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+          shasum -a 256 ${{ matrix.asset_name }}.tar.gz > ${{ matrix.asset_name }}.tar.gz.sha256
+
+      - name: Create zip (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
+          certutil -hashfile ${{ matrix.asset_name }}.zip SHA256 > ${{ matrix.asset_name }}.zip.sha256
+
+      - name: Upload tarball (Unix)
+        if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          path: |
+            target/${{ matrix.target }}/release/${{ matrix.asset_name }}.tar.gz
+            target/${{ matrix.target }}/release/${{ matrix.asset_name }}.tar.gz.sha256
+
+      - name: Upload zip (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: |
+            target/${{ matrix.target }}/release/${{ matrix.asset_name }}.zip
+            target/${{ matrix.target }}/release/${{ matrix.asset_name }}.zip.sha256
 
   release:
     name: Create Release
@@ -78,14 +107,16 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R artifacts
 
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.sha256" \) -exec cp {} release/ \;
+          ls -la release/
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            artifacts/akatsuki-macos-x86_64/akatsuki
-            artifacts/akatsuki-macos-aarch64/akatsuki
-            artifacts/akatsuki-linux-x86_64/akatsuki
-            artifacts/akatsuki-windows-x86_64.exe/akatsuki.exe
+          files: release/*
           draft: false
           prerelease: false
           generate_release_notes: true

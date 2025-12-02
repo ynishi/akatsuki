@@ -47,6 +47,19 @@ Please install the following tools. See [`docs/setup.md`](docs/setup.md) for det
 - **Shuttle CLI** (`cargo install cargo-shuttle`)
 - **Supabase CLI** (`npm install -g supabase`) ← **Often forgotten!**
 
+### Install Akatsuki CLI
+
+The `akatsuki` CLI provides all development commands. Install via Homebrew (recommended) or Cargo:
+
+```bash
+# Homebrew (macOS/Linux)
+brew tap ynishi/akatsuki
+brew install akatsuki
+
+# Or build from source
+cargo install --path packages/akatsuki-cli
+```
+
 ### Step 1: Clone and Install
 
 ⚠️ **Important:** Clone with your app name!
