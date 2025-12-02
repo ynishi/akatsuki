@@ -410,10 +410,10 @@ pub enum DocsAction {
     Pages,
     /// Check documentation coverage and list undocumented files
     Lint,
-    /// Sync component list to documentation file (e.g., AGENT-mini.md)
+    /// Sync component list to documentation file (e.g., AGENT.md)
     Sync {
         /// Target file to update
-        #[arg(long, default_value = "AGENT-mini.md")]
+        #[arg(long, default_value = "AGENT.md")]
         target: String,
         /// Show diff without applying changes
         #[arg(long)]
@@ -666,7 +666,7 @@ impl Cli {
             "akatsuki docs lint                # ドキュメント網羅率チェック（JSDoc未記載検出）"
         );
         println!(
-            "akatsuki docs sync                # AGENT-mini.md のコンポーネントリスト自動更新"
+            "akatsuki docs sync                # AGENT.md のコンポーネントリスト自動更新"
         );
         println!("akatsuki docs all --search \"RAG\"  # 全レイヤー横断検索");
         println!();

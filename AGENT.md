@@ -16,6 +16,26 @@
 2. 開発者1〜2名体制での **開発体験（DX）を最大化** する。
 3. 「AIGen（AI生成）」機能を息を吸うように導入できる開発基盤を提供する。
 
+## 2.3. Akatsuki CLI - 開発効率化ツール
+
+`akatsuki` CLI は、VibeCoding ワークフローを加速するコマンドラインツールです：
+
+**主な機能:**
+- 🚀 **ワンコマンド起動**: `akatsuki dev` でフロント・バックエンド同時起動
+- ⚡ **Entityベース生成**: `akatsuki api new` でYAMLからフロント・バックエンドCRUD自動生成
+- 📚 **ドキュメント探索**: `akatsuki docs all` で実装済みコンポーネントを即座に発見
+- 🤖 **AI統合**: `akatsuki advice ai` でプロジェクト状態を分析し次のステップを提案
+- 🗄️ **DB管理**: `akatsuki db check` でマイグレーションを適用前にプレビュー
+- 🎨 **設計支援**: `akatsuki design new` でテンプレートベースの設計ドキュメント生成
+
+**なぜ重要？**
+- 新規Entityを5分で実装（`api new` でMigration〜Hook〜UIまで一括生成）
+- AIコーディング時の「どのコンポーネントが使える？」を解決（`docs` コマンド）
+- 「次何すべき？」の迷いをなくす（`advice` コマンド）
+- マイグレーション失敗を防ぐ（`db check` でマルチバイト文字検出）
+
+詳細コマンド一覧は後述（L65-）
+
 ## 2.5. VibeCoding Quick Reference（チートシート）
 
 実装開始前に確認する最速リファレンスです。詳細は各セクション参照。
@@ -25,8 +45,9 @@
 Step 1: 要件整理 → workspace/[feature]-design.md
 Step 2: テンプレート参考 → L2018「8.9 Design Templates」で近いパターンを参考にする
 Step 3: 設計（画面・DB・アーキテクチャ層）
-Step 4: 実装（Model → Repository → Service → Hook → Component → Page）
-Step 5: 動作確認（workspace/でダミーデータ生成）
+Step 4: CRUD生成（Model → Repository → Service → Hook & DEMOが自動生成される）
+Step 4: 実装（Hook → Component → Page）
+Step 5: 動作確認（ダミーデータは自動生成）
 Step 6: 振り返り（docs/に整理）
 
 ※ テンプレートは「参考」であり、要件に応じて自由にカスタマイズ
@@ -43,24 +64,36 @@ Step 6: 振り返り（docs/に整理）
 - 📡 **Event System**: L2855「Event System（イベント駆動）」
 - ⚙️ **Async Job System**: L2903「Async Job System（非同期ジョブ実行）」
 - 🤖 **Function Call System**: 「LLM Function Calling統合」（後述）
+- 🔧 **WASM Edge Function**: L2292「WASM Runtime Component」→ Edge統合推奨（L2292）
 - 📦 **技術スタック全体**: L131「4. 技術スタック」
 
 **実装済みコンポーネント（すぐ使える）:**
+💡 最新情報は `akatsuki docs all` で確認
+
+<!-- SYNC:COMPONENTS:START -->
 - 認証: `AuthGuard`, `LoginForm`, `SignupForm`
 - レイアウト: `Layout`, `PrivateLayout`, `NarrowLayout`, `FullWidthLayout`, `TopNavigation`
   - `Layout` - デフォルトレイアウト（メニュー・背景・パディング自動提供）
   - `PrivateLayout` - 認証必須ページ用（AuthGuard + Layout）
 - ストレージ: `FileUpload`
-- AI: `useAIGen`, `useImageGeneration`, `AIService`, `ImageGenerationService`
-- Hooks: `usePublicProfile` (React Query)
-- UI: shadcn/ui 44コンポーネント（`components/ui/`）
+- Hooks: `useAIGen`, `useImageGeneration`, `usePublicProfile` (React Query)
+- UI: shadcn/ui 64コンポーネント（`components/ui/`）
+- **Graph & Rich Editor**: `GraphView`, `RichEditor` - Reactflowベースのグラフビューとリッチエディタのラッパー
+- **Data Export/Import**: Zip対応Export/Import機能 - ExportImportService統合
+- Models: 9クラス（100%ドキュメント化）
+- Repositories: 14クラス（100%ドキュメント化）
+- Services: 15クラス（100%ドキュメント化）
+<!-- SYNC:COMPONENTS:END -->
 
 **Edge Functions（デプロイ済み）:**
 - `ai-chat` - LLM統合（OpenAI/Anthropic/Gemini）
 - `generate-image` - 画像生成（DALL-E）
+- `wasm-executor` - WASM モジュール実行（Storage動的ロード + LRUキャッシュ）
 - `upload-file` / `delete-file` - ファイル管理
 - `get-signed-url` / `create-signed-url` - Private Storage
 - `send-email` / `slack-notify` - 外部連携
+- `api-gateway` - Public API Gateway（API Key認証 + Rate Limit）
+- `cdn-gateway` - CDN Gateway（Base62 URL + OGP）
 
 **コマンド集:**
 ```bash
@@ -107,15 +140,44 @@ akatsuki test backend             # Backend テスト (cargo test)
 # データベース操作
 akatsuki db push                  # Migration 適用
 akatsuki db migration-new <name>  # Migration 作成
+akatsuki db check                 # Migration チェック（SQL preview、multibyte検出）
 akatsuki db status                # データベース状態確認
-akatsuki db link                  # Supabase プロジェクトリンク
+
+# 設計ワークフロー
+akatsuki design new <name>        # デザインドキュメント作成
+akatsuki design list              # デザイン例一覧
+akatsuki design publish <name>    # デザインを examples に公開
+
+# ドキュメント探索（AIコーディング支援）
+akatsuki docs all                 # 全レイヤー（components/models/repositories/services/hooks/pages）表示
+akatsuki docs components          # UI コンポーネント一覧
+akatsuki docs models              # Model クラス一覧
+akatsuki docs repositories        # Repository クラス一覧
+akatsuki docs services            # Service クラス一覧
+akatsuki docs hooks               # Custom Hooks 一覧
+akatsuki docs pages               # Page コンポーネント一覧
+akatsuki docs lint                # ドキュメント網羅率チェック（JSDoc未記載検出）
+akatsuki docs all --search "RAG"  # 全レイヤー横断検索
+
+# 開発アドバイス（AI統合）
+akatsuki advice rule              # 静的ルールベース提案（高速）
+akatsuki advice prompt            # AI分析用プロンプト生成（Claude Codeにコピペ）
+akatsuki advice ai                # AI自動分析（claude command経由）
+akatsuki advice ai --backend=markdown  # プロンプト生成のみ
+
+# HEADLESS API Generator（フルスタックCRUD自動生成）
+akatsuki api new <Entity> --schema <file.yaml>  # YAMLスキーマからCRUD API生成
+akatsuki api new <Entity> --interactive         # 対話モードでスキーマ定義
+akatsuki api batch <files...>                   # 複数スキーマを一括生成
+akatsuki api check <files...>                   # スキーマファイルの検証のみ
+akatsuki api list                               # 生成済みAPI一覧
+akatsuki api delete <Entity>                    # 生成ファイル削除
 
 # Edge Functions
 akatsuki function new <name>      # Edge Function 作成
 akatsuki function deploy [name]   # Edge Function デプロイ
 
 # デプロイ
-akatsuki deploy                   # 両方デプロイ
 akatsuki deploy backend           # Backend を Shuttle にデプロイ
 
 # セットアップ
@@ -123,7 +185,7 @@ akatsuki setup init               # 初回セットアップウィザード
 akatsuki setup check              # セットアップ状態確認
 
 # その他
-npm run preview:frontend          # ビルド結果をプレビュー (workspace 経由)
+npm run preview:frontend          # ビルド結果をプレビュー
 cd workspace && node generate-dummy-data.js  # ダミーデータ生成
 ```
 
@@ -224,14 +286,8 @@ Akatsuki では、保守性と拡張性を重視したレイヤードアーキ�
 src/
 ├── components/      # UIコンポーネント
 │   ├── ui/          # 汎用UIコンポーネント（shadcn/ui）
-│   ├── layout/      # 【NEW】レイアウトコンポーネント（Layout.tsx, TopNavigation等）
-│   │                # Layout.tsx: 全ページ共通のレイアウト構造（メニュー、背景、パディング）
-│   │                # PrivateLayout.tsx: 認証が必要なページ用Layout
+│   ├── layout/      # レイアウトコンポーネント（Layout.tsx, TopNavigation等）
 │   ├── features/    # ドメイン固有のFeatureコンポーネント
-│   │   ├── auth/    # 認証関連（AuthGuard, LoginForm等）
-│   │   ├── ai/      # AI関連（ModelSelector等）
-│   │   ├── storage/ # ストレージ関連（FileUpload等）
-│   │   └── llm/     # LLM Chat関連
 │   └── common/      # その他の共通コンポーネント
 ├── pages/          # ページコンポーネント（コンテンツのみ、Layoutは不要）
 ├── hooks/          # Custom Hooks（ビジネスロジック抽出）
@@ -245,196 +301,51 @@ src/
 
 **各層の責務:**
 
-1. **lib/** - インフラ層
-   - Supabaseクライアントの初期化のみ
-   - 外部サービスとの接続設定
-   - **例:** `supabase.js`
+1. **lib/** - インフラ層: Supabaseクライアントの初期化のみ
+2. **models/** - ドメインモデル層: ビジネスロジックとデータ構造の定義、DB形式↔アプリ形式の変換（`fromDatabase()`, `toDatabase()`）
+3. **repositories/** - データアクセス層: Supabase（DB）への CRUD 操作を抽象化、エラーハンドリングの統一
+4. **services/** - サービス層: Supabase Edge Functions の呼び出しを抽象化、外部API連携、すべて `{ data, error }` 形式に統一
+5. **hooks/** - Custom Hooks: React Query を使用した状態管理、Repository/Service を呼び出し、UIとビジネスロジックを分離
+6. **components/** - UIコンポーネント: 再利用可能なUI部品、Presentationalコンポーネント
+7. **pages/** - ページコンポーネント: **コンテンツのみ**を返す（Layout, TopNavigation, 背景等は不要）
 
-2. **models/** - ドメインモデル層
-   - ビジネスロジックとデータ構造の定義
-   - DB形式 ↔ アプリ形式の変換（`fromDatabase()`, `toDatabase()`）
-   - **例:** `UserProfile.js`, `Post.js`
-
-3. **repositories/** - データアクセス層
-   - Supabase（DB）への CRUD 操作を抽象化
-   - エラーハンドリングの統一
-   - **例:** `UserProfileRepository.js`
-   - **パターン:**
-     ```javascript
-     // Repository でデータ取得
-     const data = await UserProfileRepository.findByUserId(userId)
-     // Model でドメインオブジェクトに変換
-     const profile = UserProfile.fromDatabase(data)
-     ```
-
-4. **services/** - サービス層
-   - Supabase Edge Functions の呼び出しを抽象化
-   - 外部API連携
-   - **例:** `EdgeFunctionService.js`, `AIGenerationService.js`
-   - **レスポンス形式:** すべて `{ data, error }` 形式に統一
-   - **パターン:**
-     ```javascript
-     // ✅ 正しい使い方（必ず分割代入）
-     const { data, error } = await EdgeFunctionService.invoke('my-function', payload)
-     if (error) {
-       return { data: null, error }
-     }
-     console.log(data.someField)  // data は Edge Function の result
-
-     // ❌ 間違い: 分割代入せずに使用
-     const result = await EdgeFunctionService.invoke('my-function', payload)
-     console.log(result.someField)  // undefined (result.data.someField が正しい)
-     ```
-
-5. **hooks/** - Custom Hooks（React Query）
-   - **React Query** を使用した状態管理
-   - Repository/Service を呼び出し、UIとビジネスロジックを分離
-   - **例:** `useImageGeneration`, `usePublicProfile`
-   - **パターン:**
-     ```javascript
-     // Query（データ取得）
-     const { profile, isLoading, error, refetch } = usePublicProfile(userId)
-
-     // Mutation（データ変更） - Fire-and-forget
-     const { generate, isPending, data } = useImageGeneration()
-     generate({ prompt: 'A cat' })  // 結果は data で取得
-
-     // Mutation（データ変更） - async/await で結果を取得
-     const { generateAsync, isPending } = useImageGeneration()
-     const handleGenerate = async () => {
-       const result = await generateAsync({ prompt: 'A cat' })
-       console.log(result.publicUrl)  // 結果を直接使用
-     }
-
-     // ❌ 間違い: mutate() の結果を await
-     const { generate } = useImageGeneration()
-     const result = await generate({ prompt: 'A cat' })  // undefined
-     ```
-
-6. **components/** - UIコンポーネント
-   - 再利用可能なUI部品
-   - Presentationalコンポーネント
-   - **例:** `Button.jsx`, `Card.jsx`, `UserCard.jsx`
-
-7. **pages/** - ページコンポーネント
-   - **コンテンツのみ**を返す（Layout, TopNavigation, 背景等は不要）
-   - React Router の `<Outlet />` 経由で Layout.tsx 内にレンダリングされる
-   - Containerコンポーネント（Hooksで状態管理）
-   - **例:** `HomePage.jsx`, `ProfilePage.jsx`
-   - **パターン:**
-     ```javascript
-     // ✅ 正しい: コンテンツのみを返す
-     export function HomePage() {
-       return (
-         <div className="space-y-8">
-           <h1>Welcome</h1>
-           {/* コンテンツ */}
-         </div>
-       )
-     }
-
-     // ❌ 間違い: Layout要素を含める（Layout.tsxで自動提供される）
-     export function HomePage() {
-       return (
-         <>
-           <TopNavigation />  {/* 不要 */}
-           <div className="min-h-screen bg-gradient...">  {/* 不要 */}
-             <main className="max-w-7xl mx-auto px-8 pt-24">  {/* 不要 */}
-               {/* コンテンツ */}
-             </main>
-           </div>
-         </>
-       )
-     }
-     ```
-
-#### 実装例
-
-**データフロー全体（React Query版）:**
+**データフロー全体（パターン）:**
 ```javascript
-// hooks/useUserProfile.js
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { UserProfileRepository } from '../repositories'
-import { UserProfile } from '../models'
+// ✅ 正しい使い方
+const { data, error } = await EdgeFunctionService.invoke('my-function', payload)
+const { profile, isLoading } = usePublicProfile(userId)
+const { generate, isPending, data } = useImageGeneration()
 
-export function useUserProfile(userId) {
-  const queryClient = useQueryClient()
-
-  // Query: プロフィール取得
-  const query = useQuery({
-    queryKey: ['userProfile', userId],
-    queryFn: async () => {
-      const { data, error } = await UserProfileRepository.findByUserId(userId)
-      if (error) throw error
-      return data ? UserProfile.fromDatabase(data) : null
-    },
-    enabled: !!userId,
-  })
-
-  // Mutation: プロフィール更新
-  const updateMutation = useMutation({
-    mutationFn: async (updates) => {
-      const { data, error } = await UserProfileRepository.update(userId, updates)
-      if (error) throw error
-      return UserProfile.fromDatabase(data)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] })
-    },
-  })
-
-  return {
-    profile: query.data,
-    isLoading: query.isLoading,
-    error: query.error,
-    updateProfile: updateMutation.mutate,
-  }
-}
-
-// pages/ProfilePage.jsx
-function ProfilePage() {
-  const { user } = useAuth()
-  const { profile, isLoading, updateProfile } = useUserProfile(user?.id)
-
-  if (isLoading) return <Skeleton />
-
-  return <div>{profile.displayName}</div>
-}
+// ❌ 間違い
+const result = await EdgeFunctionService.invoke('my-function', payload)
+console.log(result.someField)  // undefined
 ```
+
+*詳細な実装例は `src/pages/ExamplesPage.jsx` を参照*
 
 #### Component設計原則
 
-Akatsukiでは、**Componentベースの設計**を徹底し、保守性と再利用性を最大化します。
-
-**1. Component分類 (3つの役割)**
+**Component分類 (3つの役割)**
 
 ```
 ┌─────────────────────────────────────────────────┐
 │ Pages (Container Component)                     │
-│ - 画面全体の構成                                │
-│ - Feature Componentの組み合わせ                  │
-│ - 最小限のState管理                              │
+│ - 画面全体の構成、Feature Componentの組み合わせ  │
 └─────────────────────────────────────────────────┘
               ↓ 使用
 ┌─────────────────────────────────────────────────┐
 │ Feature Components                              │
 │ - ドメイン固有のビジネスロジック                 │
-│ - Repository/Serviceとの連携                     │
-│ - 複雑なState管理                                │
-│ - 例: FileUpload, AuthGuard, ModelSelector      │
+│ - Repository/Serviceとの連携、複雑なState管理    │
 └─────────────────────────────────────────────────┘
               ↓ 使用
 ┌─────────────────────────────────────────────────┐
 │ UI Components (Presentational Component)       │
-│ - 見た目のみ（ロジックなし）                     │
-│ - propsで完全に制御可能                          │
-│ - 例: Button, Card, Input (shadcn/ui)           │
+│ - 見た目のみ（ロジックなし）、propsで完全に制御   │
 └─────────────────────────────────────────────────┘
 ```
 
-**2. Pagesの責務（Container Component）**
-
-Pagesは「画面の組み立て役」として振る舞います。
+**Pagesの責務:**
 
 ✅ **やるべきこと:**
 - Feature Componentを組み合わせて画面を構成
@@ -447,34 +358,7 @@ Pagesは「画面の組み立て役」として振る舞います。
 - Repository/Serviceを直接呼び出し（Feature Componentに委譲）
 - 巨大なハンドラー関数を量産
 
-**❌ 悪い例（Pages に全てのロジックを詰め込む）:**
-- 複雑なState管理を全てPageに記述（useState を10個以上並べる）
-- 50行以上のハンドラー関数を量産
-- Repository/Serviceの直接呼び出しをPageに記述
-- UIロジックとビジネスロジックが混在
-
-**✅ 良い例（Feature Componentに分割）:**
-```jsx
-export function SomePage() {
-  return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <PageHeader />
-      <LLMChatCard />              {/* Feature Component */}
-      <ImageGenerationCard />      {/* Feature Component */}
-      <PublicStorageCard />        {/* Feature Component */}
-      <ExternalIntegrationsCard /> {/* Feature Component */}
-    </div>
-  )
-}
-```
-
-**Note:**
-- `HomePage (/)` - シンプルなWelcome画面（VibeCoding で自由に作り替え可能）
-- `ExamplesPage (/examples)` - 全機能の実装例・動作確認用（参考資料）
-
-**3. Feature Componentsの設計**
-
-Feature Componentsは、特定のドメイン機能を持つ「スマートなComponent」です。
+**Feature Componentsの設計:**
 
 ✅ **特徴:**
 - Repository/Serviceとの連携
@@ -482,56 +366,9 @@ Feature Componentsは、特定のドメイン機能を持つ「スマートなCo
 - Custom Hooksの活用
 - ドメインロジックのカプセル化
 
-**実装パターン例:**
+*実装パターン例は `src/components/features/` 内の各コンポーネントを参照*
 
-```jsx
-// Feature Component: components/features/llm/LLMChatCard.jsx
-export function LLMChatCard() {
-  const { prompt, setPrompt, result, loading, sendMessage } = useLLMChat()
-
-  return (
-    <Card>
-      <CardContent>
-        <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-        <Button onClick={sendMessage} disabled={loading}>Send</Button>
-        {result && <ChatResult result={result} />}
-      </CardContent>
-    </Card>
-  )
-}
-
-// Custom Hook: hooks/useLLMChat.js
-export function useLLMChat() {
-  const [prompt, setPrompt] = useState('')
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  const sendMessage = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const { data, error: chatError } = await AIService.chat(prompt)
-      if (chatError) {
-        setError(chatError)
-        setResult(null)
-      } else {
-        setResult(data)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return { prompt, setPrompt, result, error, loading, sendMessage }
-}
-```
-
-**参考実装:** `src/pages/ExamplesPage.jsx` に実際の実装例があります。
-
-**4. UI Components（Presentational Component）**
-
-UI Componentsは「純粋な見た目のComponent」です。
+**UI Components（Presentational Component）:**
 
 ✅ **原則:**
 - ビジネスロジックを持たない
@@ -539,141 +376,29 @@ UI Componentsは「純粋な見た目のComponent」です。
 - Repository/Serviceを呼ばない
 - State管理は最小限（開閉状態等のUI Stateのみ）
 
-**参考実装:**
-- `src/components/ui/` - shadcn/ui の UI Components（Button, Card, Input等）
-- これらは既に実装済みで、そのまま使用できます
-
-**5. Layout Components**
-
-画面全体のレイアウトを管理するComponentです。
-
-**例:** TopNavigation, Sidebar, Footer 等
-- 実装が必要な場合は `src/components/layout/` に作成
-
-**6. Custom Hooksの活用**
-
-複雑なビジネスロジックはCustom Hooksに抽出します。
-
-✅ **抽出すべきロジック:**
-- Repository/Serviceの呼び出し
-- 複雑なState管理
-- 複数のComponentで再利用するロジック
-
-**例:**
-- `useLLMChat()` - LLMチャット機能
-- `useImageGeneration()` - 画像生成機能
-- `useFileUpload()` - ファイルアップロード機能
-- `useAuth()` - 認証状態管理（実装済み）
-
-**7. ディレクトリ移行ガイド**
-
-既存のComponentを整理する際のガイドラインです。
-
-```
-現在の配置              → 推奨される配置
-──────────────────────────────────────────────────
-components/ui/         → components/ui/          (変更なし)
-components/TopNavigation.jsx
-                       → components/layout/TopNavigation.jsx
-components/auth/       → components/features/auth/
-components/ai/         → components/features/ai/
-components/storage/    → components/features/storage/
-```
+*参考実装: `src/components/ui/` - shadcn/ui の UI Components（Button, Card, Input等）*
 
 #### ベストプラクティス
 
 **Component設計:**
 
-1. **1ファイル = 200行以内を目指す**
-   - 超えたら分割を検討
-   - Feature ComponentとCustom Hookに分ける
-
-2. **Pagesは組み立てに専念**
-   - Feature Componentの組み合わせのみ
-   - ビジネスロジックは持たない
-
-3. **Feature Componentはドメイン単位**
-   - 1機能 = 1Feature Component
-   - 例: LLMChat, ImageGeneration, FileUpload
-
-4. **Custom Hooksで再利用性を高める**
-   - 複数のFeature Componentで共通利用
-   - テスト容易性の向上
-
-5. **propsのバケツリレーを避ける**
-   - 3階層以上のprops渡しはContext APIを検討
-   - グローバルStateはContextに集約
-
-#### Component分割の判断基準（The 200-Line Rule）
-
-複雑化したComponentを適切なタイミングで分割することで、保守性を維持します。
+1. **1ファイル = 200行以内を目指す** - 超えたら分割を検討、Feature ComponentとCustom Hookに分ける
+2. **Pagesは組み立てに専念** - Feature Componentの組み合わせのみ、ビジネスロジックは持たない
+3. **Feature Componentはドメイン単位** - 1機能 = 1Feature Component
+4. **Custom Hooksで再利用性を高める** - 複数のFeature Componentで共通利用、テスト容易性の向上
+5. **propsのバケツリレーを避ける** - 3階層以上のprops渡しはContext APIを検討
 
 **分割すべきタイミング:**
-
 1. **200行を超えた** → Feature Component + Custom Hook に分割
 2. **useState が5個以上** → Custom Hook に抽出
 3. **同じロジックを2箇所で使った** → Custom Hook化
 4. **ハンドラー関数が50行超え** → Service層 または Custom Hook へ
 
-**分割不要なケース:**
-- 初回実装時（まず動かす、後でリファクタ）
-- 100行以下のシンプルなComponent
-- 1回しか使わないロジック
-
-**リファクタリング例:**
-
-```jsx
-// ❌ 悪い例: 300行のComponent、useState x8、複雑なハンドラー
-function HeavyComponent() {
-  const [state1, setState1] = useState()
-  const [state2, setState2] = useState()
-  // ... 8個のstate
-
-  const handleComplexLogic = () => {
-    // 50行の処理...
-  }
-
-  return (/* 200行のJSX */)
-}
-
-// ✅ 良い例: Custom Hookに分割
-function useComplexLogic() {
-  const [state1, setState1] = useState()
-  const [state2, setState2] = useState()
-  // ...
-
-  const handleComplexLogic = () => {
-    // 50行の処理...
-  }
-
-  return { state1, state2, handleComplexLogic }
-}
-
-function CleanComponent() {
-  const logic = useComplexLogic()
-
-  return (/* 50行のシンプルなJSX */)
-}
-```
-
 **データアクセス:**
-
-1. **lib/supabase.js は肥大化させない**
-   - クライアント初期化のみに専念
-   - テーブル操作は Repository へ
-   - Edge Functions 呼び出しは Service へ
-
-2. **Model は常に使う**
-   - DBレコードを直接使わず、必ず Model 経由で変換
-   - `fromDatabase()` と `toDatabase()` を必ず実装
-
-3. **Repository はテーブル単位**
-   - 1テーブル = 1Repository
-   - 例: `profiles` テーブル → `UserProfileRepository`
-
-4. **Service は機能単位**
-   - Edge Functions のラッパー
-   - 外部API連携
+1. **lib/supabase.js は肥大化させない** - クライアント初期化のみに専念
+2. **Model は常に使う** - DBレコードを直接使わず、必ず Model 経由で変換
+3. **Repository はテーブル単位** - 1テーブル = 1Repository
+4. **Service は機能単位** - Edge Functions のラッパー、外部API連携
 
 ### 4.2. TypeScript
 
@@ -684,33 +409,15 @@ AkatsukiはTypeScriptを採用しています。
 - 🔄 Component/Page層は一部 `.jsx` が残存（段階的移行中）
 - 📝 新規ファイルは全て `.tsx` / `.ts` で作成
 
-**重要:**
-本ドキュメント内で `.js` と記載されている箇所も、実際には `.ts` で実装されています。
-実装時は既存ファイルを確認してください（例: `UserProfile.ts`, `Agent.ts`）。
-
-#### 型定義の使い方
-
-- 型定義はtypesにまとめて定義しています。`src/types/index.ts`
-- 以下の例のように使用可能です。
-
-**例： Edge Function呼び出し:**
+**型定義の使い方:**
 ```typescript
 import type { EdgeFunctionResponse, AIChatResponse } from '@/types'
 
 const { data, error }: EdgeFunctionResponse<AIChatResponse> =
   await EdgeFunctionService.invoke('ai-chat', { message: 'Hello' })
+```
 
-if (error) {
-  console.error(error.message)  // TypeScriptが型チェック
-  return
-}
-
-#### 主な型定義コンポーネント
-* EdgeFunction 関連
-* Async Job 関連
-
-#### 参考資料
-
+**参考資料:**
 - 型定義一覧: `src/types/index.ts`
 - 使用例とガイド: `src/types/README.md`
 - テストコンポーネント: `/type-test` (開発サーバーでアクセス可能)
@@ -719,50 +426,23 @@ if (error) {
 
 Akatsuki では、Supabase Auth を使用した公開/非公開ページ混在型の認証システムを標準実装しています。
 
-#### 認証システム構成
-
-```
-src/
-├── contexts/
-│   └── AuthContext.jsx       # 認証状態管理（Context API）
-├── components/
-│   └── auth/
-│       ├── AuthGuard.jsx     # Private ルート保護コンポーネント
-│       ├── LoginForm.jsx     # ログインフォーム
-│       └── SignupForm.jsx    # サインアップフォーム
-├── pages/
-│   ├── LoginPage.jsx         # ログインページ
-│   ├── SignupPage.jsx        # サインアップページ
-│   ├── AdminDashboard.jsx    # 管理画面（Private）
-│   └── HomePage.jsx          # 公開ページ（Public）
-└── App.jsx                   # ルーティング設定
-```
-
 #### ルーティングパターン
 
 **Layout.tsx を使った階層化ルーティング:**
 
-Akatsukiでは、`Layout.tsx` により全ページ共通のレイアウト（TopNavigation、背景、パディング）を自動提供します。
-
 ```javascript
-// App.jsx
-import { Layout } from './components/layout/Layout'
-import { PrivateLayout } from './components/layout/PrivateLayout'
-
 <BrowserRouter>
   <AuthProvider>
     <Routes>
-      {/* Public Routes - Layout で自動的にメニュー・背景が提供される */}
+      {/* Public Routes */}
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
       </Route>
 
-      {/* Private Routes - PrivateLayout で認証チェック + Layout */}
+      {/* Private Routes */}
       <Route element={<PrivateLayout />}>
         <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/character-generator" element={<CharacterGeneratorPage />} />
       </Route>
     </Routes>
   </AuthProvider>
@@ -770,34 +450,10 @@ import { PrivateLayout } from './components/layout/PrivateLayout'
 ```
 
 **Layoutバリエーション:**
-```javascript
-// Layout.tsx - デフォルト（max-w-7xl）
-<Route element={<Layout />}>
-  <Route path="/dashboard" element={<DashboardPage />} />
-</Route>
-
-// NarrowLayout - 狭いコンテンツ用（max-w-4xl）
-<Route element={<NarrowLayout />}>
-  <Route path="/article" element={<ArticlePage />} />
-</Route>
-
-// FullWidthLayout - 全幅（w-full）
-<Route element={<FullWidthLayout />}>
-  <Route path="/canvas" element={<CanvasPage />} />
-</Route>
-```
-
-**PrivateLayout の仕組み:**
-```javascript
-// PrivateLayout.tsx
-export function PrivateLayout() {
-  return (
-    <AuthGuard>  {/* 認証チェック */}
-      <Layout />   {/* 認証OKなら通常Layout */}
-    </AuthGuard>
-  )
-}
-```
+- `Layout` - デフォルト（max-w-7xl）
+- `NarrowLayout` - 狭いコンテンツ用（max-w-4xl）
+- `FullWidthLayout` - 全幅（w-full）
+- `PrivateLayout` - AuthGuard + Layout
 
 #### 認証機能
 
@@ -813,157 +469,35 @@ export function PrivateLayout() {
 - `resetPassword(email)` - パスワードリセットメール送信
 - `updatePassword(newPassword)` - パスワード更新
 
-**OAuth ログイン:**
+**OAuth サポート:**
+- Google, GitHub, GitLab, Bitbucket, Azure, Facebook, Twitter, Discord, Slack, Apple など
+
+**ロールベースアクセス制御（RBAC）:**
 ```javascript
-// LoginForm.jsx に実装済み
-<Button onClick={() => signInWithOAuth('google')}>
-  Google でログイン
-</Button>
-<Button onClick={() => signInWithOAuth('github')}>
-  GitHub でログイン
-</Button>
-```
+const { profile, isAdmin, isModerator } = useAuth()
 
-**サポートされているプロバイダー:**
-- Google, GitHub, GitLab, Bitbucket
-- Azure, Facebook, Twitter, Discord
-- Slack, Apple など
-
-**OAuth 設定（Supabase Dashboard）:**
-1. Authentication → Providers
-2. プロバイダーを有効化
-3. Client ID / Client Secret を設定
-
-**パスワードリセットフロー:**
-1. `/forgot-password` - メールアドレス入力 → リセットメール送信
-2. `/reset-password` - 新パスワード入力（メールのリンクから）
-
-**使用例:**
-```javascript
-import { useAuth } from '../contexts/AuthContext'
-
-function MyComponent() {
-  const { user, signIn, signOut } = useAuth()
-
-  const handleLogin = async () => {
-    const { error } = await signIn(email, password)
-    if (error) console.error(error)
-  }
-
-  return (
-    <div>
-      {user ? (
-        <button onClick={signOut}>ログアウト</button>
-      ) : (
-        <button onClick={handleLogin}>ログイン</button>
-      )}
-    </div>
-  )
+if (isAdmin) {
+  // 管理者機能
 }
+
+// metadata で role を指定
+signUp(email, password, {
+  username: 'admin_user',
+  role: 'admin'  // デフォルトは 'user'
+})
 ```
 
-#### AuthGuard の動作
-
-1. **ローディング中**: スピナーを表示（フラッシュ防止）
-2. **未ログイン**: `/login` へリダイレクト
-3. **ログイン済み**: 子コンポーネントを表示
-
-```javascript
-// 使用例
-<Route
-  path="/admin/*"
-  element={
-    <AuthGuard>
-      <AdminLayout />
-    </AuthGuard>
-  }
-/>
-```
+**利用可能なロール:**
+- `user` - 一般ユーザー（デフォルト）
+- `admin` - 管理者
+- `moderator` - モデレーター
 
 #### ベストプラクティス
 
 1. **AuthProvider は App の最上位に配置**
-   ```javascript
-   <BrowserRouter>
-     <AuthProvider>
-       <Routes>...</Routes>
-     </AuthProvider>
-   </BrowserRouter>
-   ```
-
 2. **Public/Private を明確に分離**
-   - Public: /, /login, /signup, /about など
-   - Private: /admin/*, /dashboard/*, /settings/* など
-
-3. **ログイン後のリダイレクト**
-   ```javascript
-   const { signIn } = useAuth()
-   const navigate = useNavigate()
-
-   const handleLogin = async () => {
-     const { error } = await signIn(email, password)
-     if (!error) navigate('/admin')
-   }
-   ```
-
-4. **RLS（Row Level Security）と連携**
-   - Supabase の RLS が有効な場合、認証済みユーザーのみアクセス可能
-   - Repository での CRUD 操作は自動的に認証状態を使用
-
-5. **Profile 自動作成（Database Trigger）**
-   - ユーザー登録時に自動的に `profiles` レコードが作成される
-   - `auth.users` への INSERT 後、Trigger が発火
-   - metadata から `username`, `display_name` を取得（未指定時はメールアドレスのプレフィックス使用）
-   - username の重複時は自動的に user_id を付与して一意性を確保
-
-   **Trigger の仕組み:**
-   1. SignupForm で metadata に `username`, `display_name` を指定
-   2. `auth.users` にユーザー作成
-   3. Trigger 発火 (`handle_new_user()`)
-   4. `profiles` テーブルに自動作成（username 重複時は user_id を付与）
-
-   **マイグレーション:** `20251029090845_add_profile_creation_trigger.sql`
-
-6. **ロールベースアクセス制御（Role-Based Access Control）**
-   - profiles テーブルに role カラムを追加
-   - デフォルトロール: `user`
-   - 利用可能なロール: `user`, `admin`, `moderator`
-
-   **AuthContext でロール判定:**
-   ```javascript
-   const { profile, isAdmin, isModerator } = useAuth()
-
-   // 管理者のみアクセス可能
-   if (isAdmin) {
-     // 管理者機能
-   }
-
-   // モデレーター以上でアクセス可能
-   if (isModerator) {
-     // モデレーター機能
-   }
-
-   // プロフィールから直接判定
-   if (profile?.isAdmin()) {
-     // 管理者機能
-   }
-   ```
-
-   **ロール設定（サインアップ時）:**
-   ```javascript
-   // metadata で role を指定
-   signUp(email, password, {
-     username: 'admin_user',
-     display_name: 'Admin User',
-     role: 'admin'  // デフォルトは 'user'
-   })
-   ```
-
-   **マイグレーション:**
-   - `20251029093327_add_role_to_profiles.sql`
-   - CHECK 制約で 'user', 'admin', 'moderator' のみ許可
-   - Trigger が自動的に metadata から role を取得
-
+3. **RLS（Row Level Security）と連携** - Supabase の RLS が有効な場合、認証済みユーザーのみアクセス可能
+4. **Profile 自動作成** - ユーザー登録時に自動的に `profiles` レコードが作成される（Database Trigger）
 ## 5. 主要機能 (Key Features)
 
 このテンプレートは、AI開発を加速するための基盤を標準搭載しています。
@@ -976,130 +510,34 @@ Akatsuki では、複数のAIプロバイダー（OpenAI, Anthropic, Gemini）�
 
 **useAIGen フック（汎用AI操作）:**
 ```javascript
-import { useAIGen } from '@/hooks/useAIGen'
-
-function MyComponent() {
-  const { chat, generateImage, loading, error } = useAIGen('openai')
-
-  // チャット
-  const response = await chat('こんにちは')
-
-  // 画像生成（汎用）
-  const image = await generateImage('猫の絵')
-}
+const { chat, generateImage, loading, error } = useAIGen('openai')
+const response = await chat('こんにちは')
+const image = await generateImage('猫の絵')
 ```
 
 **useImageGeneration フック（画像生成特化）:**
 
-**3つのモード（ユーザーの意図を表現、インフラ非依存）:**
+**3つのモード:**
 
 | Mode | 説明 | パラメータ | サポートProvider |
 |------|------|------------|------------------|
 | **text-to-image** | テキストから画像生成 | prompt: 必須 | DALL-E 3, DALL-E 2, Gemini |
-| **variation** | 既存画像の自動バリエーション | prompt: 不要<br>image_url: 必須 | DALL-E 2, Gemini |
-| **edit** | 画像をプロンプトで編集 | prompt: 必須<br>image_url: 必須 | Gemini のみ |
+| **variation** | 既存画像の自動バリエーション | image_url: 必須 | DALL-E 2, Gemini |
+| **edit** | 画像をプロンプトで編集 | prompt + image_url | Gemini のみ |
 
-**重要な設計思想:**
-- ✅ **Mode = ユーザーの意図**（インフラ知識を漏洩させない）
-- ✅ **Provider/Model = オプション**（デフォルト値で動作、特定Provider使用時のみ指定）
-- ✅ **Storage 自動保存** - Public/Private を選択可能（デフォルト: public）
-- ⚠️ **DALL-E 3 非サポート機能**: variation, edit（DALL-E 2を自動選択）
-- ⚠️ **Gemini 非サポート機能**: なし（全モード対応）
+**設計思想:**
+- ✅ Mode = ユーザーの意図（インフラ知識を漏洩させない）
+- ✅ Provider/Model = オプション（デフォルト値で動作）
+- ✅ Storage 自動保存（Public/Private選択可能）
 
-```javascript
-import { useImageGeneration } from '@/hooks/useImageGeneration'
-
-function MyComponent() {
-  const {
-    generate,
-    generateVariation,
-    generateEdit,
-    loading,
-    error,
-    result,
-  } = useImageGeneration()
-
-  // 1. Text-to-Image（通常生成）
-  const handleTextToImage = async () => {
-    const image = await generate({
-      prompt: '可愛い猫が毛糸で遊んでいる',
-      // provider: 'dalle' (オプション、デフォルトで動作)
-      quality: 'hd',
-      size: '1024x1024',
-      style: 'vivid',
-      storage: 'public',  // または 'private'
-    })
-    console.log(image.publicUrl) // 恒久的な公開URL
-  }
-
-  // 2. Variation（自動バリエーション生成、プロンプト不要）
-  const handleVariation = async (existingImageUrl) => {
-    const variation = await generateVariation(existingImageUrl, {
-      // provider: 'dalle' (オプション、デフォルトで動作)
-    })
-  }
-
-  // 3. Edit（画像をプロンプトで編集、Gemini のみ）
-  const handleEdit = async (imageUrl) => {
-    const edited = await generateEdit(
-      imageUrl,
-      'Add a wizard hat to the cat',  // 編集指示
-      {
-        // provider: 'gemini' (自動的に Gemini を使用)
-      }
-    )
-  }
-
-  return (
-    <div>
-      <button onClick={handleTextToImage} disabled={loading}>
-        画像生成
-      </button>
-      {result && <img src={result.publicUrl} alt="Generated" />}
-    </div>
-  )
-}
-```
-
-**Provider別機能対応表（参考情報）:**
-| 機能 | DALL-E 3 | DALL-E 2 | Gemini 2.5 Flash |
-|------|----------|----------|------------------|
-| Text-to-Image | ✅ HD/Vivid | ✅ Standard | ✅ |
-| Variation | ❌ | ✅ | ✅ |
-| Edit | ❌ | ❌ | ✅ |
-| サイズ | 1024² / 1792×1024 / 1024×1792 | 1024² / 512² / 256² | Gemini 依存 |
-
-注: Provider の制約は Hook/Service が自動的に吸収します。Mode とパラメータのみを意識してください。
-
-**ModelSelector コンポーネント:**
-```javascript
-import { ModelSelector } from '@/components/ai/ModelSelector'
-
-function MyComponent() {
-  const [modelId, setModelId] = useState(null)
-
-  return (
-    <ModelSelector
-      value={modelId}
-      onChange={setModelId}
-      // Vision対応モデルのみ表示
-      filters={{ supportsImageInput: true }}
-    />
-  )
-}
-```
+*詳細な使用例は `src/pages/ExamplesPage.jsx` を参照*
 
 **実装済み機能:**
-- `useAIGen` - プロバイダー切り替え可能なAIフック
-  - `chat()` - チャット補完
-  - `chatStream()` - ストリーミングチャット
-  - `generateImage()` - 画像生成
-  - `editImage()` - 画像編集
-  - `embed()` - 埋め込み生成
+- `useAIGen` - プロバイダー切り替え可能なAIフック（chat, chatStream, generateImage, editImage, embed）
 - `AIService` - プロバイダー統合層（OpenAI, Anthropic, Gemini対応）
 - `AIModel` - モデル定義（DB管理）
 - `AIModelRepository` - モデル情報取得（Supabase）
-- `ModelSelector` - UIモデル選択コンポーネント（shadcn/ui）
+- `ModelSelector` - UIモデル選択コンポーネント
 
 **Supabase Edge Functions:**
 - `ai-chat` - AIプロバイダー統一チャットエンドポイント（マルチプロバイダー対応、クォータ管理）
@@ -1107,80 +545,27 @@ function MyComponent() {
 
 #### Akatsuki統一ハンドラーパターン
 
-Supabase Edge Functions で共通的に使用する統一ハンドラーを提供しています。
-
-**実装場所:**
-- `supabase/functions/_shared/handler.ts` - 統一ハンドラー本体
-- `supabase/functions/_shared/api_types.ts` - レスポンス型定義
-- `supabase/functions/_shared/repository.ts` - BaseRepository
-- `supabase/functions/_shared/repositories/` - Repository実装
+Supabase Edge Functions で共通的に使用する統一ハンドラーを提供。
 
 **2種類のハンドラー:**
 
 1. **`createAkatsukiHandler`** - ユーザー向けAPI（認証必須）
-   ```typescript
-   import { createAkatsukiHandler } from '../_shared/handler.ts'
-
-   Deno.serve(async (req) => {
-     return createAkatsukiHandler<Input, Output>(req, {
-       inputSchema: InputSchema,  // Zodスキーマ
-       requireAuth: true,
-
-       logic: async ({ input, userClient, adminClient, repos }) => {
-         // userClient: RLS有効（ユーザー自身のデータのみ）
-         const { data: { user } } = await userClient.auth.getUser()
-
-         // adminClient経由のRepos: RLSバイパス（Usage等の改ざん防止）
-         await repos.userQuota.incrementUsage(quotaId)
-
-         return { message: 'Success' }
-       }
-     })
-   })
-   ```
+   - `userClient`: RLS有効（ユーザー自身のデータのみ）
+   - `adminClient`: RLSバイパス（Usage等の改ざん防止）
 
 2. **`createSystemHandler`** - システム内部API（Webhook等、認証不要）
-   ```typescript
-   import { createSystemHandler } from '../_shared/handler.ts'
-
-   Deno.serve(async (req) => {
-     return createSystemHandler<Input, Output>(req, {
-       inputSchema: InputSchema,
-
-       logic: async ({ input, adminClient, repos }) => {
-         // adminClient: RLSバイパス（全データアクセス可能）
-         await repos.userQuota.create({ ... })
-
-         return { received: true }
-       }
-     })
-   })
-   ```
+   - `adminClient`: RLSバイパス（全データアクセス可能）
 
 **設計の意図:**
-- **認証**: ハンドラーレベルで自動チェック
-- **クライアント分離**:
-  - `userClient` (RLS有効) - ユーザー自身のデータのみ操作
-  - `adminClient` (RLSバイパス) - Usage等の改ざん防止
-- **統一レスポンス**: `AkatsukiResponse<T>` 形式で統一
-- **エラーハンドリング**: 統一ハンドラーで自動処理（CORS、バリデーション等）
+- 認証: ハンドラーレベルで自動チェック
+- 統一レスポンス: `AkatsukiResponse<T>` 形式
+- エラーハンドリング: 統一ハンドラーで自動処理（CORS、バリデーション等）
 
-**利用例:**
-- `supabase/functions/ai-chat/index.ts` - LLM APIエンドポイント
-- `supabase/functions/generate-image/index.ts` - 画像生成エンドポイント
-
-#### Backend実装（Axum）
-
-**エンドポイント雛形:**
-  - `packages/app-backend/src/main.rs` に以下の3つのエンドポイント雛形を実装済み：
-    1. **画像生成 (Text-to-Image):** `/api/aigen/text-to-image`
-    2. **Img2Img (Image-to-Image):** `/api/aigen/image-to-image`
-    3. **Agent実行 (LLMタスク):** `/api/aigen/agent-execute`
-  - Supabase (PostgreSQL) 連携基盤（`src/db.rs`）
+*実装例: `supabase/functions/ai-chat/index.ts`, `generate-image/index.ts`*
 
 ### 5.2. Web検索統合 (Web Search Integration)
 
-Akatsuki では、AI統合型Web検索機能を標準搭載しています。2つのプロバイダーから選択可能で、デフォルトはコスパ最高のGemini Google検索です。
+AI統合型Web検索機能を標準搭載。2つのプロバイダーから選択可能。
 
 #### 対応プロバイダー
 
@@ -1193,203 +578,63 @@ Akatsuki では、AI統合型Web検索機能を標準搭載しています。2�
 
 #### Frontend実装
 
-**WebSearchService（基本）:**
 ```javascript
 import { WebSearchService } from '@/services/WebSearchService'
-
-// Gemini Google検索（デフォルト）
-const { data, error } = await WebSearchService.search('AIアート 最新動向')
-console.log(data.answer)        // AIの回答
-console.log(data.results)       // 引用元URL
-console.log(data.searchQueries) // 実行された検索クエリ
-
-// Tavily AI Search（オプション）
-const { data, error } = await WebSearchService.search('React hooks', {
-  provider: 'tavily',
-  numResults: 5
-})
-console.log(data.answer)   // Tavilyの要約
-console.log(data.results)  // 検索結果配列
-```
-
-**useWebSearch フック（React Query）:**
-```javascript
 import { useWebSearch } from '@/hooks/useWebSearch'
 
-function MyComponent() {
-  const { searchAsync, isPending, data } = useWebSearch()
+// Service（基本）
+const { data, error } = await WebSearchService.search('AIアート 最新動向')
 
-  const handleSearch = async () => {
-    const result = await searchAsync({
-      query: '2024年のAI画像生成の最新動向を教えて',
-      provider: 'gemini',  // または 'tavily'
-      numResults: 10
-    })
-    console.log(result.answer)        // AIの回答
-    console.log(result.sources)       // 情報源
-    console.log(result.searchQueries) // 検索クエリ（Geminiのみ）
-  }
-
-  return (
-    <div>
-      <button onClick={handleSearch} disabled={isPending}>
-        Search
-      </button>
-      {data && (
-        <div>
-          <p>{data.answer}</p>
-          {data.results.map((r, i) => (
-            <a key={i} href={r.url}>{r.title}</a>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+// Hook（React Query）
+const { searchAsync, isPending, data } = useWebSearch()
+const result = await searchAsync({ query: '...', provider: 'gemini' })
 ```
 
-**WebSearchCard コンポーネント（実装済み）:**
-```javascript
-import { WebSearchCard } from '@/components/features/search/WebSearchCard'
-
-function MyPage() {
-  return <WebSearchCard />
-  // プロバイダー切り替えUI付き
-  // Gemini/Tavily をタブで選択可能
-}
-```
-
-#### Supabase Edge Function
-
-**実装場所:**
-- `supabase/functions/web-search/index.ts`
-
-**パラメータ:**
-```typescript
-{
-  query: string,              // 検索クエリ
-  num_results?: number,       // 結果数（1-20、デフォルト: 10）
-  provider?: 'gemini' | 'tavily'  // プロバイダー（デフォルト: 'gemini'）
-}
-```
-
-**レスポンス:**
-```typescript
-{
-  query: string,
-  answer: string,             // AI生成の要約/回答
-  results: Array<{
-    title: string,
-    url: string,
-    content: string,
-    score?: number            // Tavilyのみ
-  }>,
-  num_results: number,
-  provider: 'gemini' | 'tavily',
-  searchQueries?: string[]    // Geminiのみ（実行された検索クエリ）
-}
-```
-
-#### 実装済み機能
-
-- `WebSearchService` - Web検索統一API（Gemini/Tavily対応）
+**実装済み機能:**
+- `WebSearchService` - Web検索統一API
 - `useWebSearch` - React Query統合フック
 - `WebSearchCard` - プロバイダー切り替えUI付きコンポーネント
 - `web-search` Edge Function - マルチプロバイダー検索エンドポイント
 
 ### 5.3. 外部連携統合 (External Integrations)
 
-Akatsuki では、よく使う外部サービス連携の雛形を標準搭載しています。
+よく使う外部サービス連携の雛形を標準搭載。
 
 #### Slack通知
 
-**実装場所:**
-- `supabase/functions/slack-notify/index.ts`
+**実装場所:** `supabase/functions/slack-notify/index.ts`
 
-**用途例:**
-- エラー通知
-- システムアラート
-- ステータス更新通知
-- デプロイ完了通知
+**用途例:** エラー通知、システムアラート、ステータス更新通知、デプロイ完了通知
 
-**使用例:**
-```typescript
-// 内部システムから呼び出し（認証不要）
-await fetch('https://your-project.supabase.co/functions/v1/slack-notify', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    text: 'デプロイが完了しました！',
-    channel: '#notifications',
-    attachments: [{
-      color: 'good',
-      title: 'Production Deploy',
-      fields: [
-        { title: 'Version', value: 'v1.2.3', short: true },
-        { title: 'Status', value: '✅ Success', short: true },
-      ]
-    }]
-  })
-})
-```
-
-**環境変数:**
-- `SLACK_WEBHOOK_URL` - Slack Incoming Webhook URL
+**環境変数:** `SLACK_WEBHOOK_URL`
 
 #### Email送信
 
-**実装場所:**
-- `supabase/functions/send-email/index.ts`
+**実装場所:** `supabase/functions/send-email/index.ts`
 
-**用途例:**
-- パスワードリセットメール
-- ウェルカムメール
-- 通知メール
-- レポート送信
+**用途例:** パスワードリセットメール、ウェルカムメール、通知メール、レポート送信
 
-**使用例:**
-```typescript
-// 内部システムから呼び出し（認証不要）
-await fetch('https://your-project.supabase.co/functions/v1/send-email', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    to: 'user@example.com',
-    subject: 'Welcome to Akatsuki!',
-    html: '<h1>Welcome!</h1><p>Thanks for signing up.</p>',
-    metadata: {
-      template: 'welcome',
-      user_id: 'user-123'
-    }
-  })
-})
-```
+**環境変数:** `RESEND_API_KEY`, `EMAIL_FROM`
 
-**環境変数:**
-- `RESEND_API_KEY` - Resend API Key
-- `EMAIL_FROM` - デフォルト送信元メールアドレス
-
-**使用サービス:**
-- [Resend](https://resend.com/) - シンプルで開発者フレンドリーなメール送信サービス
+**使用サービス:** [Resend](https://resend.com/)
 
 #### 拡張方法
 
 新しい外部連携を追加する場合:
-1. `supabase/functions/` に新しいFunction作成（例: `discord-notify`）
+1. `supabase/functions/` に新しいFunction作成
 2. `createSystemHandler` を使用してハンドラー実装
 3. 環境変数に Webhook URL や API Key を設定
-4. デプロイ: `akatsuki function deploy`
+4. デプロイ: `npm run supabase:function:deploy`
 
-### 5.4. shadcn/ui コンポーネント (将来の拡張)
+### 5.4. shadcn/ui コンポーネント
 
-* `packages/ui-components/` に `shadcn/ui` の主要コンポーネントを導入予定
-* 開発者は即座にコンポーネントを利用・カスタマイズ可能
+`packages/ui-components/` に shadcn/ui の主要コンポーネントを導入予定。開発者は即座にコンポーネントを利用・カスタマイズ可能。
 
 ### 5.5. AI Agent UI Library (`@akatsuki/ai-agent-ui`)
 
 **Location:** `packages/ai-agent-ui/`
 
-テキスト入力フィールドに AI 機能を簡単に追加できる React コンポーネントライブラリです。
+テキスト入力フィールドに AI 機能を簡単に追加できる React コンポーネントライブラリ。
 
 #### 特徴
 
@@ -1397,71 +642,7 @@ await fetch('https://your-project.supabase.co/functions/v1/send-email', {
 - **Provider Pattern**: 複数のAIプロバイダーをサポート（OpenAI, Anthropic, Gemini等）
 - **i18n対応**: 英語・日本語の完全サポート（デフォルト: 英語）
 - **Type-Safe**: 全コンポーネント・型定義が完全にTypeScript化
-- **Zero Config**: デフォルト設定で即座に動作、必要に応じてカスタマイズ可能
-
-#### 基本的な使い方
-
-```tsx
-import {
-  AIAgentProvider,
-  useAIRegister,
-  useAIUI,
-  AITrigger,
-  AIIconSet,
-  AI_LABELS
-} from '@akatsuki/ai-agent-ui'
-
-function MyEditor() {
-  const [text, setText] = useState('')
-
-  // Core層: AI機能の登録
-  const ai = useAIRegister({
-    text,
-    onUpdate: setText,
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-  })
-
-  // UI層: メニュー状態管理
-  const uiState = useAIUI()
-
-  return (
-    <div className="relative">
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
-
-      {/* AIトリガーボタン */}
-      <AITrigger
-        onClick={uiState.handlers.toggleMenu}
-        isActive={uiState.ui.isMenuOpen}
-        labels={AI_LABELS.ja} // 日本語UI
-      />
-
-      {/* AI機能メニュー */}
-      {uiState.ui.isMenuOpen && (
-        <AIIconSet
-          actions={ai.actions}
-          state={ai.state}
-          uiState={uiState.ui}
-          uiHandlers={uiState.handlers}
-          labels={AI_LABELS.ja} // 日本語UI
-        />
-      )}
-    </div>
-  )
-}
-
-// アプリ全体をProviderでラップ
-function App() {
-  return (
-    <AIAgentProvider>
-      <MyEditor />
-    </AIAgentProvider>
-  )
-}
-```
+- **Zero Config**: デフォルト設定で即座に動作
 
 #### コンポーネント一覧
 
@@ -1475,116 +656,89 @@ function App() {
 | `AIHistoryList` | 履歴表示・ジャンプパネル |
 | `AITokenUsagePanel` | Token使用量・コスト表示パネル |
 
-#### i18n（多言語対応）
-
-全UIコンポーネントは `labels` prop で言語を切り替え可能：
+#### 基本的な使い方
 
 ```tsx
-// 英語（デフォルト）
-<AIIconSet
-  {...props}
-  // labels不要、デフォルトで英語
-/>
+import { AIAgentProvider, useAIRegister, useAIUI, AIIconSet, AI_LABELS } from '@akatsuki/ai-agent-ui'
 
-// 日本語
-<AIIconSet
-  {...props}
-  labels={AI_LABELS.ja}
-/>
+function MyEditor() {
+  const [text, setText] = useState('')
+  const ai = useAIRegister({ text, onUpdate: setText, provider: 'openai' })
+  const uiState = useAIUI()
 
-// カスタムラベル
-<AIIconSet
-  {...props}
-  labels={{
-    generate: 'Crear',
-    refine: 'Refinar',
-    // ... スペイン語など
-  }}
-/>
+  return (
+    <div className="relative">
+      <textarea value={text} onChange={(e) => setText(e.target.value)} />
+      <AITrigger onClick={uiState.handlers.toggleMenu} isActive={uiState.ui.isMenuOpen} />
+      {uiState.ui.isMenuOpen && (
+        <AIIconSet
+          actions={ai.actions}
+          state={ai.state}
+          uiState={uiState.ui}
+          uiHandlers={uiState.handlers}
+          labels={AI_LABELS.ja}
+        />
+      )}
+    </div>
+  )
+}
 ```
 
-**提供されるラベル:**
-- `AI_LABELS.en` - 英語ラベル（デフォルト）
-- `AI_LABELS.ja` - 日本語ラベル
+#### フォーム連携機能（relatedData）
 
-#### Headless Architecture（2層構造）
-
-**CORE層（ロジック）:**
-- `useAIRegister()` - AI機能の登録・実行
-- `useAIUI()` - UIメニュー状態管理
-- プロバイダー非依存の抽象化層
-
-**UI層（見た目）:**
-- 全UIコンポーネント（`AIIconSet`, `AITrigger`等）
-- デフォルトスタイル提供（カスタマイズ可能）
-- Radix UI ベース（アクセシビリティ対応）
-
-**利点:**
-- UIを自前実装してCore層のみ使用可能
-- デザインシステムに合わせたカスタマイズが容易
-- ロジックとUIの完全分離でテストが容易
-
-#### 高度な機能
-
-**方向性指定（Direction）:**
-```tsx
-const ai = useAIRegister({
-  // ...
-  directions: [
-    { id: 'formal', label: 'フォーマルに', description: 'ビジネス向け' },
-    { id: 'casual', label: 'カジュアルに', description: '親しみやすく' },
-  ]
-})
-```
-
-**システムコマンド:**
-```tsx
-const ai = useAIRegister({
-  // ...
-  systemCommands: [
-    { id: 'summarize', label: '要約', prompt: 'Summarize this text' },
-    { id: 'translate', label: '翻訳', prompt: 'Translate to English' },
-  ]
-})
-```
-
-**Multi-Model実行:**
-```tsx
-// 複数のモデルで並列実行し、結果を比較
-await ai.actions.generateMulti(['gpt-4', 'claude-sonnet-4'])
-```
-
-**Token使用量追跡:**
-```tsx
-// 使用量とコストを自動計算
-console.log(ai.state.tokenUsageDetails)
-// → { usage: { total, input, output, cost }, limits: {...}, warningLevel: 'normal' }
-```
-
-#### 依存関係
-
-**Peer Dependencies（プロジェクト側で提供）:**
-- `react` ^18.0.0
-- `react-dom` ^18.0.0
-- `@radix-ui/react-tooltip` ^1.0.0
-
-**重要:** ライブラリ自体は軽量で、Akatsuki固有の依存なし（他プロジェクトでも利用可能）
-
-#### エクスポート構造
+**他のフォームフィールドの値を AI 生成に反映:**
 
 ```tsx
-// 全部入り
-import { ... } from '@akatsuki/ai-agent-ui'
+function BlogPostForm() {
+  const [title, setTitle] = useState('')
+  const [summary, setSummary] = useState('') // ユーザー入力
+  const [content, setContent] = useState('') // AI生成
 
-// Core層のみ
-import { useAIRegister, useAIUI } from '@akatsuki/ai-agent-ui/core'
+  const ai = useAIRegister({
+    context: {
+      scope: 'BlogPost.Content',
+      type: 'long_text',
+      maxLength: 2000,
+      relatedData: {
+        title: title,
+        summary: summary, // ← これらの値がAIに渡される
+      },
+    },
+    getValue: () => content,
+    setValue: (newValue) => setContent(newValue),
+  })
 
-// Providers層のみ
-import { OpenAIProvider } from '@akatsuki/ai-agent-ui/providers'
-
-// UI層のみ
-import { AIIconSet, AITrigger } from '@akatsuki/ai-agent-ui/ui'
+  return (
+    <>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea value={summary} onChange={(e) => setSummary(e.target.value)} />
+      <textarea value={content} onChange={(e) => setContent(e.target.value)} />
+      <button onClick={() => ai.actions.generate()}>💫 本文を生成</button>
+    </>
+  )
+}
 ```
+
+**AIに送られるプロンプト:**
+```
+【SystemPrompt】
+あなたは優秀なコンテンツ生成アシスタントです...
+
+【コンテキスト】
+- スコープ: BlogPost.Content
+- タイプ: long_text
+
+【関連情報】
+- title: React Hooksの基礎
+- summary: React Hooksを使った状態管理とライフサイクルの基本を解説
+
+【重要な制約】
+生成するテキストは必ず2000文字以内にしてください。
+```
+
+**対応する型:**
+- `string`, `number`, `boolean`: 読みやすいkey-value形式
+- `object`, `array`: 整形されたJSON形式
 
 #### 設計ドキュメント
 
@@ -1592,10 +746,36 @@ import { AIIconSet, AITrigger } from '@akatsuki/ai-agent-ui/ui'
 - `packages/ai-agent-ui/README.md` - セットアップ・基本的な使い方
 - `packages/ai-agent-ui/CORE_LOGIC_CONSOLIDATION.md` - Core層の設計思想
 - `packages/ai-agent-ui/TOKEN_LOGIC_CONSOLIDATION.md` - Token計算ロジック
-- `packages/ai-agent-ui/STORAGE_SCOPE_DESIGN.md` - ストレージスコープ設計
+- `packages/ai-agent-ui/RELATEDDATA_USAGE.md` - relatedDataによるフォーム連携の詳細ガイド
+
+### 5.6. GraphView & RichEditor
+
+**Location:** `src/components/ui/GraphView.tsx`, `RichEditor.tsx`
+
+Reactflow/Lexical の軽量ラッパー。基本的な使い方のみ提供。
+
+- `GraphView` - グラフ可視化（Reactflow）
+- `RichEditor` - リッチテキストエディタ（Lexical）
+
+**使い方:** `src/app/examples/` のデモを参照
+
+### 5.7. Export/Import Service
+
+**Location:** `src/services/ExportImportService.ts`
+
+データのエクスポート/インポート機能。Zip形式対応。
+
+```typescript
+// Export
+const zipBlob = await ExportImportService.exportData(data, 'filename')
+
+// Import
+const data = await ExportImportService.importData(file)
+```
+
+**設計:** Type-safe、拡張可能なフォーマット定義
 
 ---
-
 ## 6. 開発ルール (Rules)
 
 ここが最も重要です。「安定性」と「スピード」を維持するため、以下のルールを必ず遵守してください。
@@ -1603,37 +783,23 @@ import { AIIconSet, AITrigger } from '@akatsuki/ai-agent-ui/ui'
 ### 6.1. ワークフロー (Workflow)
 
 #### DB運用（マイグレーション）
-* **`Supabase-dev` 環境を必ず作成し、チームで共有します。**
-* **ローカルでのDB開発は原則禁止**し、`Supabase-dev` へ直接変更を加えるフローを採用します。
-* 詳細なセットアップ手順は `README.md` の「4. Supabase-dev プロジェクトのセットアップ」を参照してください。
+
+* **`Supabase-dev` 環境を必ず作成し、チームで共有**
+* **ローカルでのDB開発は原則禁止**、`Supabase-dev` へ直接変更を加える
 
 **マイグレーション手順:**
 ```bash
-# 1. 新規マイグレーション作成
-akatsuki db migration-new create_users_table
-
-# 2. supabase/migrations/ 配下にSQLファイルが生成される
-
-# 3. SQLを記述後、Supabaseに適用
-akatsuki db push
+npm run supabase:migration:new create_users_table  # Migration作成
+npm run supabase:push                               # Supabaseに適用
 ```
 
 #### Edge Functions運用
-* **Supabase Edge Functions** はサーバーレス関数として、API処理や外部連携を実装します。
-* Frontend の `services/` レイヤーから呼び出します。
 
-**Edge Functions手順:**
+**手順:**
 ```bash
-# 1. 新規Function作成
-akatsuki function new my-function
-
-# 2. supabase/functions/my-function/index.ts にコード実装
-
-# 3. Supabaseにデプロイ
-akatsuki function deploy my-function
-
-# 4. すべてのFunctionsをデプロイ
-akatsuki function deploy
+npm run supabase:function:new my-function           # Function作成
+npm run supabase:function:deploy my-function        # デプロイ
+npm run supabase:function:deploy                    # 全Functionsデプロイ
 ```
 
 **Frontend からの呼び出し:**
@@ -1642,114 +808,38 @@ akatsuki function deploy
 export async function callMyFunction(payload) {
   return EdgeFunctionService.invoke('my-function', payload)
 }
-
-// コンポーネントから使用
-import { callMyFunction } from './services'
-const result = await callMyFunction({ data: '...' })
 ```
 
 #### 開発用ダミーデータ生成
 
-動作確認用のダミーデータ（プロフィール、画像、投稿等）は、**`workspace/` に使い捨てスクリプト**を作成して生成します。
+動作確認用のダミーデータは、`akatsuki api`で作成すると自動生成される。
 
 **基本方針:**
 - Seed (seed.sql) = 本当の初期データ（マスターデータ、固定データ）
 - workspace/ スクリプト = 開発用の一時的なダミーデータ
 
-**実装例:**
-
-```javascript
-// workspace/generate-dummy-data.js
-
-// ⚠️ Import Path の書き方（相対パス）
-// workspace/ からプロジェクトルートは `../` で参照
-import { supabase } from '../packages/app-frontend/src/lib/supabase.js'
-import { ImageGenerationService } from '../packages/app-frontend/src/services/ImageGenerationService.js'
-
-async function generateDummyProfiles() {
-  console.log('Generating dummy profiles with avatars...')
-
-  for (let i = 0; i < 10; i++) {
-    try {
-      // 1. 画像生成（Storage + file_metadata に自動保存）
-      const { data: avatar, error: genError } = await ImageGenerationService.generate({
-        prompt: `Professional headshot of person ${i + 1}, studio lighting, neutral background`,
-        quality: 'standard',
-      })
-
-      if (genError) {
-        console.error(`✗ Failed to generate avatar: ${genError.message}`)
-        continue
-      }
-
-      console.log(`✓ Generated avatar: ${avatar.id}`)
-
-      // 2. profiles テーブルに直接INSERT
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: `dummy-user-${i + 1}`,
-          username: `dummy${i + 1}`,
-          display_name: `Dummy User ${i + 1}`,
-          avatar_file_id: avatar.id,  // ← file_metadata の id
-          bio: `This is a dummy profile for testing.`,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      console.log(`✓ Created profile: dummy${i + 1}`)
-
-    } catch (error) {
-      console.error(`✗ Failed to create dummy${i + 1}:`, error.message)
-    }
-  }
-
-  console.log('\n✨ Done! Created 10 dummy profiles.')
-}
-
-// 実行
-generateDummyProfiles()
-```
-
 **実行方法:**
-
 ```bash
-# workspace/ ディレクトリに移動
 cd workspace
-
-# スクリプト実行
 node generate-dummy-data.js
 ```
 
 **ポイント:**
-- **import path は相対パス** - `../packages/app-frontend/src/...`
-- **ImageGenerationService を活用** - Edge Function経由で画像生成
-- **file_id を取得** - Storage + file_metadata に自動保存される
-- **Supabase Client で直接INSERT** - 既存のRepositoryを使わず自由に
-- **workspace/ は Git管理外** - 使い捨てスクリプトを自由に書ける
+- import path は相対パス（`../packages/app-frontend/src/...`）
+- ImageGenerationService を活用（Edge Function経由で画像生成）
+- file_id を取得（Storage + file_metadata に自動保存）
+- Supabase Client で直接INSERT
+- workspace/ は Git管理外（使い捨てスクリプトを自由に）
 
-**応用例:**
-- プロジェクトデータ生成: `supabase.from('projects').insert({ ... })`
-- 投稿データ生成: `supabase.from('posts').insert({ ... })`
-- 画像生成と紐付け: `ImageGenerationService.generate()` → `file_id` 取得
-
-**削除方法:**
-- `supabase.from('profiles').delete().like('user_id', 'dummy-user-%')`
-- 関連データも同様に削除
+*詳細な実装例は既存の workspace/ スクリプトを参照*
 
 #### ローカル専用領域 (`workspace/`)
-* ルートの `workspace/` ディレクトリは **`.gitignore` されています**。
-* 個人のメモ、下書き、ローカル環境変数（`.env`）など、リポジトリにコミットしてはいけないファイル置き場として使用してください。
-* 用途例：
-  - 個人的な実験コード
-  - 外部ライブラリの調査用クローン（読むだけ）
-  - チーム外部の機密情報
+
+* `.gitignore` されている
+* 個人のメモ、下書き、ローカル環境変数（`.env`）などを配置
+* 用途例: 個人的な実験コード、外部ライブラリの調査用クローン、機密情報
 
 ### 6.2. 環境変数管理
-
-環境変数は以下の場所に配置します：
 
 | 対象 | 配置場所 | Git管理 | サンプル |
 | :--- | :--- | :--- | :--- |
@@ -1757,37 +847,32 @@ node generate-dummy-data.js
 | **Backend** | `packages/app-backend/.env` | ❌ Ignore | `.env.example` あり |
 | **個人用** | `workspace/.env` | ❌ Ignore | - |
 
-**重要:** `.env` ファイルは絶対にコミットしないでください。`.env.example` を元に各自作成します。
+**重要:** `.env` ファイルは絶対にコミットしない。
 
 ### 6.3. バージョン管理 (Version Control)
 
-開発環境の差異（「私の環境では動かない」）を防ぐため、以下の3点をルートに配置し、バージョンを統一します。
+開発環境の差異を防ぐため、以下を配置しバージョンを統一：
 
-1. **`.tool-versions`** (asdf, mise ユーザー用)
-2. **`.nvmrc`** (nvm ユーザー用)
-3. **`package.json` の `engines` フィールド** (npm/pnpm 実行時のガードレール)
+1. `.tool-versions` (asdf, mise用)
+2. `.nvmrc` (nvm用)
+3. `package.json` の `engines` フィールド
 
-**開発開始時は必ずバージョン管理ツールでインストール：**
+**開発開始時は必ずバージョン管理ツールでインストール:**
 ```bash
-# nvmの場合
-nvm use
-
-# asdf/miseの場合
-asdf install  # または mise install
+nvm use           # nvmの場合
+asdf install      # asdf/miseの場合
 ```
 
 ### 6.4. ドキュメンテーション・ポリシー (Documentation)
 
-情報は「コミットするもの」「してはいけないもの」に明確に分離します。
-
-| ファイル/ディレクトリ | 役割（なにを置くか） | Git管理 |
+| ファイル/ディレクトリ | 役割 | Git管理 |
 | :--- | :--- | :--- |
-| **`README.md`** | プロジェクト概要・最速起動（Quick Start） | ⭕️ Commit |
-| **`AGENT.md`** | **(このファイル)** 設計思想・アーキテクチャ・ルール | ⭕️ Commit |
+| **`README.md`** | プロジェクト概要・最速起動 | ⭕️ Commit |
+| **`AGENT.md`** | 設計思想・アーキテクチャ・ルール | ⭕️ Commit |
 | **`issue.md`** | プロジェクトのマスタープラン | ⭕️ Commit |
-| **`docs/guide/`** | **【必須】** 再利用可能な「手順書」 (セットアップ, デプロイ等) | ⭕️ Commit |
-| **`docs/`**(その他) | **【フリースタイル】** 設計メモ、ADR、議事録など | ⭕️ Commit |
-| **`workspace/`** | **【厳禁】** 個人の作業場・下書き | ❌ **Ignore** |
+| **`docs/guide/`** | 再利用可能な「手順書」 | ⭕️ Commit |
+| **`docs/`**(その他) | 設計メモ、ADR、議事録など | ⭕️ Commit |
+| **`workspace/`** | 個人の作業場・下書き | ❌ **Ignore** |
 
 **ルール:**
 - チームで共有すべき情報は必ず `docs/` 配下にコミット
@@ -1796,36 +881,32 @@ asdf install  # または mise install
 
 ### 6.4. VibeCoding実践ガイド
 
-VibeCodingで新機能を実装する際の実践的なガイドです。
-
 #### 6.4.1. QuickStart Checklist（実装開始前の1分確認）
-
-新機能実装時は、以下の順序で進めると最速です。
 
 ```
 □ Step 1: 要件を整理
    → workspace/[feature-name]-design.md に下書き
-   → ユーザーのやりたいこと
-   
 
 □ Step 2: テンプレート参考（自由に設計）
    → 8.9を見て、近いパターンを把握
    → 要件に合わせて自由にカスタマイズ（そのまま適用しない）
-   → ExamplePage/AdminPageで実装パターンを調査する
+   → ExamplePage/AdminPageで実装パターンを調査
 
 □ Step 3: 設計整理
    → 画面数・ルーティング（3-5画面推奨）
-   → DB設計（Migration + RLS）
-   → アーキテクチャ層（Model → Repository → Service → Hook → Component → Page）
-
+   → アーキテクチャ設計（Entity・DB/データフロー・レイヤー）
+   → Schema設計（Entity + RLS）
+   → コンポーネント設計（Hook → Component → Page）
+ 
 □ Step 4: TodoWrite でタスク管理開始
    → Phase分割は内部管理、ユーザーへの中間報告は不要
 
 □ Step 5: 設計をもとに実装
+   → CRUDコード自動生成他`akatsuki`コマンドを利用
    → 詰まったら報告、それ以外は進める
 
 □ Step 6: 動作確認
-   → workspace/ でダミーデータ生成 → 画面確認
+   → 自動生成されたダミーデータ → 画面確認
 
 □ Step 7: 振り返り（完了後）
    → docs/ に設計ドキュメント整理
@@ -1837,31 +918,15 @@ VibeCodingで新機能を実装する際の実践的なガイドです。
 - テンプレート → 8.9（VibeCoding Design Templates）
 - トラブル対応 → 9.2（VibeCoding中のよくあるトラブル）
 
----
-
 #### 6.4.2. 実装の進め方（基本姿勢）
 
 **VibeCodingの本質: スピード重視、要件を動かすことを最優先**
 
-設計・方針が固まったら、AIはそれに従って実装を進めます。
-
 **実装時のルール:**
 
-1. **Phase分けは内部管理でOK**
-   - TodoWriteツールでPhaseを管理
-   - ユーザーへの中間報告は不要
-
-2. **相談が必要な時のみ停止**
-   - 技術的に詰まった時
-   - セキュリティなど重要な設計判断が必要な時
-   - ユーザーが明示的に「相談しよう」「設計をしよう」などと言った時
-   - それ以外は基本的に実装を進める
-
-3. **品質はAGENT.mdのルールとExampleで担保**
-   - Repository/Modelパターン徹底
-   - 統一ハンドラー（createAkatsukiHandler）使用
-   - RLS設計を最初から考慮
-   - ExamplePageや初期実装を必ず調査
+1. **Phase分けは内部管理でOK** - TodoWriteツールでPhaseを管理、ユーザーへの中間報告は不要
+2. **相談が必要な時のみ停止** - 技術的に詰まった時、重要な設計判断が必要な時、ユーザーが明示的に相談を求めた時のみ
+3. **品質はAGENT.mdのルールとExampleで担保** - Repository/Modelパターン徹底、統一ハンドラー使用、RLS設計を最初から考慮、ExamplePageや初期実装を必ず調査
 
 **✅ 良い例:**
 ```
@@ -1886,237 +951,134 @@ AI:
 AI: 「Phase 1が完了しました。次に進んで良いですか？」
 AI: 「Migrationを作りました。確認してください。」
 AI: 「次はRepositoryを作りますが、よろしいですか？」
-→ これらは不要。一気に進める。
+ー＞確認は不要
 ```
 
----
+#### 6.4.3. VibeCoding Design Framework（設計ドキュメント作成）
 
-#### 6.4.3. 設計ドキュメントテンプレート
+**設計整理は必須** - 新機能を実装する前に、`workspace/[feature-name]-design.md` に書き出す。
 
-**設計整理は必須です**
+**✨ 新機能: Design Template Generator**
 
-新機能を実装する前に、以下の項目を `workspace/[feature-name]-design.md` に書き出します。
+```bash
+# 設計ドキュメントを自動生成
+npm run design:new <feature-name>
 
-```markdown
-# [機能名] - 設計ドキュメント
-
-## 1. ユーザーの本当のニーズ（3行で）
-【WHY: なぜこれが必要か？】
-- ユーザーが解決したい課題・達成したい目標
-- 例: 「友達と一緒に遊べる、可愛いキャラを作りたい」
-
-【WHO: 誰が使うか？】
-- ターゲットユーザー像
-- 例: 「10-20代の女性、プリクラ世代」
-
-【WHAT: 何を提供するか？】
-- 体験として提供する価値
-- 例: 「自分だけのキャラを作って、SNSでシェアできる楽しさ」
-
-## 2. ユースケース展開
-【メインフロー（ハッピーパス）】
-1. ユーザーがアプリを開く
-2. テンプレートから好みのスタイルを選ぶ（3-5種類）
-3. パーツをカスタマイズ（髪型、目、服など）
-4. プレビューで確認しながら微調整
-5. 完成したキャラを保存・シェア
-
-【サブフロー】
-- 過去に作ったキャラを見返す（ギャラリー）
-- 友達のキャラを見る（ソーシャル機能）
-- 作り直す（編集機能）
-
-【エッジケース】
-- 初回訪問時のチュートリアル
-- ログインせずに試す（ゲストモード）
-- 保存数制限（無料 vs 有料）
-
-## 3. 画面構成（ユーザー体験重視）
-【ルーティング】
-HomePage (/) → TemplateSelectPage (/create/template) → CustomizePage (/create/customize) → GalleryPage (/gallery)
-
-【各画面の体験設計】
-- HomePage: ワクワク感を出す（過去作品のカルーセル、CTA）
-- TemplateSelect: 視覚的に選びやすい（大きなサムネイル）
-- Customize: リアルタイムプレビュー、ステップ式UI
-- Gallery: グリッド表示、フィルター機能
-
-【ASCII WireFrame（例: CustomizePage）】
-```
-┌─────────────────────────────────────┐
-│  [← 戻る]  ステップ 2/3  [次へ →]   │
-├─────────────────────────────────────┤
-│                                     │
-│   ┌─────────┐   ┌───────────────┐  │
-│   │         │   │  パーツ選択    │  │
-│   │ Preview │   │  ○ 髪型       │  │
-│   │         │   │  ○ 目         │  │
-│   │  キャラ │   │  ○ 服         │  │
-│   │         │   │  [カラー選択] │  │
-│   └─────────┘   └───────────────┘  │
-│                                     │
-│   [リセット]         [保存して次へ] │
-└─────────────────────────────────────┘
+# 例
+npm run design:new user-dashboard
+# → workspace/user-dashboard-design.md が作成される
 ```
 
-## 4. DB設計
-- テーブル定義（SQL）
-- RLS Policy設計（必須）
+**テンプレートの特徴:**
+- 💡 **"Feel free to customize!"** マーカー - カスタマイズポイントを明示
+- 🎨 **カラーバリエーション選択肢** - AGENT.md L954-1000参照
+- 📐 **レイアウトパターン** - 1-pane/2-pane/3-paneから選択
+- 📝 **事前対話メモ** - ユーザーとの対話内容を記録
 
-## 5. 使用するAkatsuki機能
-- 実装済み: AI、Storage、Database等（ExamplePage/AdminPageを参考）
-- 既存のEdge Functions
-- 新規作成が必要な機能
+**テンプレート項目:**
+1. **事前対話メモ** - ユーザーとの対話内容（カラー、レイアウト等）
+2. **ユーザーの本当のニーズ** - WHY/WHO/WHAT
+3. **ユースケース展開** - メインフロー/サブフロー/エッジケース
+4. **画面構成（UX重視）** - カラーテーマ、レイアウトパターン、ASCII WireFrame
+5. **DB設計** - テーブル定義（SQL）、RLS Policy設計
+6. **使用するAkatsuki機能** - 実装済み機能、新規作成が必要な機能
+7. **アーキテクチャ層** - Models/Repositories/Services/Hooks/Components
+8. **実装ステップ** - Phase 1-8のチェックリスト
+9. **重要な設計判断** - なぜこの設計にしたか、セキュリティ考慮事項
+10. **参考資料** - 既存実装パターンへのリンク
 
-## 6. アーキテクチャ層
-- Models: XXX.js（新規/実装済み）
-- Repositories: XXXRepository.js（新規/実装済み）
-- Services: XXXService.js（新規/実装済み）
-- Hooks: useXXX.js（新規/実装済み）
-- Components: features/xxx/（新規）
+**Design Frameworkの本質:**
 
-## 7. 実装ステップ
-□ Phase 1: Migration作成
-□ Phase 2: Model/Repository作成
-□ Phase 3: Service/Hook作成
-□ Phase 4: Feature Component作成
-□ Phase 5: Page作成、Routing設定
-□ Phase 6: 動作確認（ダミーデータ生成）
+❌ **従来のTemplate/Theme（固定化）:**
+- WordPressテンプレート的
+- 「そのまま適用」を想定
+- カスタマイズしにくい
 
-## 8. 重要な設計判断
-- なぜこの設計にしたか（簡潔に）
-- セキュリティ考慮事項
-```
+✅ **VibeCoding Design（対話と柔軟性）:**
+- 「思考の出発点」
+- ユーザーとの対話で決定（カラー、レイアウト等）
+- 要件に応じて自由にカスタマイズ
+- 実装の「地図」であり「羅針盤」
 
 **ワークフロー:**
+1. **CLI実行**: `npm run design:new <feature-name>`
+2. **対話で確認**: カラー、レイアウト、画面数などをユーザーと確認
+3. **テンプレート記入**: 対話内容を「事前対話メモ」に記録、各セクション埋める
+4. **Example調査**: ExamplePage/AdminPage、既存実装を調査
+5. **実装開始**: 設計を見ながらVibeCoding
+6. **完了後**: `docs/examples/` にコミット（成功事例として蓄積）
 
-1. **下書き作成**: `workspace/[feature-name]-design.md` にファイル保存
-2. **テンプレート確認**: 8.9のテンプレートが使えるか判断
-3. **ソース・Example調査して実装計画**: ExamplePage/AdminPage、ソースコードのJSDocなどを調べてデザインファイルを更新
-4. **実装開始**: 設計を見ながらVibeCoding
-5. **完了後**: 実装中の変更なども整理して `docs/design/` にコミット
+**参考資料:**
+- Template: `docs/templates/design-template.md`
+- 実例: `docs/examples/agent-asset-hub-design.md`
 
 **ポイント:**
-- ✅ **最小限の整理で開始** - 機能的な完璧を求めない。見栄えが良く動くものを
-- ✅ **テンプレート活用** - よくあるパターンは8.9参照
-- ✅ **Example活用** - 豊富なExampleがあるので参照して車輪の再発明やハレーションを避ける
-- ✅ **RLS設計を最初から** - 後付けは不整合の元
-- ✅ **workspace → docs** - 下書き→確定版の流れ
-
----
+- ✅ 対話を最優先 - 「カラフルで楽しい感じ」等のニュアンスを反映
+- ✅ 自由にカスタマイズ - "Feel free!"マーカーを活用
+- ✅ 最小限の整理で開始 - 完璧を求めない
+- ✅ Example活用 - 車輪の再発明を避ける
+- ✅ RLS設計を最初から - 後付けは不整合の元
+- ✅ workspace → docs/examples - 成功事例として蓄積
 
 #### 6.4.4. よくある質問（FAQ）
 
 **Q1: テンプレートはどう使えば良い？**
-
-A: テンプレートは「そのまま適用」するものではなく、「参考」として活用します。
-   - セクション8.9「VibeCoding Design Templates」を見て、近いパターンを把握
-   - 要件に応じて自由にカスタマイズして設計
-   - Template 1（AI画像生成）、Template 2（LLMチャット）、Template 3（ファイル管理）、Template 4（ダッシュボード）
-   - VibeCodingはテンプレートエンジンではなく、自由度の高い設計が本質
+- セクション8.9を見て、近いパターンを把握
+- 要件に応じて自由にカスタマイズ（そのまま適用しない）
+- VibeCodingはテンプレートエンジンではなく、自由度の高い設計が本質
 
 **Q2: 実装中に詰まったら？**
-
-A: セクション9.2「VibeCoding中のよくあるトラブル」を参照してください。
-   - Edge Function 500エラー
-   - RLSでデータ取得できない
-   - Repository/Modelで型エラー
-   - など、6つのケースと解決方法を記載
+- セクション9.2「VibeCoding中のよくあるトラブル」を参照
 
 **Q3: Component分割のタイミングは？**
-
-A: セクション4.1「Component分割の判断基準（The 200-Line Rule）」を参照してください。
-   - 200行を超えたら分割
-   - useState が5個以上で分割
-   - ハンドラー関数が50行超えで分割
+- セクション4.1「Component分割の判断基準（The 200-Line Rule）」を参照
+- 200行超え/useState 5個以上/ハンドラー50行超えで分割
 
 **Q4: workspace/ に何を置けば良い？**
-
-A: 以下のものを自由に配置できます（Git管理外）：
-   - 設計ドキュメントの下書き（`[feature-name]-design.md`）
-   - ダミーデータ生成スクリプト（`generate-dummy-data.js`）
-   - 個人的なメモ、実験コード
-   - 環境変数（`.env`）
+- 設計ドキュメントの下書き、ダミーデータ生成スクリプト、個人的なメモ、実験コード、環境変数
 
 **Q5: ユーザーに確認が必要なタイミングは？**
-
-A: 以下の場合のみ停止して確認：
-   - 技術的に詰まった時
-   - セキュリティなど重要な設計判断が必要な時
-   - ユーザーが明示的に「相談しよう」「設計をしよう」などと言った時
-   - それ以外は一気に進める
-
----
+- 技術的に詰まった時、重要な設計判断が必要な時、ユーザーが明示的に相談を求めたに行う
 
 #### 6.4.5. 実装時のベストプラクティス（最重要）
 
 **既存コードを最優先で参照せよ**
 
-VibeCoding では、以下の順序で参考資料を活用してください：
+**参考資料の優先順位:**
+```
+既存コード > Design Templates > ドキュメント内のサンプルコード
+```
 
 **1. 既存の実装パターン（最優先）**
-
-既存コードは「実際に動いている」実装なので、最も信頼できます。
-
 - `src/models/UserProfile.ts` - Model層の実装パターン
 - `src/repositories/UserProfileRepository.ts` - Repository層の実装パターン
 - `src/hooks/usePublicProfile.ts` - React Query統合パターン
 - `src/pages/ExamplesPage.jsx` - 全機能のデモ実装
 - `src/pages/AdminDashboard.jsx` - ダッシュボード実装パターン
 
-**利点:**
-- ✅ TypeScript型定義が正確
-- ✅ 実際に動作している
-- ✅ Akatsukiのベストプラクティスに準拠
+**利点:** ✅ TypeScript型定義が正確、✅ 実際に動作している、✅ Akatsukiのベストプラクティスに準拠
 
 **2. Design Templates（参考）**
-
-セクション 8.9 を見て、近いパターンを把握します。
-
-- Template 1: AI画像生成アプリ
-- Template 2: LLMチャットアプリ
-- Template 3: ファイル管理アプリ
-- Template 4: ダッシュボード
-
-**重要:**
+- セクション 8.9 を見て、近いパターンを把握
 - ⚠️ そのままコピペせず、要件に応じてカスタマイズ
 - ⚠️ テンプレートはあくまで「参考」
 - ✅ 既存コードと組み合わせて使う
 
 **3. QuickStart Checklist（フロー確認）**
-
-セクション 6.4.1 でフロー確認
-
-- Step 1: 要件整理 → workspace/[feature]-design.md
-- Step 2: テンプレート参考
-- Step 3: 設計整理
-- Step 4-7: 実装・動作確認・振り返り
-
-**実装時の鉄則:**
-```
-既存コード > Design Templates > ドキュメント内のサンプルコード
-```
-
-AGENT.md内の詳細なコードサンプルは、実装パターンが充実してきたため、
-今後は既存コードを優先的に参照することを推奨します。
-
----
+- セクション 6.4.1 でフロー確認
 
 ### 6.5. ライブラリ (Lib) 管理ポリシー
 
-依存関係のクリーンさを保ちます。
-
 #### 1. 内部ライブラリ (Monorepo Internal)
 
-* **対象:** このプロジェクト専用の共通コード（将来実装予定の `ui-components`, `aigen-hooks` など）。
-* **場所:** `packages/` ディレクトリ配下。（Git管理対象）
-* **参照:** `workspace:*` によるローカル参照を**推奨**します。これによりAppとLibの同時開発が可能です。
+- `packages/` ディレクトリ配下（Git管理対象）
+- `workspace:*` によるローカル参照を推奨
 
 **例 (package.json):**
 ```json
 {
   "dependencies": {
-    "components": "workspace:*",
+    "ui-components": "workspace:*",
     "aigen-hooks": "workspace:*"
   }
 }
@@ -2124,18 +1086,8 @@ AGENT.md内の詳細なコードサンプルは、実装パターンが充実し
 
 #### 2. 外部ライブラリ (Monorepo External)
 
-* **対象:** 個人OSSなど、私たちが管理するが、このリポジトリの**外部**にあるもの。
-* **参照:** `npm link` や `path:` 指定による**ローカルパス参照は原則禁止**します。
-* **修正:** 修正が必要な場合、**元の（外部）リポジトリ側をクリーンに修正・Publish**し、`package.json`のバージョンを更新して対応します。
-
-**❌ 禁止例:**
-```json
-{
-  "dependencies": {
-    "llm-toolkit": "file:../../llm-toolkit"  // NG!
-  }
-}
-```
+- `npm link` や `path:` 指定による**ローカルパス参照は原則禁止**
+- 元のリポジトリ側をクリーンに修正・Publish後、`package.json`のバージョンを更新
 
 **✅ 推奨例:**
 ```json
@@ -2148,20 +1100,19 @@ AGENT.md内の詳細なコードサンプルは、実装パターンが充実し
 
 #### 3. `workspace/` とコード参照
 
-* 外部ライブラリのコードを「読むため」に `workspace/` へ `git clone` するのは、個人の自由です。（`workspace/` はコミットされないため）
-* ただし、それらのコードに**依存関係としてリンクすることは厳禁**です。
+- 外部ライブラリのコードを「読むため」に `workspace/` へ `git clone` するのは自由
+- ただし、依存関係としてリンクすることは厳禁
 
 ### 6.6. Gitコミットポリシー
 
 * **コミットメッセージ:** 簡潔かつ明確に（何を変更したか）
-* **`.gitignore`:** 以下は必ず除外されています
+* **`.gitignore`:** 以下は必ず除外
   - 環境変数ファイル (`.env`, `.env.local`, `.env.*.local`)
   - ビルド成果物 (`target/`, `dist/`, `build/`)
   - 個人作業場 (`workspace/`)
   - IDE設定、OS固有ファイル
 
 ---
-
 ## 7. 開発コマンド一覧
 
 プロジェクトルートから実行できる主要コマンド：
@@ -2185,13 +1136,13 @@ npm run deploy:backend    # Shuttleへデプロイ
 ### Supabase
 ```bash
 # マイグレーション
-akatsuki db link                  # Supabaseプロジェクトをリンク
-akatsuki db migration-new <name>  # 新規マイグレーション作成
-akatsuki db push                  # マイグレーション適用
+npm run supabase:link             # Supabaseプロジェクトをリンク
+npm run supabase:migration:new    # 新規マイグレーション作成
+npm run supabase:push             # マイグレーション適用
 
 # Edge Functions
-akatsuki function new <name>      # 新規Function作成
-akatsuki function deploy [name]   # Functionデプロイ
+npm run supabase:function:new     # 新規Function作成
+npm run supabase:function:deploy  # Functionデプロイ
 ```
 
 ## 8. UI実装の標準設計パターン
@@ -2201,8 +1152,6 @@ akatsuki function deploy [name]   # Functionデプロイ
 Akatsukiでは、**見栄えの良さ**と**使いやすさ**を重視した「リッチなUI」を標準とします。
 
 #### デザインスタイル
-
-Akatsukiは以下のデザインスタイルを採用しています：
 
 1. **Glassmorphism（グラスモーフィズム）**
    - 半透明の背景 (`bg-white/80`, `bg-black/60`)
@@ -2225,97 +1174,43 @@ Akatsukiは以下のデザインスタイルを採用しています：
 
 #### カラーテーマバリエーション
 
-アプリのジャンルに応じて、色味を選択できます。
-
 **1. デフォルト（AIアプリ向け）- ピンク/パープル/ブルー**
 ```css
-/* 背景 */
 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100
-
-/* テキストグラデーション */
 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text
-
-/* ボタン */
 bg-gradient-to-r from-pink-500 to-purple-600
-
-/* アクセントカラー */
-border-pink-300, border-purple-300, text-purple-600
 ```
 
 **2. ビジネス/企業向け - ダーク/ブルートーン**
 ```css
-/* 背景 */
 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800
-bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100  /* ライトモード */
-
-/* テキストグラデーション */
 bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 text-transparent bg-clip-text
-
-/* ボタン */
 bg-gradient-to-r from-blue-600 to-cyan-600
-
-/* アクセントカラー */
-border-blue-400, border-cyan-400, text-blue-600
 ```
 
 **3. ヘルスケア/ウェルネス - グリーン/ミント**
 ```css
-/* 背景 */
 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50
-
-/* テキストグラデーション */
 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-transparent bg-clip-text
-
-/* ボタン */
-bg-gradient-to-r from-emerald-500 to-teal-600
-
-/* アクセントカラー */
-border-emerald-300, border-teal-300, text-emerald-600
 ```
 
 **4. エンタメ/クリエイティブ - オレンジ/イエロー**
 ```css
-/* 背景 */
 bg-gradient-to-br from-orange-100 via-yellow-100 to-pink-100
-
-/* テキストグラデーション */
 bg-gradient-to-r from-orange-500 via-yellow-500 to-pink-500 text-transparent bg-clip-text
-
-/* ボタン */
-bg-gradient-to-r from-orange-500 to-pink-600
-
-/* アクセントカラー */
-border-orange-300, border-yellow-300, text-orange-600
 ```
 
 **5. Eコマース/ショッピング - パープル/ピンク**
 ```css
-/* 背景 */
 bg-gradient-to-br from-purple-100 via-pink-100 to-rose-100
-
-/* テキストグラデーション */
 bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-transparent bg-clip-text
-
-/* ボタン */
-bg-gradient-to-r from-purple-500 to-pink-600
-
-/* アクセントカラー */
-border-purple-300, border-pink-300, text-purple-600
 ```
 
 **6. ダークモード対応**
 ```css
-/* 背景（ダーク） */
 bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900
-
-/* テキストグラデーション（ダーク） */
 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 text-transparent bg-clip-text
-
-/* カード（ダーク） */
 bg-slate-800/50 backdrop-blur-lg border border-slate-700
-
-/* ボタン（ダーク） */
-bg-gradient-to-r from-pink-600 to-purple-700
 ```
 
 **使い分けガイド:**
@@ -2352,33 +1247,25 @@ bg-gradient-to-r from-pink-600 to-purple-700
 
 ### 推奨デザインパターン集
 
-VibeCodingでよく使う実装パターンです。
-
 #### 主要パターン一覧
 
-**1. Hero Section（ヒーローセクション）**
-- 用途: トップページの第一印象
-- 重要クラス: `min-h-screen`, `bg-gradient-to-br`, `text-6xl`, `bg-clip-text`, `Button variant="gradient"`
+1. **Hero Section（ヒーローセクション）** - トップページの第一印象
+   - `min-h-screen`, `bg-gradient-to-br`, `text-6xl`, `bg-clip-text`, `Button variant="gradient"`
 
-**2. Feature Cards（機能カード）**
-- 用途: 機能紹介、メニュー選択
-- 重要クラス: `grid md:grid-cols-3`, `Card`, `hover:border-pink-300`, lucide-reactアイコン
+2. **Feature Cards（機能カード）** - 機能紹介、メニュー選択
+   - `grid md:grid-cols-3`, `Card`, `hover:border-pink-300`, lucide-reactアイコン
 
-**3. Image Gallery（画像ギャラリー）**
-- 用途: 生成画像の表示、作品一覧
-- 重要クラス: `grid grid-cols-2 md:grid-cols-3`, `group`, `hover:scale-105`, `hover:shadow-2xl`
+3. **Image Gallery（画像ギャラリー）** - 生成画像の表示、作品一覧
+   - `grid grid-cols-2 md:grid-cols-3`, `group`, `hover:scale-105`, `hover:shadow-2xl`
 
-**4. Step-by-Step UI（ステップ式UI）**
-- 用途: 複数ステップの作成フロー
-- 重要クラス: `Progress`, `useState(currentStep)`, 条件分岐でStep表示
+4. **Step-by-Step UI（ステップ式UI）** - 複数ステップの作成フロー
+   - `Progress`, `useState(currentStep)`, 条件分岐でStep表示
 
-**5. Loading & Empty States（ローディング・空状態）**
-- 用途: データ取得中、データなし
-- 重要クラス: `animate-spin`, `flex items-center justify-center`, lucide-reactアイコン
+5. **Loading & Empty States（ローディング・空状態）** - データ取得中、データなし
+   - `animate-spin`, `flex items-center justify-center`, lucide-reactアイコン
 
-**6. Image Upload Preview（画像アップロードプレビュー）**
-- 用途: ファイルアップロード時のプレビュー
-- 重要クラス: `relative`, `absolute top-2 right-2`, `rounded-xl shadow-lg`
+6. **Image Upload Preview（画像アップロードプレビュー）** - ファイルアップロード時のプレビュー
+   - `relative`, `absolute top-2 right-2`, `rounded-xl shadow-lg`
 
 **詳細な実装例:** `src/pages/ExamplesPage.jsx` および `src/pages/HomePage.jsx` を参照
 
@@ -2386,21 +1273,19 @@ VibeCodingでよく使う実装パターンです。
 
 #### グラデーション配色パターン
 
-Akatsukiで推奨するグラデーション配色：
-
 ```css
 /* 背景グラデーション */
-bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100     /* 明るいパステル */
-bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50      /* 柔らかい */
-bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50          /* クール系 */
+bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100
+bg-gradient-to-br from-purple-50 via-pink-50 to-yellow-50
+bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50
 
 /* テキストグラデーション */
 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text
 
 /* ボタン・カードグラデーション */
-bg-gradient-to-r from-pink-500 to-purple-600                   /* Button variant="gradient" */
-bg-gradient-to-r from-blue-500 to-cyan-600                     /* クール系 */
-bg-gradient-to-r from-orange-500 to-pink-600                   /* 暖色系 */
+bg-gradient-to-r from-pink-500 to-purple-600
+bg-gradient-to-r from-blue-500 to-cyan-600
+bg-gradient-to-r from-orange-500 to-pink-600
 ```
 
 #### アイコンの使い方
@@ -2434,9 +1319,6 @@ rounded-3xl    /* 超特大: Hero Section カード */
 rounded-full   /* 円形: アバター、アイコンボタン */
 ```
 
-### 基本方針
-「プリクラ風アプリを作って」のような指示を受けた際、以下の標準設計に従って実装します。
-
 ### カテゴリ別標準設計
 
 #### プリクラ系アプリ
@@ -2446,9 +1328,6 @@ rounded-full   /* 円形: アバター、アイコンボタン */
 ```
 ホーム → ステップ式作成 → 写真生成 → ギャラリー
 ```
-
-**サンプル指示:**
-> "プリクラ風のキャラクタースタジオを作って"
 
 **実装イメージ:**
 - ホーム: 3つの機能カード（アイコン付き）
@@ -2463,12 +1342,7 @@ rounded-full   /* 円形: アバター、アイコンボタン */
 - Progress（ステップ表示）
 - Badge（NEW、人気表示）
 
-#### その他のカテゴリ
-今後、必要に応じて追加
-
 ### 8.9. VibeCoding Design Templates（実装の参考パターン集）
-
-よくあるパターンを、**実装済みの正確なコンポーネント名**で参考資料化します。
 
 **重要: テンプレートの使い方**
 - ⚠️ **そのまま適用するものではない** - WordPressのテンプレートとは違う
@@ -2483,14 +1357,10 @@ rounded-full   /* 円形: アバター、アイコンボタン */
 
 #### Template 1: AI画像生成アプリ（プリクラ系）
 
-**画面構成:**
-```
-HomePage (/) → CreationPage (/create) → GalleryPage (/gallery)
-```
+**画面構成:** `HomePage (/) → CreationPage (/create) → GalleryPage (/gallery)`
 
 **DB設計:**
 ```sql
--- Migration
 profiles                    -- ユーザープロフィール（実装済み）
 file_metadata              -- 生成画像（実装済み）
 user_quotas                -- 使用制限（実装済み）
@@ -2499,67 +1369,25 @@ user_creations             -- ユーザー作成物（新規）
 ```
 
 **実装レイヤー:**
-```javascript
-// Models (src/models/)
-UserProfile.js             // 実装済み
-CreationTemplate.js        // 新規作成
+- Models: UserProfile.js (実装済み), CreationTemplate.js (新規)
+- Repositories: UserProfileRepository.js (実装済み), CreationTemplateRepository.js (新規)
+- Services: ImageGenerationService.js (実装済み), PublicStorageService.js (実装済み)
+- Hooks: useAIGen.js (実装済み), useImageGeneration.js (新規)
+- Components: AuthGuard, TopNavigation, FileUpload (実装済み), CreationFlow, TemplateSelector, ImageGallery (新規)
 
-// Repositories (src/repositories/)
-UserProfileRepository.js           // 実装済み
-FileMetadataRepository.js          // 実装済み
-CreationTemplateRepository.js      // 新規作成
-
-// Services (src/services/)
-ImageGenerationService.js  // 実装済み
-PublicStorageService.js    // 実装済み
-
-// Hooks (src/hooks/)
-useAIGen.js                // 実装済み
-useImageGeneration.js      // 新規作成（useAIGenベース）
-
-// Components (src/components/)
-components/auth/AuthGuard.jsx          // 実装済み
-components/layout/TopNavigation.jsx    // 実装済み
-components/storage/FileUpload.jsx      // 実装済み
-components/features/creation/CreationFlow.jsx      // 新規
-components/features/creation/TemplateSelector.jsx  // 新規
-components/features/gallery/ImageGallery.jsx       // 新規
-
-// UI Components (shadcn/ui - 実装済み)
-components/ui/card.jsx
-components/ui/button.jsx
-components/ui/progress.jsx
-components/ui/badge.jsx
-components/ui/skeleton.jsx
-```
-
-**Edge Functions:**
-```
-generate-image             // 実装済み
-upload-file                // 実装済み
-```
+**Edge Functions:** generate-image, upload-file (実装済み)
 
 **実装フロー:**
-1. Migration作成（creation_templates, user_creations）
-2. Model作成（CreationTemplate）
-3. Repository作成（CreationTemplateRepository）
-4. Custom Hook作成（useImageGeneration）
-5. Feature Components作成（CreationFlow, TemplateSelector, ImageGallery）
-6. Pages作成（CreationPage, GalleryPage）
-7. Routing設定（App.jsx）
+1. Migration作成 → 2. Model作成 → 3. Repository作成 → 4. Custom Hook作成 → 5. Feature Components作成 → 6. Pages作成 → 7. Routing設定
 
 ---
 
 #### Template 2: LLMチャットアプリ
 
-**画面構成:**
-```
-HomePage (/) → ChatPage (/chat) → HistoryPage (/history)
-```
+**画面構成:** `HomePage (/) → ChatPage (/chat) → HistoryPage (/history)`
 
 **DB設計:**
 ```sql
--- Migration
 profiles                   -- ユーザープロフィール（実装済み）
 ai_models                  -- AIモデル情報（実装済み）
 llm_call_logs              -- LLM呼び出し履歴（実装済み）
@@ -2569,135 +1397,48 @@ chat_messages              -- チャットメッセージ（新規）
 ```
 
 **実装レイヤー:**
-```javascript
-// Models
-AIModel.js                 // 実装済み
-UserProfile.js             // 実装済み
-ChatSession.js             // 新規作成
-ChatMessage.js             // 新規作成
+- Models: AIModel.js, UserProfile.js (実装済み), ChatSession.js, ChatMessage.js (新規)
+- Repositories: AIModelRepository.js, UserQuotaRepository.js (実装済み), ChatSessionRepository.js, ChatMessageRepository.js (新規)
+- Services: AIService.js, EdgeFunctionService.js (実装済み)
+- Hooks: useAIGen.js (実装済み), useChatSession.js (新規)
+- Components: AuthGuard, TopNavigation (実装済み), ChatCard, MessageList, ModelSelector (新規)
 
-// Repositories
-AIModelRepository.js       // 実装済み
-UserQuotaRepository.js     // 実装済み
-ChatSessionRepository.js   // 新規作成
-ChatMessageRepository.js   // 新規作成
+**Edge Functions:** ai-chat (実装済み - OpenAI/Anthropic/Gemini対応)
 
-// Services
-services/ai/AIService.js   // 実装済み
-EdgeFunctionService.js     // 実装済み
-
-// Hooks
-useAIGen.js                // 実装済み
-useChatSession.js          // 新規作成
-
-// Components
-components/auth/AuthGuard.jsx              // 実装済み
-components/layout/TopNavigation.jsx        // 実装済み
-components/features/chat/ChatCard.jsx      // 新規
-components/features/chat/MessageList.jsx   // 新規
-components/features/chat/ModelSelector.jsx // 新規
-
-// UI Components (shadcn/ui)
-components/ui/card.jsx
-components/ui/button.jsx
-components/ui/input.jsx
-components/ui/textarea.jsx
-components/ui/skeleton.jsx
-components/ui/scroll-area.jsx
-```
-
-**Edge Functions:**
-```
-ai-chat                    // 実装済み（OpenAI/Anthropic/Gemini対応）
-```
-
-**実装フロー:**
-1. Migration作成（chat_sessions, chat_messages）
-2. Model作成（ChatSession, ChatMessage）
-3. Repository作成（ChatSessionRepository, ChatMessageRepository）
-4. Custom Hook作成（useChatSession）
-5. Feature Components作成（ChatCard, MessageList, ModelSelector）
-6. Pages作成（ChatPage, HistoryPage）
-7. Routing設定（App.jsx）
+**実装フロー:** Migration → Model → Repository → Hook → Components → Pages → Routing
 
 ---
 
 #### Template 3: ファイル管理アプリ
 
-**画面構成:**
-```
-HomePage (/) → UploadPage (/upload) → FilesPage (/files)
-```
+**画面構成:** `HomePage (/) → UploadPage (/upload) → FilesPage (/files)`
 
 **DB設計:**
 ```sql
--- Migration
 profiles                   -- ユーザープロフィール（実装済み）
 file_metadata              -- ファイルメタデータ（実装済み）
 file_folders               -- フォルダ（新規）
 ```
 
 **実装レイヤー:**
-```javascript
-// Models
-UserProfile.js             // 実装済み
-FileMetadata.js            // 新規作成
-FileFolder.js              // 新規作成
+- Models: UserProfile.js (実装済み), FileMetadata.js, FileFolder.js (新規)
+- Repositories: FileMetadataRepository.js (実装済み), FileFolderRepository.js (新規)
+- Services: PublicStorageService.js, PrivateStorageService.js (実装済み)
+- Hooks: useFileUpload.js (新規)
+- Components: AuthGuard, FileUpload (実装済み), FileList, FolderTree (新規)
 
-// Repositories
-FileMetadataRepository.js  // 実装済み
-FileFolderRepository.js    // 新規作成
+**Edge Functions:** upload-file, delete-file, get-signed-url, create-signed-url (実装済み)
 
-// Services
-PublicStorageService.js    // 実装済み
-PrivateStorageService.js   // 実装済み
-
-// Hooks
-useFileUpload.js           // 新規作成
-
-// Components
-components/auth/AuthGuard.jsx          // 実装済み
-components/storage/FileUpload.jsx      // 実装済み
-components/features/files/FileList.jsx     // 新規
-components/features/files/FolderTree.jsx   // 新規
-
-// UI Components (shadcn/ui)
-components/ui/card.jsx
-components/ui/button.jsx
-components/ui/table.jsx
-components/ui/dropdown-menu.jsx
-components/ui/dialog.jsx
-```
-
-**Edge Functions:**
-```
-upload-file                // 実装済み
-delete-file                // 実装済み
-get-signed-url             // 実装済み
-create-signed-url          // 実装済み
-```
-
-**実装フロー:**
-1. Migration作成（file_folders）
-2. Model作成（FileMetadata, FileFolder）
-3. Repository作成（FileFolderRepository）
-4. Custom Hook作成（useFileUpload）
-5. Feature Components作成（FileList, FolderTree）
-6. Pages作成（UploadPage, FilesPage）
-7. Routing設定（App.jsx）
+**実装フロー:** Migration → Model → Repository → Hook → Components → Pages → Routing
 
 ---
 
 #### Template 4: ダッシュボード（データ可視化）
 
-**画面構成:**
-```
-HomePage (/) → DashboardPage (/dashboard) → ReportsPage (/reports)
-```
+**画面構成:** `HomePage (/) → DashboardPage (/dashboard) → ReportsPage (/reports)`
 
 **DB設計:**
 ```sql
--- Migration
 profiles                   -- ユーザープロフィール（実装済み）
 user_usage_stats           -- 使用統計（実装済み）
 metrics                    -- メトリクス（新規）
@@ -2705,49 +1446,16 @@ reports                    -- レポート（新規）
 ```
 
 **実装レイヤー:**
-```javascript
-// Models
-UserProfile.js             // 実装済み
-UserUsageStats.js          // 新規作成
-Metric.js                  // 新規作成
+- Models: UserProfile.js (実装済み), UserUsageStats.js, Metric.js (新規)
+- Repositories: UserUsageStatsRepository.js (実装済み), MetricRepository.js (新規)
+- Services: EdgeFunctionService.js (実装済み)
+- Hooks: useMetrics.js (新規)
+- Components: AuthGuard (実装済み), MetricsCard, ChartCard, StatsOverview (新規)
+- UI Components: card.jsx, chart.jsx (Recharts統合), table.jsx, badge.jsx
 
-// Repositories
-UserUsageStatsRepository.js  // 実装済み
-MetricRepository.js          // 新規作成
+**Edge Functions:** generate-report (新規作成)
 
-// Services
-EdgeFunctionService.js     // 実装済み
-
-// Hooks
-useMetrics.js              // 新規作成
-
-// Components
-components/auth/AuthGuard.jsx                  // 実装済み
-components/features/dashboard/MetricsCard.jsx  // 新規
-components/features/dashboard/ChartCard.jsx    // 新規
-components/features/dashboard/StatsOverview.jsx // 新規
-
-// UI Components (shadcn/ui)
-components/ui/card.jsx
-components/ui/chart.jsx    // 実装済み（Recharts統合）
-components/ui/table.jsx
-components/ui/badge.jsx
-```
-
-**Edge Functions:**
-```
-generate-report            // 新規作成
-```
-
-**実装フロー:**
-1. Migration作成（metrics, reports）
-2. Model作成（UserUsageStats, Metric）
-3. Repository作成（MetricRepository）
-4. Edge Function作成（generate-report）
-5. Custom Hook作成（useMetrics）
-6. Feature Components作成（MetricsCard, ChartCard, StatsOverview）
-7. Pages作成（DashboardPage, ReportsPage）
-8. Routing設定（App.jsx）
+**実装フロー:** Migration → Model → Repository → Edge Function → Hook → Components → Pages → Routing
 
 ---
 
@@ -2770,7 +1478,6 @@ generate-report            // 新規作成
    - ビジネスロジックはすべてHooksに集約
 
 ---
-
 ## 9. トラブルシューティング
 
 ### 環境が動かない時のチェックリスト
@@ -2794,10 +1501,7 @@ generate-report            // 新規作成
 
 4. **環境変数の確認:**
    ```bash
-   # Frontend
    cat packages/app-frontend/.env
-
-   # Backend
    cat packages/app-backend/.env
    ```
 
@@ -2811,11 +1515,6 @@ generate-report            // 新規作成
 
 実装中に発生しやすい問題と解決方法を記載します。
 
-**このセクションの使い方:**
-- 実装中にエラーが発生したら、該当するケースを探す
-- 診断方法に従って原因を特定
-- 解決方法を適用
-
 #### ケース1: Edge Function が 500 エラー
 
 **症状:**
@@ -2824,10 +1523,7 @@ generate-report            // 新規作成
 
 **診断方法:**
 ```bash
-# リアルタイムログ確認
 npx supabase functions logs ai-chat --tail
-
-# 特定のFunctionのログ
 npx supabase functions logs generate-image --tail
 ```
 
@@ -2835,40 +1531,24 @@ npx supabase functions logs generate-image --tail
 
 1. **Secrets未設定**
    ```bash
-   # Secrets一覧確認
    npx supabase secrets list
-
-   # 不足しているSecret設定
    npx supabase secrets set OPENAI_API_KEY=sk-...
-   npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
    ```
 
 2. **CORS設定漏れ**
    - 統一ハンドラー（createAkatsukiHandler, createSystemHandler）を使用していれば自動対応済み
-   - 手動でFetch APIを使っている場合は、Response headerにCORS設定を追加
 
 3. **認証エラー**
    ```typescript
-   // ✅ 認証必須APIの場合
    createAkatsukiHandler(req, {
      requireAuth: true,  // ← これを忘れずに
-     logic: async ({ userClient, adminClient, repos }) => { ... }
    })
    ```
 
 4. **入力バリデーションエラー**
    ```typescript
-   // Zodスキーマで型チェック
-   import { z } from 'zod'
-
-   const InputSchema = z.object({
-     prompt: z.string().min(1),
-     model: z.string().optional(),
-   })
-
    createAkatsukiHandler<Input, Output>(req, {
      inputSchema: InputSchema,  // ← バリデーション自動実行
-     // ...
    })
    ```
 
@@ -2882,10 +1562,7 @@ npx supabase functions logs generate-image --tail
 
 **診断方法:**
 ```sql
--- RLS Policy確認（Supabase Dashboard → Database → Policies）
 SELECT * FROM pg_policies WHERE tablename = 'profiles';
-
--- 現在の認証状態確認
 SELECT auth.uid();  -- null の場合は未ログイン
 ```
 
@@ -2893,30 +1570,12 @@ SELECT auth.uid();  -- null の場合は未ログイン
 
 1. **Policy未作成**
    ```sql
-   -- Migration で必ず RLS Policy を作成
    CREATE POLICY "Users can read own profile"
      ON profiles FOR SELECT
      USING (auth.uid() = user_id);
-
-   CREATE POLICY "Users can update own profile"
-     ON profiles FOR UPDATE
-     USING (auth.uid() = user_id);
    ```
 
-2. **auth.uid() が null**
-   ```javascript
-   // フロントエンド: ログイン状態確認
-   const { user } = useAuth()
-   if (!user) {
-     // ログインページへリダイレクト
-   }
-
-   // Edge Function: 認証確認
-   const { data: { user }, error } = await userClient.auth.getUser()
-   if (error || !user) {
-     throw new Error('Unauthorized')
-   }
-   ```
+2. **auth.uid() が null** - ログイン状態確認、認証チェック
 
 3. **adminClient 使うべき箇所で userClient を使用**
    ```typescript
@@ -2927,13 +1586,6 @@ SELECT auth.uid();  -- null の場合は未ログイン
    await repos.userQuota.incrementUsage(quotaId)
    ```
 
-4. **外部キー制約エラー**
-   ```sql
-   -- profiles.user_id が auth.users に存在しない場合
-   -- Trigger が正しく動作しているか確認
-   SELECT * FROM auth.users WHERE id = 'ユーザーID';
-   ```
-
 ---
 
 #### ケース3: Repository/Model で型エラー
@@ -2942,36 +1594,16 @@ SELECT auth.uid();  -- null の場合は未ログイン
 - `UserProfile.fromDatabase is not a function`
 - `Cannot read property 'toDatabase' of undefined`
 
-**診断方法:**
-```javascript
-// Model実装確認
-console.log(UserProfile.fromDatabase)  // undefined の場合は未実装
-```
-
 **よくある原因と解決:**
 
 1. **fromDatabase() の実装漏れ**
    ```javascript
-   // ❌ 悪い例: static method 未実装
+   // ✅ 必ず fromDatabase() と toDatabase() を実装
    class UserProfile {
-     constructor(data) {
-       this.userId = data.userId
-       // ...
-     }
-   }
-
-   // ✅ 良い例: fromDatabase() を必ず実装
-   class UserProfile {
-     constructor(data) {
-       this.userId = data.userId
-       // ...
-     }
-
      static fromDatabase(data) {
        return new UserProfile({
          userId: data.user_id,       // snake_case → camelCase
          username: data.username,
-         displayName: data.display_name,
        })
      }
 
@@ -2979,7 +1611,6 @@ console.log(UserProfile.fromDatabase)  // undefined の場合は未実装
        return {
          user_id: this.userId,       // camelCase → snake_case
          username: this.username,
-         display_name: this.displayName,
        }
      }
    }
@@ -2988,34 +1619,14 @@ console.log(UserProfile.fromDatabase)  // undefined の場合は未実装
 2. **Repository で Model を使わずに直接返す**
    ```javascript
    // ❌ 悪い例: DBレコードを直接返す
-   static async findByUserId(userId) {
-     const { data } = await supabase
-       .from('profiles')
-       .select('*')
-       .eq('user_id', userId)
-       .single()
-
-     return data  // ❌ snake_case のまま
-   }
+   return data  // snake_case のまま
 
    // ✅ 良い例: Model 経由で変換
-   static async findByUserId(userId) {
-     const { data } = await supabase
-       .from('profiles')
-       .select('*')
-       .eq('user_id', userId)
-       .single()
-
-     return UserProfile.fromDatabase(data)  // ✅ camelCase に変換
-   }
+   return UserProfile.fromDatabase(data)
    ```
 
 3. **import 漏れ**
    ```javascript
-   // ✅ 必ず Model を import
-   import { UserProfile } from '../models'
-
-   // または
    import { UserProfile } from '../models/UserProfile'
    ```
 
@@ -3024,15 +1635,12 @@ console.log(UserProfile.fromDatabase)  // undefined の場合は未実装
 #### ケース4: Migration適用できない
 
 **症状:**
-- `akatsuki db push` がエラー
+- `npm run supabase:push` がエラー
 - `duplicate key value violates unique constraint`
 
 **診断方法:**
 ```bash
-# Migration履歴確認
 npx supabase migration list
-
-# 適用済みMigration確認（Supabase Dashboard → Database → Migrations）
 ```
 
 **よくある原因と解決:**
@@ -3046,22 +1654,9 @@ npx supabase migration list
    ALTER TABLE profiles ADD COLUMN role TEXT NOT NULL DEFAULT 'user';
    ```
 
-2. **Migration順序の問題**
-   ```bash
-   # Migration ファイル名のタイムスタンプを確認
-   ls supabase/migrations/
+2. **Migration順序の問題** - タイムスタンプ確認
 
-   # 20251029_*.sql の順序が正しいか確認
-   ```
-
-3. **手動でDBを変更してしまった**
-   ```bash
-   # Supabase Dashboard で直接テーブルを変更した場合、
-   # Migration との不整合が発生する
-
-   # 解決: Migration に反映
-   akatsuki db migration-new fix_manual_changes
-   ```
+3. **手動でDBを変更してしまった** - Migration に反映
 
 ---
 
@@ -3069,44 +1664,16 @@ npx supabase migration list
 
 **症状:**
 - Edge Functionは成功しているのに、サービス層で「データがない」エラー
-- `data` と `error` の扱いを間違えている
 - `No image data returned` などのエラーメッセージ
 
 **診断方法:**
 ```javascript
-// サービス層でレスポンスをログ出力
 const { data, error } = await EdgeFunctionService.invoke('generate-image', {...})
 console.log('[Debug] EdgeFunctionService response:', { data, error })
 ```
 
 **原因:**
-`EdgeFunctionService.invoke()` は **`{ data, error }` 形式** を返します。AkatsukiResponse形式の `{ success, result, error }` を `{ data, error }` 形式に変換しています。
-
-```javascript
-// Edge Function が返すレスポンス (AkatsukiResponse)
-{
-  success: true,
-  result: {
-    image_data: "base64...",
-    mime_type: "image/png"
-  }
-}
-
-// EdgeFunctionService.invoke() が返す値 ({ data, error } 形式)
-{
-  data: {
-    image_data: "base64...",
-    mime_type: "image/png"
-  },
-  error: null
-}
-
-// エラー時
-{
-  data: null,
-  error: Error("エラーメッセージ")
-}
-```
+`EdgeFunctionService.invoke()` は **`{ data, error }` 形式** を返します。
 
 **解決方法:**
 
@@ -3120,14 +1687,13 @@ if (!result.image_data) {  // ← result.data.image_data が正しい
 // ✅ 良い例: { data, error } 形式で分割代入
 const { data, error } = await EdgeFunctionService.invoke('generate-image', {...})
 if (error) {
-  return { data: null, error }  // エラーをそのまま返す
+  return { data: null, error }
 }
 
 if (!data || !data.image_data) {
   return { data: null, error: new Error('No image data returned') }
 }
 
-// data を使用
 console.log(data.image_data)
 ```
 
@@ -3137,28 +1703,22 @@ console.log(data.image_data)
 - 呼び出し側で必ず `error` チェックを行う
 - React Query との相性が良い設計
 
-**関連ファイル:**
-- `src/services/EdgeFunctionService.js:25-94` - `{ data, error }` 形式への変換ロジック
-- `src/services/ImageGenerationService.js:43-189` - Service の実装例
-
 ---
 
 #### Akatsuki固有のベストプラクティス
 
 **統一ハンドラーパターン（最重要）:**
 ```typescript
-// ✅ 必ず createAkatsukiHandler または createSystemHandler を使用
 import { createAkatsukiHandler } from '../_shared/handler.ts'
 
 Deno.serve(async (req) => {
   return createAkatsukiHandler(req, {
-    requireAuth: true,  // 認証必須
-    inputSchema: InputSchema,  // Zodバリデーション
+    requireAuth: true,
+    inputSchema: InputSchema,
     logic: async ({ userClient, adminClient, repos }) => {
       // userClient: RLS有効
       // adminClient: RLSバイパス（Usage等の改ざん防止）
       // repos: Repository集約（adminClient経由）
-
       return { result: 'success' }
     }
   })
@@ -3168,25 +1728,15 @@ Deno.serve(async (req) => {
 **Repository/Model パターン（必須）:**
 ```javascript
 // ✅ 必ず Model 経由でDB変換
-// 1. Repository でデータ取得
 const data = await UserProfileRepository.findByUserId(userId)
-
-// 2. Model で変換（自動実行）
 const profile = UserProfile.fromDatabase(data)  // snake_case → camelCase
-
-// 3. 更新時も Model 経由
 await UserProfileRepository.update(userId, profile.toDatabase())
 ```
 
 **RLS設計を最初から（重要）:**
 ```sql
--- Migration作成時に必ず Policy も作成
 CREATE TABLE profiles (...);
-
--- RLS有効化
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
--- Policy作成（同時に）
 CREATE POLICY "Users can read own profile"
   ON profiles FOR SELECT
   USING (auth.uid() = user_id);
@@ -3194,16 +1744,11 @@ CREATE POLICY "Users can read own profile"
 
 **Edge Functions ログ確認（トラブル時必須）:**
 ```bash
-# リアルタイムログ確認
 npx supabase functions logs ai-chat --tail
-npx supabase functions logs generate-image --tail
-
-# Secrets確認
 npx supabase secrets list
 ```
 
 ---
-
 ## 10. さらに詳しく
 
 - **クイックスタート:** `README.md`
@@ -3220,29 +1765,20 @@ npx supabase secrets list
 
 1. **ai-chat** - マルチプロバイダーLLM API
    - Providers: OpenAI, Anthropic (Claude), Google (Gemini)
-   - Default models:
-     - OpenAI: `gpt-4o-mini`
-     - Anthropic: `claude-sonnet-4-5-20250929`
-     - Gemini: `gemini-2.5-flash`
+   - Default models: `gpt-4o-mini`, `claude-sonnet-4-5-20250929`, `gemini-2.5-flash`
 
 2. **upload-file** - ファイルアップロード
-   - Public/Private バケット対応
-   - 最大サイズ: 10MB
+   - Public/Private バケット対応、最大サイズ: 10MB
 
-3. **create-signed-url** - Signed URL 生成
-   - プライベートファイル用
+3. **create-signed-url** - Signed URL 生成（プライベートファイル用）
 
 ### Storage Buckets
 
 1. **uploads** (Public)
-   - 公開ファイル用
-   - RLS: ユーザーは自分のフォルダにアップロード可能
-   - 誰でも読み取り可能
+   - 公開ファイル用、RLS: ユーザーは自分のフォルダにアップロード可能、誰でも読み取り可能
 
 2. **private_uploads** (Private)
-   - プライベートファイル用
-   - RLS: ユーザーは自分のファイルのみアクセス可能
-   - Signed URL必須
+   - プライベートファイル用、RLS: ユーザーは自分のファイルのみアクセス可能、Signed URL必須
 
 ### Required Secrets
 
@@ -3269,12 +1805,13 @@ npx supabase secrets set --env-file .env.secrets
 npx supabase secrets set OPENAI_API_KEY=sk-...
 npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 npx supabase secrets set GEMINI_API_KEY=AIza...
+
 # WebSearch 向け Option
 npx supabase secrets set TAVILY_API_KEY=tvly-...
+
 # ComfyUI (RunPod) 向け Option
 npx supabase secrets set RUNPOD_ENDPOINT=https://your-pod-id.proxy.runpod.net
 npx supabase secrets set RUNPOD_API_KEY=your-runpod-auth-token
-
 
 # 確認
 npx supabase secrets list
@@ -3287,7 +1824,6 @@ npx supabase secrets list
 - **profiles**: ユーザープロフィール情報
 - **system_events**: イベントキュー（非同期ジョブ処理）
 - **event_handlers**: イベントハンドラー設定
-
 
 ### Event System (イベント駆動アーキテクチャ)
 
@@ -3358,42 +1894,9 @@ Realtime → Frontend (useJob Hook)
 JobProgress Component (UI表示)
 ```
 
-**使用例（Backend - 新しいジョブハンドラー追加）:**
-```typescript
-// supabase/functions/execute-async-job/handlers.ts
-export const jobHandlers: Record<string, JobHandler> = {
-  'generate-report': async (params, context) => {
-    const { reportType, startDate, endDate } = params
-
-    // Step 1: 初期化 (20%)
-    await context.updateProgress(20)
-    console.log(`Generating ${reportType} report`)
-
-    // Step 2: データ取得 (60%)
-    const data = await fetchReportData(startDate, endDate)
-    await context.updateProgress(60)
-
-    // Step 3: 処理 (90%)
-    const result = await processData(data)
-    await context.updateProgress(90)
-
-    // Step 4: 結果返却（100%は自動設定）
-    return {
-      records: result.length,
-      revenue: result.totalRevenue,
-      generatedAt: new Date().toISOString()
-    }
-  }
-}
-```
-
-**使用例（Frontend - ジョブ起動と監視）:**
+**使用例:**
 ```javascript
-import { EventService } from './services/EventService'
-import { useJob } from './hooks/useJob'
-import { JobProgress } from './components/common/JobProgress'
-
-// ジョブ起動
+// Frontend: ジョブ起動
 const event = await EventService.emit('job:generate-report', {
   reportType: 'sales',
   startDate: '2025-01-01',
@@ -3404,38 +1907,19 @@ const event = await EventService.emit('job:generate-report', {
 const { progress, isCompleted, result } = useJob(event.id, {
   onComplete: (result) => {
     toast.success('レポート生成完了！')
-    console.log(result)
   }
 })
 
 // UI表示
-<JobProgress
-  jobId={event.id}
-  title="Sales Report"
-  renderResult={(result) => (
-    <div>
-      <p>Records: {result.records}</p>
-      <p>Revenue: ${result.revenue}</p>
-    </div>
-  )}
-/>
+<JobProgress jobId={event.id} title="Sales Report" />
 ```
 
 **実装済みジョブタイプ:**
 - `job:generate-report` - レポート生成（サンプル実装）
 
-**データベーススキーマ拡張:**
-```sql
--- system_events テーブルに追加されたカラム
-ALTER TABLE system_events
-  ADD COLUMN progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100);
-  ADD COLUMN result JSONB;
-  ADD COLUMN processing_started_at TIMESTAMPTZ;
-```
-
 **デモ:** `/examples` ページで動作確認可能
 
-詳細は `docs/design/async_job_system.md` を参照してください。
+詳細な実装例は `docs/design/async_job_system.md` および `supabase/functions/execute-async-job/handlers.ts` を参照してください。
 
 ### RLS ベストプラクティス
 
@@ -3460,20 +1944,8 @@ CREATE POLICY "Admin only"
 - `SELECT` でラップすることで安全に実行可能
 - `= true` で明示的にboolean比較
 
-**is_admin() 実装:**
-```sql
-CREATE OR REPLACE FUNCTION is_admin()
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN (
-    SELECT COALESCE(
-      (auth.jwt() -> 'app_metadata' -> 'role')::text = '"admin"',
-      false
-    )
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
+**is_admin() 実装例:**
+(詳細は Migration ファイルを参照)
 
 **重要:**
 - `raw_app_meta_data` を使用（ユーザーが変更不可）
@@ -3497,7 +1969,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 詳細は `docs/setup.md` の「4.6. Supabase Realtime 設定」を参照してください。
 
 ---
-
 ## 11. LLM Function Calling System
 
 Akatsukiは、LLMが自律的にシステム機能を呼び出せる**Function Call System**を標準搭載しています。
@@ -3587,32 +2058,12 @@ const { data } = await AIService.chat({
 
 **3. 実行ロジックを実装（Job Handler）**
 
-```typescript
-// supabase/functions/execute-async-job/handlers.ts
-export const jobHandlers: Record<string, JobHandler> = {
-  'send_webhook': async (params, context) => {
-    // Webhookを実際に送信
-    const response = await fetch(params.url, {
-      method: params.method || 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params.body),
-    })
-
-    return {
-      success: response.ok,
-      result: { status: response.status },
-    }
-  },
-}
-```
+(実装例は `supabase/functions/execute-async-job/handlers.ts` を参照)
 
 **4. 実行ログを確認**
 
 `/admin/function-calls` にアクセス:
-- 成功/失敗
-- 引数・結果
-- 実行時間
-- LLM呼び出しとの紐付け
+- 成功/失敗、引数・結果、実行時間、LLM呼び出しとの紐付け
 
 ### 11.5. サンプル関数（Seed済み）
 
@@ -3636,17 +2087,7 @@ Akatsukiには5つのサンプルFunction定義が含まれています：
 2. Job Handlerに実行ロジックを実装
 3. デプロイ
 
-```typescript
-// supabase/functions/execute-async-job/handlers.ts に追加
-export const jobHandlers: Record<string, JobHandler> = {
-  // 既存...
-
-  'my_custom_function': async (params, context) => {
-    // 独自処理を実装
-    return { success: true, result: { ... } }
-  },
-}
-```
+(詳細な実装例は `supabase/functions/execute-async-job/handlers.ts` を参照)
 
 ### 11.7. ユースケース例
 
@@ -3685,19 +2126,12 @@ export const jobHandlers: Record<string, JobHandler> = {
 ### 11.9. 管理画面
 
 **Function定義管理:** `/admin/function-definitions`
-- Function一覧・作成・編集・削除
-- JSON Schema編集
-- 有効/無効切り替え
-- Global/User切り替え
+- Function一覧・作成・編集・削除、JSON Schema編集、有効/無効切り替え、Global/User切り替え
 
 **実行ログ閲覧:** `/admin/function-calls`
-- 実行履歴一覧
-- フィルター（Function名、ステータス）
-- 詳細表示（引数、結果、エラー）
-- 統計情報
+- 実行履歴一覧、フィルター（Function名、ステータス）、詳細表示（引数、結果、エラー）、統計情報
 
 ---
-
 ## 12. RAG File Search System（知識ベース統合）
 
 ### 12.1. 概要
@@ -3833,42 +2267,15 @@ File Search機能はai-chatに統合されています：
 
 **Step 2: Factory登録**
 
-`rag-provider-factory.ts` に追加：
-
-```typescript
-import { NewProviderRAGClient } from './new-provider-rag-client.ts'
-
-export type RAGProviderType = 'gemini' | 'openai' | 'pinecone' | 'new-provider'
-
-export function createRAGProvider(provider: RAGProviderType): RAGProviderInterface {
-  switch (provider) {
-    // ... 既存のcase
-    case 'new-provider': {
-      const apiKey = Deno.env.get('NEW_PROVIDER_API_KEY')
-      if (!apiKey) throw new Error('NEW_PROVIDER_API_KEY not configured')
-      return new NewProviderRAGClient(apiKey)
-    }
-  }
-}
-```
+`rag-provider-factory.ts` に追加（詳細は実装を参照）
 
 **Step 3: Migration更新**
 
-`file_search_stores` のCHECK制約を更新：
-
+`file_search_stores` のCHECK制約を更新
 
 **Step 4: Frontend型更新**
 
-`FileSearchService.ts` の型定義を更新：
-
-```typescript
-export type FileSearchProvider = 
-  | 'gemini' 
-  | 'openai' 
-  | 'pinecone' 
-  | 'weaviate'
-  | 'new-provider'
-```
+`FileSearchService.ts` の型定義を更新
 
 ### 12.6. ベストプラクティス
 
@@ -3897,6 +2304,294 @@ export type FileSearchProvider =
 - `docs/design/rag-file-search-architecture.md` - アーキテクチャ全体像
 - `docs/design/rag-provider-abstraction.md` - Provider抽象化パターン
 - `docs/design/rag-2step-upload-flow.md` - 2-step Upload Flow設計
+
+---
+
+## 13. WASM Runtime Component
+
+### 13.1. 概要
+
+**WebAssembly (WASM) Runtime Component** は、ブラウザ上で安全にWASMモジュールを実行・管理するための統合プラットフォームです。
+
+**提供価値:**
+- 🔒 **安全性**: タイムアウト制御、メモリ管理、エラーハンドリング
+- 📦 **モジュール管理**: アップロード、バージョン管理、公開/非公開設定
+- ⚡ **高性能**: モジュールキャッシング、CDN配信（Public）
+- 🎯 **簡単**: React Hooksで即座に利用可能
+
+**使用例:**
+- カスタム計算ロジックの実行
+- ユーザー提供コードのサンドボックス実行
+- 高速な数値計算処理
+- 実行可能なデモ・チュートリアル
+
+### 13.2. アーキテクチャ
+
+**レイヤー構成:**
+```
+UI Layer          → WasmRuntimeCard, WasmModuleUploaderCard
+Hook Layer        → useWasmModule (React Query)
+Service Layer     → WasmRuntimeService (実行エンジン)
+Repository Layer  → WasmModuleRepository, WasmExecutionRepository
+Model Layer       → WasmModule, WasmExecution
+Database          → wasm_modules, wasm_executions (PostgreSQL)
+Storage           → public_assets / private_uploads (Supabase Storage)
+```
+
+**主要コンポーネント:**
+
+1. **WasmRuntimeService** (`services/WasmRuntimeService.ts`)
+   - WASMモジュールのコンパイル・実行
+   - タイムアウト制御 (デフォルト5秒)
+   - メモリ使用量監視
+   - モジュールキャッシング
+   - 関数一覧取得
+
+2. **WasmModuleRepository** (`repositories/WasmModuleRepository.ts`)
+   - モジュールのCRUD操作
+   - 公開/非公開管理
+   - バージョン管理
+   - ユーザーフレンドリーなエラーメッセージ
+
+3. **useWasmModule Hook** (`hooks/useWasmModule.ts`)
+   - React Query統合
+   - モジュール一覧取得
+   - WASM関数実行
+   - モジュール削除
+
+### 13.3. データベーススキーマ
+
+**wasm_modules テーブル:**
+
+* wasm_modules
+* wasm_executions
+
+### 13.4. Storage設定
+
+**Public Storage (public_assets):**
+- CDN配信可能
+- 永続的な公開URL
+- デモ・OSS向け
+- 50MB上限
+- `allowed_mime_types`: `['application/wasm', ...]`
+
+**Private Storage (private_uploads):**
+- 署名付きURLのみアクセス可能
+- RLSで権限管理
+- 機密コード向け
+- 50MB上限
+- `allowed_mime_types`: `['application/wasm', ...]`
+
+### 13.5. 使用方法
+
+**アップロード UI:**
+- `ExamplesPage` に `WasmModuleUploaderCard` が実装済み
+- 公開/非公開選択
+- 自動的な関数検出
+- バージョン管理
+- エラーメッセージ（重複検出など）
+
+### 13.6. セキュリティ
+
+**RLS Policies:**
+- ✅ ユーザーは自分のモジュールのみ管理可能
+- ✅ 公開モジュールは誰でも読み取り可能
+- ✅ 実行履歴は所有者のみアクセス可能
+
+**実行時保護:**
+- ✅ タイムアウト制御（無限ループ防止）
+- ✅ メモリ使用量監視
+- ✅ サンドボックス実行（ブラウザWASM環境）
+
+### 13.7. ベストプラクティス
+
+**モジュール作成:**
+- ✅ `-C link-arg=-s` フラグでバイナリサイズ削減
+- ✅ 単純な計算ロジックから始める
+- ✅ 関数名は明確に（`add`, `calculate`, etc.）
+
+**設計ドキュメント:**
+- `docs/design/wasm-runtime-design.md`
+- `docs/design/wasm-edge-integration.md`
+
+### 13.8. Edge Function統合（推奨）
+
+**2025-11実装:** WASM Edge Function統合により、ブラウザ実行とサーバーサイド実行の両方をサポート。
+
+**なぜEdge Function？**
+- ✅ **シンプル**: Shuttleより設定が簡単（`wasm-executor` Edge Function 1つ）
+- ✅ **高速デプロイ**: `akatsuki function deploy` で即座にデプロイ（Dockerレス）
+- ✅ **管理が楽**: Supabase ダッシュボードで一元管理
+- ✅ **自動スケール**: Supabase Edge Runtime の恩恵
+- ✅ **Storage統合**: WASM バイナリを Storage から動的ロード + LRU キャッシュ
+
+**Shuttleとの比較:**
+| 項目 | Edge Function | Shuttle |
+|------|---------------|---------|
+| デプロイ速度 | ⚡ 即座（1-2秒） | 🐢 遅い（ビルド数分） |
+| 設定 | シンプル（Edge Function 1つ） | 複雑（Cargo.toml、プロジェクト構成） |
+| 管理 | Supabase ダッシュボード | 別サービス |
+| WASM動的ロード | ✅ Storage + キャッシュ | ❌ 静的埋め込み |
+| スケーリング | 自動 | 手動設定必要 |
+
+**推奨:** カスタムロジック実行には WASM Edge Function を優先。Shuttleは重い処理や外部API統合が必要な場合のみ。
+
+**owner_type分類:**
+```typescript
+type OwnerType = 'system' | 'admin' | 'user'
+
+// system: 全ユーザーが実行可能（公式モジュール）
+// admin:  管理者のみ実行可能（管理ツール）
+// user:   個人モジュール（Public/Private選択可）
+```
+
+**Admin UI:**
+- `/admin/wasm` - System/Admin/User タブでモジュール管理
+- アップロード、テスト実行、削除
+- Edge Function 実行結果表示（実行時間、メモリ、キャッシュヒット）
+
+**Hook拡張:**
+```typescript
+const {
+  systemModules,      // システムモジュール一覧
+  adminModules,       // 管理者モジュール一覧
+  executeOnEdge,      // Edge Function で実行
+  executeOnEdgeAsync, // Async版
+} = useWasmModule()
+```
+
+**サンプルモジュール:**
+`wasm-modules/sample-module` に5つのテスト関数を実装済み（75KB）：
+- `rgb_to_grayscale`, `sum_array`, `multiply_array`, `process_json`, `memory_test`
+
+---
+
+## HEADLESS API Generator（フルスタックCRUD自動生成）
+
+YAMLスキーマから、Backend（Migration + Edge Function）〜 Frontend（Model + Service + Hook + UI）まで一括生成する最速開発ツール。
+
+**生成されるファイル:**
+```
+Backend (Supabase):
+├── supabase/migrations/YYYYMMDD_create_{table}_table.sql  # Migration + RLS + Indexes
+├── supabase/functions/{table}-crud/index.ts               # Edge Function (createAkatsukiHandler)
+├── supabase/functions/{table}-crud/schema.ts              # Zod Validation Schema
+└── supabase/functions/_shared/repositories/{Entity}Repository.ts
+
+Frontend (React):
+├── src/models/{Entity}.ts              # Model (fromDatabase/toDatabase)
+├── src/services/{Entity}Service.ts     # Service (EdgeFunctionService wrapper)
+├── src/hooks/use{Entity}s.ts           # React Query Hook (CRUD + mutations)
+├── src/pages/admin/entities/{Entity}AdminPage.tsx    # Admin管理画面
+└── src/components/features/{table}/{Entity}sDemo.tsx # Demo Card
+
+CLI:
+└── packages/app-cli/clients/{Entity}sClient.js  # Node.js CLIクライアント
+```
+
+**使用例:**
+```bash
+# 1. スキーマファイル作成 (docs/templates/article-schema-example.yaml 参照)
+# 2. コード生成
+akatsuki api new Article --schema article-schema.yaml
+
+# 3. 生成後のNext steps:
+akatsuki db push                           # Migration適用
+akatsuki function deploy articles-crud     # Edge Function デプロイ
+# App.tsx に Route 追加、ExamplesPage に Demo 追加
+```
+
+**スキーマ例 (YAML):**
+```yaml
+name: Article
+tableName: articles
+
+fields:
+  - name: id
+    type: uuid
+    primaryKey: true
+    default: gen_random_uuid()
+  - name: userId
+    type: uuid
+    references: auth.users(id)
+    onDelete: CASCADE
+  - name: title
+    type: string
+    required: true
+  - name: status
+    type: enum
+    enumValues: [draft, published]
+    default: draft
+
+operations:
+  - type: list
+  - type: get
+  - type: create
+  - type: update
+  - type: delete
+
+rls:
+  - action: SELECT
+    using: "auth.uid() = user_id"
+  - action: INSERT
+    withCheck: "auth.uid() = user_id"
+```
+
+**機能:**
+- ✅ Full CRUD (Create, Read, Update, Delete)
+- ✅ RLS Policy自動生成
+- ✅ Enum型サポート（Toggle操作自動生成）
+- ✅ React Query統合（キャッシュ・楽観的更新）
+- ✅ Zod Validation
+- ✅ Admin Page（Dummy Data生成ボタン付き）
+- ✅ Demo Component（ExamplesPage用カード）
+
+---
+
+## Public API Gateway（外部API公開）
+
+HEADLESS APIを外部サービス・モバイルアプリ向けに公開するためのAPI Key認証Gateway。
+
+**アーキテクチャ:**
+```
+External Client (X-API-Key header)
+    │
+    ▼
+┌─────────────────────────────┐
+│  api-gateway (Edge Func)    │
+│  • API Key検証 (SHA-256)    │
+│  • Rate Limit (分/日)       │
+│  • Permission Check         │
+└─────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────┐
+│  {entity}-crud (Edge Func)  │
+└─────────────────────────────┘
+```
+
+**使用例:**
+```bash
+# API Key管理: /admin/api-keys
+
+# List
+curl -X GET ".../api-gateway/articles/list" \
+  -H "X-API-Key: ak_xxxxxx_..."
+
+# Create
+curl -X POST ".../api-gateway/articles/create" \
+  -H "X-API-Key: ak_xxxxxx_..." \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Hello"}'
+```
+
+**機能:**
+- ✅ API Key発行・管理（Admin画面: `/admin/api-keys`）
+- ✅ SHA-256ハッシュ認証（フルキーは発行時のみ表示）
+- ✅ Rate Limiting（分単位・日単位）
+- ✅ 操作権限設定（list/get/create/update/delete）
+- ✅ 即時停止（isActive toggle）
+- ✅ 使用統計・最終使用日時
 
 ---
 

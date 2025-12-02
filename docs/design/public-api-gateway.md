@@ -525,7 +525,7 @@ curl -X POST "https://xxx.supabase.co/functions/v1/api-gateway/articles/create" 
 3. **ApiKey Model/Service/Hook** - Frontend層
 4. **Admin UI** - 管理画面
 5. **HEADLESS Generator拡張** - `--public` オプション
-6. **ドキュメント** - 使用例、AGENT-mini.md更新
+6. **ドキュメント** - 使用例、AGENT.md更新
 
 ---
 
